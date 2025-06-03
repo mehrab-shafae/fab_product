@@ -1,0 +1,11 @@
+{
+  "name": "asproduct",
+  "version": "1.0.0",
+  "description": "as product manager service",
+  "license": "ISC",
+  "author": "MRB",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+  }
+}
