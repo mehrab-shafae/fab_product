@@ -19,7 +19,6 @@ const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 /*
 const ELASTICSEARCH_URI = process.env.ELASTICSEARCH_URI || 'https://localhost:9200';
 
-
 const elasticClient = new Client({
     node: ELASTICSEARCH_URI,
     tls: {
