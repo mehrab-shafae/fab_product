@@ -1346,6 +1346,12 @@ function createDatabaseSchema() {
         -- Install required extensions
         CREATE EXTENSION IF NOT EXISTS pg_trgm;
         
+        -- Drop existing triggers if they exist
+        DROP TRIGGER IF EXISTS refresh_product_stats_trigger ON products;
+        DROP TRIGGER IF EXISTS refresh_product_stats_comments_trigger ON product_comments;
+        DROP TRIGGER IF EXISTS refresh_product_stats_tags_trigger ON product_tags;
+        DROP TRIGGER IF EXISTS refresh_product_stats_chats_trigger ON product_chats;
+        
         CREATE TABLE IF NOT EXISTS categories (
             id SERIAL PRIMARY KEY,
             name VARCHAR(255) NOT NULL,
