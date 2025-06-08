@@ -53,7 +53,10 @@ const limiter = rateLimit({
 const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000, // 15 minutes
     delayAfter: 50, // Allow 50 requests per 15 minutes, then...
-    delayMs: 500 // Begin adding 500ms of delay per request above 50
+    delayMs: (used, req) => {
+        const delayAfter = req.slowDown.limit;
+        return (used - delayAfter) * 500;
+    }
 });
 
 // Elasticsearch index configuration
@@ -232,28 +235,30 @@ const speedLimiter = slowDown({
 // }
 
 // Cache middleware
-async function cacheMiddleware(duration) {
-    return async function(req, res, next) {
+function cacheMiddleware(duration) {
+    return function(req, res, next) {
         if (req.method !== 'GET') {
             return next();
         }
 
         const key = `cache:${req.originalUrl}`;
-        try {
-            const cachedResponse = await redisClient.get(key);
-            if (cachedResponse) {
-                return res.json(JSON.parse(cachedResponse));
-            }
-            res.sendResponse = res.json;
-            res.json = function(body) {
-                redisClient.setEx(key, duration, JSON.stringify(body));
-                res.sendResponse(body);
-            };
-            next();
-        } catch (error) {
-            console.error('Cache error:', error);
-            next();
-        }
+        redisClient.get(key)
+            .then(cachedResponse => {
+                if (cachedResponse) {
+                    return res.json(JSON.parse(cachedResponse));
+                }
+                res.sendResponse = res.json;
+                res.json = function(body) {
+                    redisClient.setEx(key, duration, JSON.stringify(body))
+                        .catch(error => console.error('Cache error:', error));
+                    res.sendResponse(body);
+                };
+                next();
+            })
+            .catch(error => {
+                console.error('Cache error:', error);
+                next();
+            });
     };
 }
 
@@ -445,16 +450,15 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:id', cacheMiddleware(300), async function(req, res) {
-        try {
-            const result = await getProductById(req.params.id);
-            if (result.rows.length === 0) {
-                return res.status(404).json({ error: 'Product not found' });
-            }
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/products/:id', cacheMiddleware(300), function(req, res) {
+        getProductById(req.params.id)
+            .then(result => {
+                if (result.rows.length === 0) {
+                    return res.status(404).json({ error: 'Product not found' });
+                }
+                res.json(result.rows[0]);
+            })
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 
     /**
@@ -492,13 +496,10 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products', cacheMiddleware(300), async function(req, res) {
-        try {
-            const result = await searchProducts(req.query);
-            res.json(result.rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/products', cacheMiddleware(300), function(req, res) {
+        searchProducts(req.query)
+            .then(result => res.json(result.rows))
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 
     /**
@@ -558,13 +559,10 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/categories/tree', cacheMiddleware(600), async function(req, res) {
-        try {
-            const result = await getCategoryTree();
-            res.json(result.rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/categories/tree', cacheMiddleware(600), function(req, res) {
+        getCategoryTree()
+            .then(result => res.json(result.rows))
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 
     /**
@@ -641,13 +639,10 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/comments', cacheMiddleware(300), async function(req, res) {
-        try {
-            const result = await getProductComments(req.params.productId);
-            res.json(result.rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/products/:productId/comments', cacheMiddleware(300), function(req, res) {
+        getProductComments(req.params.productId)
+            .then(result => res.json(result.rows))
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 
     /**
@@ -719,13 +714,10 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/tags/:tagName', cacheMiddleware(300), async function(req, res) {
-        try {
-            const result = await getProductsByTag(req.params.tagName);
-            res.json(result.rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
+    app.get('/products/tags/:tagName', cacheMiddleware(300), function(req, res) {
+        getProductsByTag(req.params.tagName)
+            .then(result => res.json(result.rows))
+            .catch(error => res.status(500).json({ error: error.message }));
     });
 
     /**
@@ -761,14 +753,15 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/search/document', cacheMiddleware(300), async function(req, res) {
+    app.get('/products/search/document', cacheMiddleware(300), function(req, res) {
         try {
             const { q } = req.query;
             if (!q) {
                 return res.status(400).json({ error: 'Search query is required' });
             }
-            const results = await searchProductDocuments(q);
-            res.json(results);
+            searchProductDocuments(q)
+                .then(results => res.json(results))
+                .catch(error => res.status(500).json({ error: error.message }));
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
