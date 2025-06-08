@@ -1323,6 +1323,724 @@ async function init() {
     }
   );
 
+  /**
+   * @swagger
+   * /products/{productId}/variants:
+   *   post:
+   *     summary: Create a new product variant
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - sku
+   *               - name
+   *               - price
+   *             properties:
+   *               sku:
+   *                 type: string
+   *               name:
+   *                 type: string
+   *               price:
+   *                 type: number
+   *               stock_quantity:
+   *                 type: integer
+   *               attributes:
+   *                 type: object
+   *     responses:
+   *       200:
+   *         description: Variant created successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/variants", async function (req, res) {
+    try {
+      const variantData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await createProductVariant(variantData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/variants`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/variants:
+   *   get:
+   *     summary: Get all variants for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of product variants
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/variants",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductVariants(req.params.productId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/images:
+   *   post:
+   *     summary: Add an image to a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - image_url
+   *             properties:
+   *               image_url:
+   *                 type: string
+   *               variant_id:
+   *                 type: integer
+   *               is_primary:
+   *                 type: boolean
+   *               order_index:
+   *                 type: integer
+   *     responses:
+   *       200:
+   *         description: Image added successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/images", async function (req, res) {
+    try {
+      const imageData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await addProductImage(imageData);
+      await invalidateCachePattern(`/products/${req.params.productId}/images`);
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/images:
+   *   get:
+   *     summary: Get all images for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of product images
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/images",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductImages(req.params.productId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/inventory:
+   *   post:
+   *     summary: Update product inventory
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - quantity
+   *             properties:
+   *               variant_id:
+   *                 type: integer
+   *               quantity:
+   *                 type: integer
+   *               reserved_quantity:
+   *                 type: integer
+   *               location:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Inventory updated successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/inventory", async function (req, res) {
+    try {
+      const inventoryData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await updateInventory(inventoryData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/inventory`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/reviews:
+   *   post:
+   *     summary: Add a review to a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - user_id
+   *               - rating
+   *             properties:
+   *               user_id:
+   *                 type: integer
+   *               rating:
+   *                 type: integer
+   *                 minimum: 1
+   *                 maximum: 5
+   *               review_text:
+   *                 type: string
+   *               is_verified:
+   *                 type: boolean
+   *     responses:
+   *       200:
+   *         description: Review added successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/reviews", async function (req, res) {
+    try {
+      const reviewData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await addProductReview(reviewData);
+      await invalidateCachePattern(`/products/${req.params.productId}/reviews`);
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/reviews:
+   *   get:
+   *     summary: Get all reviews for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of product reviews
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/reviews",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductReviews(req.params.productId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /users/{userId}/wishlist:
+   *   post:
+   *     summary: Add a product to user's wishlist
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - product_id
+   *             properties:
+   *               product_id:
+   *                 type: integer
+   *     responses:
+   *       200:
+   *         description: Product added to wishlist
+   *       500:
+   *         description: Server error
+   */
+  app.post("/users/:userId/wishlist", async function (req, res) {
+    try {
+      const wishlistData = {
+        ...req.body,
+        user_id: req.params.userId,
+      };
+      const result = await addToWishlist(wishlistData);
+      await invalidateCachePattern(`/users/${req.params.userId}/wishlist`);
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /users/{userId}/wishlist:
+   *   get:
+   *     summary: Get user's wishlist
+   *     tags: [Users]
+   *     parameters:
+   *       - in: path
+   *         name: userId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of wishlist products
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/users/:userId/wishlist",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getWishlist(req.params.userId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /health:
+   *   get:
+   *     summary: Check system health
+   *     tags: [System]
+   *     responses:
+   *       200:
+   *         description: System health status
+   *         content:
+   *           application/json:
+   *             schema:
+   *               type: object
+   *               properties:
+   *                 status:
+   *                   type: string
+   *                 timestamp:
+   *                   type: string
+   *                   format: date-time
+   *                 services:
+   *                   type: object
+   *                   properties:
+   *                     postgres:
+   *                       type: string
+   *                     redis:
+   *                       type: string
+   *                     mongo:
+   *                       type: string
+   */
+  app.get("/health", function (req, res) {
+    const health = {
+      status: "healthy",
+      timestamp: new Date(),
+      services: {
+        postgres: pgPool ? "connected" : "disconnected",
+        redis: redisClient ? "connected" : "disconnected",
+        mongo: mongoClient ? "connected" : "disconnected",
+      },
+    };
+    res.json(health);
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/attributes:
+   *   post:
+   *     summary: Add an attribute to a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - attribute_id
+   *               - value
+   *             properties:
+   *               attribute_id:
+   *                 type: integer
+   *               value:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Attribute added successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/attributes", async function (req, res) {
+    try {
+      const attributeData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await addProductAttributeValue(attributeData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/attributes`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/attributes:
+   *   get:
+   *     summary: Get all attributes for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of product attributes
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/attributes",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductAttributes(req.params.productId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/price-history:
+   *   get:
+   *     summary: Get price history for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: variant_id
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of price changes
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/price-history",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductPriceHistory(req.params.productId, req.query.variant_id)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/relationships:
+   *   post:
+   *     summary: Add a relationship between products
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - related_product_id
+   *               - relationship_type
+   *             properties:
+   *               related_product_id:
+   *                 type: integer
+   *               relationship_type:
+   *                 type: string
+   *                 enum: [similar, complementary, upgrade, downgrade]
+   *     responses:
+   *       200:
+   *         description: Relationship added successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/relationships", async function (req, res) {
+    try {
+      const relationshipData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await addProductRelationship(relationshipData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/relationships`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/relationships:
+   *   get:
+   *     summary: Get all relationships for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: relationship_type
+   *         schema:
+   *           type: string
+   *           enum: [similar, complementary, upgrade, downgrade]
+   *     responses:
+   *       200:
+   *         description: List of product relationships
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/relationships",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductRelationships(req.params.productId, req.query.relationship_type)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/versions:
+   *   post:
+   *     summary: Create a new version of a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - version_number
+   *               - changes
+   *             properties:
+   *               version_number:
+   *                 type: integer
+   *               changes:
+   *                 type: object
+   *               created_by:
+   *                 type: integer
+   *     responses:
+   *       200:
+   *         description: Version created successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/versions", async function (req, res) {
+    try {
+      const versionData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await createProductVersion(versionData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/versions`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
+   * /products/{productId}/versions:
+   *   get:
+   *     summary: Get version history of a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: List of product versions
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/versions",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductVersions(req.params.productId)
+        .then((result) => res.json(result.rows))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  // Add new functions for the new endpoints
+  function getProductAttributes(product_id) {
+    return pgPool.query(
+      `SELECT pa.name, pa.type, pav.value 
+       FROM product_attributes pa 
+       JOIN product_attribute_values pav ON pa.id = pav.attribute_id 
+       WHERE pav.product_id = $1`,
+      [product_id]
+    );
+  }
+
+  function getProductPriceHistory(product_id, variant_id) {
+    const query = variant_id
+      ? `SELECT * FROM product_price_history 
+         WHERE product_id = $1 AND variant_id = $2 
+         ORDER BY change_date DESC`
+      : `SELECT * FROM product_price_history 
+         WHERE product_id = $1 
+         ORDER BY change_date DESC`;
+    const params = variant_id ? [product_id, variant_id] : [product_id];
+    return pgPool.query(query, params);
+  }
+
+  function getProductRelationships(product_id, relationship_type) {
+    const query = relationship_type
+      ? `SELECT p.*, pr.relationship_type 
+         FROM products p 
+         JOIN product_relationships pr ON p.id = pr.related_product_id 
+         WHERE pr.product_id = $1 AND pr.relationship_type = $2`
+      : `SELECT p.*, pr.relationship_type 
+         FROM products p 
+         JOIN product_relationships pr ON p.id = pr.related_product_id 
+         WHERE pr.product_id = $1`;
+    const params = relationship_type
+      ? [product_id, relationship_type]
+      : [product_id];
+    return pgPool.query(query, params);
+  }
+
+  function getProductVersions(product_id) {
+    return pgPool.query(
+      "SELECT * FROM product_versions WHERE product_id = $1 ORDER BY version_number DESC",
+      [product_id]
+    );
+  }
+
   // Start server
   app.listen(PORT, function () {
     console.log(`Product service is running on port ${PORT}`);
@@ -1478,6 +2196,156 @@ function createDatabaseSchema() {
         AFTER INSERT OR UPDATE OR DELETE ON product_chats
         FOR EACH STATEMENT
         EXECUTE FUNCTION refresh_product_stats();
+
+        -- Product Variants
+        CREATE TABLE IF NOT EXISTS product_variants (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            sku VARCHAR(100) UNIQUE,
+            name VARCHAR(255),
+            price DECIMAL(10,2),
+            stock_quantity INTEGER DEFAULT 0,
+            attributes JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Images
+        CREATE TABLE IF NOT EXISTS product_images (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            variant_id INTEGER REFERENCES product_variants(id),
+            image_url TEXT NOT NULL,
+            is_primary BOOLEAN DEFAULT false,
+            order_index INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Inventory
+        CREATE TABLE IF NOT EXISTS product_inventory (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            variant_id INTEGER REFERENCES product_variants(id),
+            quantity INTEGER DEFAULT 0,
+            reserved_quantity INTEGER DEFAULT 0,
+            location VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Price History
+        CREATE TABLE IF NOT EXISTS product_price_history (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            variant_id INTEGER REFERENCES product_variants(id),
+            price DECIMAL(10,2),
+            change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            change_reason VARCHAR(255)
+        );
+
+        -- Product Attributes
+        CREATE TABLE IF NOT EXISTS product_attributes (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Attribute Values
+        CREATE TABLE IF NOT EXISTS product_attribute_values (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            attribute_id INTEGER REFERENCES product_attributes(id),
+            value TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Reviews
+        CREATE TABLE IF NOT EXISTS product_reviews (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            user_id INTEGER NOT NULL,
+            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+            review_text TEXT,
+            is_verified BOOLEAN DEFAULT false,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Wishlist
+        CREATE TABLE IF NOT EXISTS product_wishlist (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            product_id INTEGER REFERENCES products(id),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Sharing
+        CREATE TABLE IF NOT EXISTS product_shares (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            user_id INTEGER NOT NULL,
+            share_type VARCHAR(50),
+            share_data JSONB,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Versions
+        CREATE TABLE IF NOT EXISTS product_versions (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            version_number INTEGER,
+            changes JSONB,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Product Relationships
+        CREATE TABLE IF NOT EXISTS product_relationships (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id),
+            related_product_id INTEGER REFERENCES products(id),
+            relationship_type VARCHAR(50),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Create indexes for new tables
+        CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_variants_sku ON product_variants(sku);
+        CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_inventory_product_id ON product_inventory(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_price_history_product_id ON product_price_history(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_attribute_values_product_id ON product_attribute_values(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id ON product_reviews(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_wishlist_user_id ON product_wishlist(user_id);
+        CREATE INDEX IF NOT EXISTS idx_product_shares_product_id ON product_shares(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_versions_product_id ON product_versions(product_id);
+        CREATE INDEX IF NOT EXISTS idx_product_relationships_product_id ON product_relationships(product_id);
+
+        -- Create materialized views for new features
+        CREATE MATERIALIZED VIEW IF NOT EXISTS product_variant_stats AS
+        SELECT 
+            pv.product_id,
+            COUNT(DISTINCT pv.id) as variant_count,
+            AVG(pv.price) as avg_variant_price,
+            MIN(pv.price) as min_variant_price,
+            MAX(pv.price) as max_variant_price,
+            SUM(pi.quantity) as total_stock
+        FROM product_variants pv
+        LEFT JOIN product_inventory pi ON pv.id = pi.variant_id
+        GROUP BY pv.product_id;
+
+        CREATE MATERIALIZED VIEW IF NOT EXISTS product_review_stats AS
+        SELECT 
+            pr.product_id,
+            COUNT(*) as review_count,
+            AVG(pr.rating) as avg_rating,
+            COUNT(CASE WHEN pr.rating >= 4 THEN 1 END) as positive_reviews
+        FROM product_reviews pr
+        GROUP BY pr.product_id;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variant_stats_product_id ON product_variant_stats(product_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_product_review_stats_product_id ON product_review_stats(product_id);
     `;
 
   return pgPool.query(createTablesQuery);
@@ -2022,4 +2890,269 @@ function getCategoryAnalytics(categoryId) {
         ORDER BY cs.level, cs.product_count DESC
     `;
   return pgPool.query(query, [categoryId]);
+}
+
+// Add new functions for product variants
+function createProductVariant(variantData) {
+  const { product_id, sku, name, price, stock_quantity, attributes } =
+    variantData;
+  const query = `
+        INSERT INTO product_variants (product_id, sku, name, price, stock_quantity, attributes)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING *
+    `;
+  return pgPool.query(query, [
+    product_id,
+    sku,
+    name,
+    price,
+    stock_quantity,
+    attributes,
+  ]);
+}
+
+function getProductVariants(product_id) {
+  return pgPool.query(
+    "SELECT * FROM product_variants WHERE product_id = $1 ORDER BY created_at DESC",
+    [product_id]
+  );
+}
+
+// Add new functions for product images
+function addProductImage(imageData) {
+  const { product_id, variant_id, image_url, is_primary, order_index } =
+    imageData;
+  const query = `
+        INSERT INTO product_images (product_id, variant_id, image_url, is_primary, order_index)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+    `;
+  return pgPool.query(query, [
+    product_id,
+    variant_id,
+    image_url,
+    is_primary,
+    order_index,
+  ]);
+}
+
+function getProductImages(product_id) {
+  return pgPool.query(
+    "SELECT * FROM product_images WHERE product_id = $1 ORDER BY order_index ASC",
+    [product_id]
+  );
+}
+
+// Add new functions for inventory management
+function updateInventory(inventoryData) {
+  const { product_id, variant_id, quantity, reserved_quantity, location } =
+    inventoryData;
+  const query = `
+        INSERT INTO product_inventory (product_id, variant_id, quantity, reserved_quantity, location)
+        VALUES ($1, $2, $3, $4, $5)
+        ON CONFLICT (product_id, variant_id) 
+        DO UPDATE SET 
+            quantity = EXCLUDED.quantity,
+            reserved_quantity = EXCLUDED.reserved_quantity,
+            location = EXCLUDED.location,
+            updated_at = CURRENT_TIMESTAMP
+        RETURNING *
+    `;
+  return pgPool.query(query, [
+    product_id,
+    variant_id,
+    quantity,
+    reserved_quantity,
+    location,
+  ]);
+}
+
+// Add new functions for price history
+function addPriceHistory(priceData) {
+  const { product_id, variant_id, price, change_reason } = priceData;
+  const query = `
+        INSERT INTO product_price_history (product_id, variant_id, price, change_reason)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+    `;
+  return pgPool.query(query, [product_id, variant_id, price, change_reason]);
+}
+
+// Add new functions for product attributes
+function createProductAttribute(attributeData) {
+  const { name, type } = attributeData;
+  const query = `
+        INSERT INTO product_attributes (name, type)
+        VALUES ($1, $2)
+        RETURNING *
+    `;
+  return pgPool.query(query, [name, type]);
+}
+
+function addProductAttributeValue(valueData) {
+  const { product_id, attribute_id, value } = valueData;
+  const query = `
+        INSERT INTO product_attribute_values (product_id, attribute_id, value)
+        VALUES ($1, $2, $3)
+        RETURNING *
+    `;
+  return pgPool.query(query, [product_id, attribute_id, value]);
+}
+
+// Add new functions for product reviews
+function addProductReview(reviewData) {
+  const { product_id, user_id, rating, review_text, is_verified } = reviewData;
+  const query = `
+        INSERT INTO product_reviews (product_id, user_id, rating, review_text, is_verified)
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING *
+    `;
+  return pgPool.query(query, [
+    product_id,
+    user_id,
+    rating,
+    review_text,
+    is_verified,
+  ]);
+}
+
+function getProductReviews(product_id) {
+  return pgPool.query(
+    "SELECT * FROM product_reviews WHERE product_id = $1 ORDER BY created_at DESC",
+    [product_id]
+  );
+}
+
+// Add new functions for wishlist
+function addToWishlist(wishlistData) {
+  const { user_id, product_id } = wishlistData;
+  const query = `
+        INSERT INTO product_wishlist (user_id, product_id)
+        VALUES ($1, $2)
+        RETURNING *
+    `;
+  return pgPool.query(query, [user_id, product_id]);
+}
+
+function getWishlist(user_id) {
+  return pgPool.query(
+    "SELECT p.* FROM products p JOIN product_wishlist pw ON p.id = pw.product_id WHERE pw.user_id = $1",
+    [user_id]
+  );
+}
+
+// Add new functions for product sharing
+function shareProduct(shareData) {
+  const { product_id, user_id, share_type, share_data } = shareData;
+  const query = `
+        INSERT INTO product_shares (product_id, user_id, share_type, share_data)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+    `;
+  return pgPool.query(query, [product_id, user_id, share_type, share_data]);
+}
+
+// Add new functions for product versions
+function createProductVersion(versionData) {
+  const { product_id, version_number, changes, created_by } = versionData;
+  const query = `
+        INSERT INTO product_versions (product_id, version_number, changes, created_by)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *
+    `;
+  return pgPool.query(query, [product_id, version_number, changes, created_by]);
+}
+
+// Add new functions for product relationships
+function addProductRelationship(relationshipData) {
+  const { product_id, related_product_id, relationship_type } =
+    relationshipData;
+  const query = `
+        INSERT INTO product_relationships (product_id, related_product_id, relationship_type)
+        VALUES ($1, $2, $3)
+        RETURNING *
+    `;
+  return pgPool.query(query, [
+    product_id,
+    related_product_id,
+    relationship_type,
+  ]);
+}
+
+// Enhanced neural network for better recommendations
+class EnhancedNeuralNetwork {
+  constructor(inputSize, hiddenSize, outputSize) {
+    this.weights1 = Array(inputSize)
+      .fill()
+      .map(() =>
+        Array(hiddenSize)
+          .fill()
+          .map(() => Math.random() * 2 - 1)
+      );
+    this.weights2 = Array(hiddenSize)
+      .fill()
+      .map(() =>
+        Array(outputSize)
+          .fill()
+          .map(() => Math.random() * 2 - 1)
+      );
+    this.bias1 = Array(hiddenSize)
+      .fill()
+      .map(() => Math.random() * 2 - 1);
+    this.bias2 = Array(outputSize)
+      .fill()
+      .map(() => Math.random() * 2 - 1);
+  }
+
+  sigmoid(x) {
+    return 1 / (1 + Math.exp(-x));
+  }
+
+  sigmoidDerivative(x) {
+    return x * (1 - x);
+  }
+
+  forward(input) {
+    this.hidden = input.map((x) =>
+      this.sigmoid(
+        this.weights1.reduce((sum, w, i) => sum + w * x[i], 0) + this.bias1
+      )
+    );
+    return this.hidden.map((h) =>
+      this.sigmoid(
+        this.weights2.reduce((sum, w, i) => sum + w * h[i], 0) + this.bias2
+      )
+    );
+  }
+
+  train(input, target, learningRate = 0.1) {
+    const output = this.forward(input);
+    const outputError = target.map((t, i) => t - output[i]);
+    const outputDelta = outputError.map(
+      (e, i) => e * this.sigmoidDerivative(output[i])
+    );
+
+    const hiddenError = this.weights2.map((w) =>
+      w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0)
+    );
+    const hiddenDelta = hiddenError.map(
+      (e, i) => e * this.sigmoidDerivative(this.hidden[i])
+    );
+
+    // Update weights and biases
+    for (let i = 0; i < this.weights1.length; i++) {
+      for (let j = 0; j < this.weights1[i].length; j++) {
+        this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
+      }
+    }
+
+    for (let i = 0; i < this.weights2.length; i++) {
+      for (let j = 0; j < this.weights2[i].length; j++) {
+        this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
+      }
+    }
+
+    this.bias1 = this.bias1.map((b, i) => b + learningRate * hiddenDelta[i]);
+    this.bias2 = this.bias2.map((b, i) => b + learningRate * outputDelta[i]);
+  }
 }
