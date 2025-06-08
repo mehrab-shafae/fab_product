@@ -38,7 +38,7 @@ async function initializeRedis() {
     try {
         redisClient = createClient({
             url: REDIS_URI,
-            retry_strategy: function(options) {
+            retry_strategy: function (options) {
                 if (options.error && options.error.code === 'ECONNREFUSED') {
                     console.error('Redis connection refused. Retrying...');
                     return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
@@ -50,14 +50,14 @@ async function initializeRedis() {
                     return new Error('Redis max retries reached');
                 }
                 return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
-            }
+            },
         });
 
-        redisClient.on('error', function(err) {
+        redisClient.on('error', function (err) {
             console.error('Redis Client Error:', err);
             redisConnected = false;
             redisRetryCount++;
-            
+
             if (redisRetryCount <= MAX_REDIS_RETRIES) {
                 console.log(`Attempting to reconnect to Redis (${redisRetryCount}/${MAX_REDIS_RETRIES})...`);
                 setTimeout(initializeRedis, REDIS_RETRY_DELAY);
@@ -66,13 +66,13 @@ async function initializeRedis() {
             }
         });
 
-        redisClient.on('connect', function() {
+        redisClient.on('connect', function () {
             console.log('Redis connected successfully');
             redisConnected = true;
             redisRetryCount = 0;
         });
 
-        redisClient.on('reconnecting', function() {
+        redisClient.on('reconnecting', function () {
             console.log('Redis reconnecting...');
             redisConnected = false;
         });
@@ -370,7 +370,7 @@ main();
 // ======================================================================
 // Enhanced cache middleware with fallback
 function enhancedCacheMiddleware(prefix, ttl) {
-    return function(req, res, next) {
+    return function (req, res, next) {
         if (req.method !== 'GET' || !redisConnected) {
             return next();
         }
@@ -384,10 +384,9 @@ function enhancedCacheMiddleware(prefix, ttl) {
                 }
 
                 res.sendResponse = res.json;
-                res.json = function(body) {
+                res.json = function (body) {
                     if (redisConnected) {
-                        redisClient.setEx(key, ttl, JSON.stringify(body))
-                            .catch(error => console.error('Cache error:', error));
+                        redisClient.setEx(key, ttl, JSON.stringify(body)).catch(error => console.error('Cache error:', error));
                     }
                     res.sendResponse(body);
                 };
@@ -1688,7 +1687,7 @@ async function init() {
                     status: redisConnected ? 'connected' : 'disconnected',
                     retryCount: redisRetryCount,
                     maxRetries: MAX_REDIS_RETRIES,
-                    lastError: redisClient ? redisClient.lastError : null
+                    lastError: redisClient ? redisClient.lastError : null,
                 },
                 mongo: mongoClient ? 'connected' : 'disconnected',
             },
@@ -1696,9 +1695,9 @@ async function init() {
                 enabled: redisConnected,
                 warming: {
                     lastRun: new Date(),
-                    status: redisConnected ? 'active' : 'disabled'
-                }
-            }
+                    status: redisConnected ? 'active' : 'disabled',
+                },
+            },
         };
         res.json(health);
     });
