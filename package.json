@@ -1,11 +1,26 @@
 {
-  "name": "asproduct",
+  "name": "product-microservice",
   "version": "1.0.0",
-  "description": "as product manager service",
-  "license": "ISC",
-  "author": "MRB",
+  "description": "A comprehensive product management microservice",
   "type": "module",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "mongodb": "^6.3.0",
+    "pg": "^8.11.3",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "redis": "^4.6.13",
+    "express-rate-limit": "^7.1.5",
+    "express-slow-down": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
   }
 }
