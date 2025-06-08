@@ -27,7 +27,6 @@ const elasticClient = new Client({
 });
 */
 
-// Redis connection manager
 let redisClient = null;
 let redisConnected = false;
 let redisRetryCount = 0;
@@ -368,7 +367,7 @@ function main() {
 }
 main();
 // ======================================================================
-// Enhanced cache middleware with fallback
+
 function enhancedCacheMiddleware(prefix, ttl) {
     return function (req, res, next) {
         if (req.method !== 'GET' || !redisConnected) {
@@ -399,7 +398,6 @@ function enhancedCacheMiddleware(prefix, ttl) {
     };
 }
 
-// Enhanced cache data retrieval with fallback
 async function getCachedData(key, fetchData, ttl) {
     try {
         if (!redisConnected) {
@@ -422,7 +420,6 @@ async function getCachedData(key, fetchData, ttl) {
     }
 }
 
-// Enhanced cache invalidation with fallback
 async function invalidateCachePattern(pattern) {
     try {
         if (!redisConnected) {
@@ -438,7 +435,6 @@ async function invalidateCachePattern(pattern) {
     }
 }
 
-// Enhanced cache warming with fallback
 async function warmCache() {
     try {
         if (!redisConnected) {
