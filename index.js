@@ -1837,6 +1837,145 @@ async function init() {
 
   /**
    * @swagger
+   * /products/{productId}/price-statistics:
+   *   get:
+   *     summary: Get price statistics for a product
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: variant_id
+   *         schema:
+   *           type: integer
+   *     responses:
+   *       200:
+   *         description: Price statistics including min, max, average, and recent changes
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/price-statistics",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductPriceStatistics(req.params.productId, req.query.variant_id)
+        .then((result) => res.json(result.rows[0]))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/price-trends:
+   *   get:
+   *     summary: Get price trends for a product over time
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: variant_id
+   *         schema:
+   *           type: integer
+   *       - in: query
+   *         name: period
+   *         schema:
+   *           type: string
+   *           default: 30 days
+   *           description: Time period for trends (e.g., '7 days', '30 days', '1 year')
+   *     responses:
+   *       200:
+   *         description: Daily price trends including min, max, and average prices
+   *       500:
+   *         description: Server error
+   */
+  app.get(
+    "/products/:productId/price-trends",
+    enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT),
+    function (req, res) {
+      getProductPriceTrends(
+        req.params.productId,
+        req.query.variant_id,
+        req.query.period
+      )
+        .then((result) => res.json(result.rows[0]))
+        .catch((error) => res.status(500).json({ error: error.message }));
+    }
+  );
+
+  /**
+   * @swagger
+   * /products/{productId}/price-history:
+   *   post:
+   *     summary: Add a new price history entry
+   *     tags: [Products]
+   *     parameters:
+   *       - in: path
+   *         name: productId
+   *         required: true
+   *         schema:
+   *           type: integer
+   *     requestBody:
+   *       required: true
+   *       content:
+   *         application/json:
+   *           schema:
+   *             type: object
+   *             required:
+   *               - price
+   *               - change_reason
+   *             properties:
+   *               variant_id:
+   *                 type: integer
+   *               price:
+   *                 type: number
+   *               change_reason:
+   *                 type: string
+   *               effective_date:
+   *                 type: string
+   *                 format: date-time
+   *               discount_percentage:
+   *                 type: number
+   *               currency:
+   *                 type: string
+   *               source:
+   *                 type: string
+   *     responses:
+   *       200:
+   *         description: Price history entry added successfully
+   *       500:
+   *         description: Server error
+   */
+  app.post("/products/:productId/price-history", async function (req, res) {
+    try {
+      const priceData = {
+        ...req.body,
+        product_id: req.params.productId,
+      };
+      const result = await addPriceHistory(priceData);
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/price-history`
+      );
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/price-statistics`
+      );
+      await invalidateCachePattern(
+        `/products/${req.params.productId}/price-trends`
+      );
+      res.json(result.rows[0]);
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  /**
+   * @swagger
    * /products/{productId}/relationships:
    *   post:
    *     summary: Add a relationship between products
@@ -2308,6 +2447,23 @@ function createDatabaseSchema() {
             relationship_type VARCHAR(50),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS product_price_history (
+            id SERIAL PRIMARY KEY,
+            product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+            variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE,
+            price DECIMAL(10,2) NOT NULL,
+            change_reason VARCHAR(255) NOT NULL,
+            effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            discount_percentage DECIMAL(5,2) DEFAULT 0,
+            currency VARCHAR(3) DEFAULT 'USD',
+            source VARCHAR(50) DEFAULT 'system',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_price_history_product ON product_price_history(product_id);
+        CREATE INDEX IF NOT EXISTS idx_price_history_variant ON product_price_history(variant_id);
+        CREATE INDEX IF NOT EXISTS idx_price_history_date ON product_price_history(effective_date);
 
         -- Create indexes for new tables
         CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
@@ -2969,13 +3125,110 @@ function updateInventory(inventoryData) {
 
 // Add new functions for price history
 function addPriceHistory(priceData) {
-  const { product_id, variant_id, price, change_reason } = priceData;
+  const { product_id, variant_id, price, change_reason, effective_date, discount_percentage, currency, source } = priceData;
   const query = `
-        INSERT INTO product_price_history (product_id, variant_id, price, change_reason)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO product_price_history (
+            product_id, 
+            variant_id, 
+            price, 
+            change_reason,
+            effective_date,
+            discount_percentage,
+            currency,
+            source
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
     `;
-  return pgPool.query(query, [product_id, variant_id, price, change_reason]);
+  return pgPool.query(query, [
+    product_id,
+    variant_id,
+    price,
+    change_reason,
+    effective_date || new Date(),
+    discount_percentage || 0,
+    currency || 'USD',
+    source || 'system'
+  ]);
+}
+
+function getProductPriceStatistics(product_id, variant_id) {
+  const query = `
+        WITH price_stats AS (
+            SELECT 
+                MIN(price) as min_price,
+                MAX(price) as max_price,
+                AVG(price) as avg_price,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price) as median_price,
+                COUNT(*) as total_changes,
+                MAX(price) - MIN(price) as price_range,
+                (MAX(price) - MIN(price)) / MIN(price) * 100 as price_change_percentage
+            FROM product_price_history
+            WHERE product_id = $1
+            ${variant_id ? 'AND variant_id = $2' : ''}
+        ),
+        recent_changes AS (
+            SELECT 
+                price,
+                change_reason,
+                effective_date,
+                LAG(price) OVER (ORDER BY effective_date) as previous_price,
+                price - LAG(price) OVER (ORDER BY effective_date) as price_difference,
+                ((price - LAG(price) OVER (ORDER BY effective_date)) / LAG(price) OVER (ORDER BY effective_date) * 100) as percentage_change
+            FROM product_price_history
+            WHERE product_id = $1
+            ${variant_id ? 'AND variant_id = $2' : ''}
+            ORDER BY effective_date DESC
+            LIMIT 5
+        )
+        SELECT 
+            ps.*,
+            json_agg(rc.*) as recent_changes
+        FROM price_stats ps
+        CROSS JOIN recent_changes rc
+        GROUP BY 
+            ps.min_price, 
+            ps.max_price, 
+            ps.avg_price, 
+            ps.median_price, 
+            ps.total_changes, 
+            ps.price_range, 
+            ps.price_change_percentage
+    `;
+  const params = variant_id ? [product_id, variant_id] : [product_id];
+  return pgPool.query(query, params);
+}
+
+function getProductPriceTrends(product_id, variant_id, period = '30 days') {
+  const query = `
+        WITH price_trends AS (
+            SELECT 
+                date_trunc('day', effective_date) as date,
+                AVG(price) as avg_price,
+                MIN(price) as min_price,
+                MAX(price) as max_price,
+                COUNT(*) as change_count
+            FROM product_price_history
+            WHERE product_id = $1
+            ${variant_id ? 'AND variant_id = $2' : ''}
+            AND effective_date >= NOW() - $3::interval
+            GROUP BY date_trunc('day', effective_date)
+            ORDER BY date
+        )
+        SELECT 
+            json_agg(
+                json_build_object(
+                    'date', date,
+                    'avg_price', avg_price,
+                    'min_price', min_price,
+                    'max_price', max_price,
+                    'change_count', change_count
+                )
+            ) as trends
+        FROM price_trends
+    `;
+  const params = variant_id ? [product_id, variant_id, period] : [product_id, period];
+  return pgPool.query(query, params);
 }
 
 // Add new functions for product attributes
