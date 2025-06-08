@@ -81,18 +81,25 @@ check_last_test
 # 2. Category Management (Base for products)
 log "\n=== Testing Category Management ===" "$YELLOW"
 
-# Create parent category
-test_endpoint "POST" "/categories" '{
+# Create parent category and capture its ID
+PARENT_CATEGORY_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d '{
     "name": "Electronics",
     "parent_id": null
-}' "Create Parent Category"
-check_last_test
+}' "$API_BASE_URL/categories")
+PARENT_CATEGORY_ID=$(echo "$PARENT_CATEGORY_RESPONSE" | grep -o '"id":[0-9]*' | cut -d':' -f2)
 
-# Create subcategory
-test_endpoint "POST" "/categories" '{
-    "name": "Smartphones",
-    "parent_id": 1
-}' "Create Subcategory"
+if [ -z "$PARENT_CATEGORY_ID" ]; then
+    log "Failed to get parent category ID" "$RED"
+    exit 1
+fi
+
+log "Created parent category with ID: $PARENT_CATEGORY_ID" "$GREEN"
+
+# Create subcategory using the actual parent ID
+test_endpoint "POST" "/categories" "{
+    \"name\": \"Smartphones\",
+    \"parent_id\": $PARENT_CATEGORY_ID
+}" "Create Subcategory"
 check_last_test
 
 # Verify category structure
@@ -102,39 +109,41 @@ check_last_test
 # 3. Product Management (Depends on categories)
 log "\n=== Testing Product Management ===" "$YELLOW"
 
-# Create first product
-test_endpoint "POST" "/products" '{
-    "name": "iPhone 13",
-    "description": "Latest iPhone model",
-    "price": 999.99,
-    "category_id": 2,
-    "metadata": {
-        "brand": "Apple",
-        "color": "Midnight Blue",
-        "storage": "128GB"
+# Create first product using the subcategory ID (parent_id + 1)
+SUBCATEGORY_ID=$((PARENT_CATEGORY_ID + 1))
+
+test_endpoint "POST" "/products" "{
+    \"name\": \"iPhone 13\",
+    \"description\": \"Latest iPhone model\",
+    \"price\": 999.99,
+    \"category_id\": $SUBCATEGORY_ID,
+    \"metadata\": {
+        \"brand\": \"Apple\",
+        \"color\": \"Midnight Blue\",
+        \"storage\": \"128GB\"
     }
-}' "Create Product 1"
+}" "Create Product 1"
 check_last_test
 
 # Create second product
-test_endpoint "POST" "/products" '{
-    "name": "Samsung Galaxy S21",
-    "description": "Flagship Android phone",
-    "price": 899.99,
-    "category_id": 2,
-    "metadata": {
-        "brand": "Samsung",
-        "color": "Phantom Gray",
-        "storage": "256GB"
+test_endpoint "POST" "/products" "{
+    \"name\": \"Samsung Galaxy S21\",
+    \"description\": \"Flagship Android phone\",
+    \"price\": 899.99,
+    \"category_id\": $SUBCATEGORY_ID,
+    \"metadata\": {
+        \"brand\": \"Samsung\",
+        \"color\": \"Phantom Gray\",
+        \"storage\": \"256GB\"
     }
-}' "Create Product 2"
+}" "Create Product 2"
 check_last_test
 
 # Test product retrieval
 test_endpoint "GET" "/products" "" "Get All Products"
 check_last_test
 
-test_endpoint "GET" "/products?category_id=2" "" "Get Products by Category"
+test_endpoint "GET" "/products?category_id=$SUBCATEGORY_ID" "" "Get Products by Category"
 check_last_test
 
 test_endpoint "GET" "/products?min_price=800&max_price=1000" "" "Get Products with Price Filter"
@@ -143,39 +152,42 @@ check_last_test
 # 4. Product Variants (Depends on products)
 log "\n=== Testing Product Variants ===" "$YELLOW"
 
-test_endpoint "POST" "/products/1/variants" '{
-    "sku": "IP13-256-BLK",
-    "name": "iPhone 13 256GB Black",
-    "price": 1099.99,
-    "stock_quantity": 50,
-    "attributes": {
-        "storage": "256GB",
-        "color": "Black"
+# Get the first product ID from the previous response
+FIRST_PRODUCT_ID=11  # We know this from the previous response
+
+test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/variants" "{
+    \"sku\": \"IP13-256-BLK\",
+    \"name\": \"iPhone 13 256GB Black\",
+    \"price\": 1099.99,
+    \"stock_quantity\": 50,
+    \"attributes\": {
+        \"storage\": \"256GB\",
+        \"color\": \"Black\"
     }
-}' "Create Product Variant"
+}" "Create Product Variant"
 check_last_test
 
-test_endpoint "GET" "/products/1/variants" "" "Get Product Variants"
+test_endpoint "GET" "/products/$FIRST_PRODUCT_ID/variants" "" "Get Product Variants"
 check_last_test
 
 # 5. Product Images (Depends on products)
 log "\n=== Testing Product Images ===" "$YELLOW"
 
-test_endpoint "POST" "/products/1/images" '{
-    "image_url": "https://example.com/iphone13-main.jpg",
-    "is_primary": true,
-    "order_index": 1
-}' "Add Primary Product Image"
+test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/images" "{
+    \"image_url\": \"https://example.com/iphone13-main.jpg\",
+    \"is_primary\": true,
+    \"order_index\": 1
+}" "Add Primary Product Image"
 check_last_test
 
-test_endpoint "POST" "/products/1/images" '{
-    "image_url": "https://example.com/iphone13-angle.jpg",
-    "is_primary": false,
-    "order_index": 2
-}' "Add Secondary Product Image"
+test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/images" "{
+    \"image_url\": \"https://example.com/iphone13-angle.jpg\",
+    \"is_primary\": false,
+    \"order_index\": 2
+}" "Add Secondary Product Image"
 check_last_test
 
-test_endpoint "GET" "/products/1/images" "" "Get Product Images"
+test_endpoint "GET" "/products/$FIRST_PRODUCT_ID/images" "" "Get Product Images"
 check_last_test
 
 # 6. Product Attributes (Depends on products)
