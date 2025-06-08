@@ -11,6 +11,7 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import { createClient } from 'redis';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
+// import { Client } from '@elastic/elasticsearch';
 
 // Load environment variables
 dotenv.config();
@@ -22,6 +23,15 @@ const PORT = process.env.PORT || 3000;
 const POSTGRES_URI = process.env.POSTGRES_URI || 'postgresql://postgres:postgres@localhost:5432/product_db';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
+// const ELASTICSEARCH_URI = process.env.ELASTICSEARCH_URI || 'https://localhost:9200';
+
+// // Elasticsearch client setup
+// const elasticClient = new Client({
+//     node: ELASTICSEARCH_URI,
+//     tls: {
+//         rejectUnauthorized: false
+//     }
+// });
 
 // Redis client setup
 const redisClient = createClient({
@@ -45,6 +55,181 @@ const speedLimiter = slowDown({
     delayAfter: 50, // Allow 50 requests per 15 minutes, then...
     delayMs: 500 // Begin adding 500ms of delay per request above 50
 });
+
+// Elasticsearch index configuration
+// const ELASTIC_INDEX = 'products';
+
+// // Elasticsearch setup function
+// async function setupElasticsearch() {
+//     try {
+//         // Check if index exists
+//         const indexExists = await elasticClient.indices.exists({
+//             index: ELASTIC_INDEX
+//         });
+
+//         if (!indexExists) {
+//             // Create index with mappings
+//             await elasticClient.indices.create({
+//                 index: ELASTIC_INDEX,
+//                 body: {
+//                     mappings: {
+//                         properties: {
+//                             id: { type: 'integer' },
+//                             name: { 
+//                                 type: 'text',
+//                                 fields: {
+//                                     keyword: { type: 'keyword' }
+//                                 }
+//                             },
+//                             description: { type: 'text' },
+//                             price: { type: 'float' },
+//                             category_id: { type: 'integer' },
+//                             category_name: { type: 'keyword' },
+//                             tags: { type: 'keyword' },
+//                             metadata: { type: 'object' },
+//                             created_at: { type: 'date' },
+//                             updated_at: { type: 'date' }
+//                         }
+//                     },
+//                     settings: {
+//                         analysis: {
+//                             analyzer: {
+//                                 custom_analyzer: {
+//                                     type: 'custom',
+//                                     tokenizer: 'standard',
+//                                     filter: ['lowercase', 'asciifolding']
+//                                 }
+//                             }
+//                         }
+//                     }
+//                 }
+//             });
+//         }
+//     } catch (error) {
+//         console.error('Elasticsearch setup error:', error);
+//         throw error;
+//     }
+// }
+
+// Elasticsearch indexing function
+// async function indexProduct(product) {
+//     try {
+//         // Get category name if category_id exists
+//         let category_name = null;
+//         if (product.category_id) {
+//             const categoryResult = await pgPool.query(
+//                 'SELECT name FROM categories WHERE id = $1',
+//                 [product.category_id]
+//             );
+//             if (categoryResult.rows.length > 0) {
+//                 category_name = categoryResult.rows[0].name;
+//             }
+//         }
+
+//         // Get product tags
+//         const tagsResult = await pgPool.query(
+//             'SELECT tag_name FROM product_tags WHERE product_id = $1',
+//             [product.id]
+//         );
+//         const tags = tagsResult.rows.map(row => row.tag_name);
+
+//         // Index document
+//         await elasticClient.index({
+//             index: ELASTIC_INDEX,
+//             id: product.id.toString(),
+//             body: {
+//                 ...product,
+//                 category_name,
+//                 tags,
+//                 updated_at: new Date()
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Elasticsearch indexing error:', error);
+//         throw error;
+//     }
+// }
+
+// // Advanced search function
+// async function advancedSearch(searchParams) {
+//     try {
+//         const {
+//             query,
+//             category_id,
+//             min_price,
+//             max_price,
+//             tags,
+//             sort_by,
+//             sort_order = 'desc',
+//             page = 1,
+//             size = 10
+//         } = searchParams;
+
+//         const must = [];
+//         const filter = [];
+
+//         // Text search
+//         if (query) {
+//             must.push({
+//                 multi_match: {
+//                     query,
+//                     fields: ['name^3', 'description^2', 'category_name'],
+//                     fuzziness: 'AUTO'
+//                 }
+//             });
+//         }
+
+//         // Category filter
+//         if (category_id) {
+//             filter.push({ term: { category_id } });
+//         }
+
+//         // Price range
+//         if (min_price || max_price) {
+//             const range = {};
+//             if (min_price) range.gte = min_price;
+//             if (max_price) range.lte = max_price;
+//             filter.push({ range: { price: range } });
+//         }
+
+//         // Tags filter
+//         if (tags && tags.length > 0) {
+//             filter.push({ terms: { tags } });
+//         }
+
+//         // Build sort
+//         const sort = [];
+//         if (sort_by) {
+//             sort.push({ [sort_by]: { order: sort_order } });
+//         }
+//         sort.push({ _score: { order: 'desc' } });
+
+//         const response = await elasticClient.search({
+//             index: ELASTIC_INDEX,
+//             body: {
+//                 query: {
+//                     bool: {
+//                         must,
+//                         filter
+//                     }
+//                 },
+//                 sort,
+//                 from: (page - 1) * size,
+//                 size
+//             }
+//         });
+
+//         return {
+//             total: response.hits.total.value,
+//             hits: response.hits.hits.map(hit => hit._source),
+//             page,
+//             size
+//         };
+//     } catch (error) {
+//         console.error('Elasticsearch search error:', error);
+//         throw error;
+//     }
+// }
 
 // Cache middleware
 async function cacheMiddleware(duration) {
@@ -161,8 +346,9 @@ const mongoClient = new MongoClient(MONGO_URI);
 async function init() {
     const app = express();
     
-    // Connect to Redis
+    // Connect to Redis and setup Elasticsearch
     await redisClient.connect();
+    // await setupElasticsearch();
     
     // Middleware
     app.use(cors());
@@ -222,11 +408,10 @@ async function init() {
         try {
             const result = await createProduct(req.body);
             const product = result.rows[0];
-            
-            // Store document in MongoDB
             await storeProductDocument(product);
+            // await indexProduct(product);
             
-            // Invalidate relevant caches
+            // Invalidate caches
             await invalidateCache('/products*');
             await invalidateCache(`/products/${product.id}`);
             
@@ -588,6 +773,82 @@ async function init() {
             res.status(500).json({ error: error.message });
         }
     });
+
+    // /**
+    //  * @swagger
+    //  * /products/search/advanced:
+    //  *   get:
+    //  *     summary: Advanced product search using Elasticsearch
+    //  *     tags: [Search]
+    //  *     parameters:
+    //  *       - in: query
+    //  *         name: query
+    //  *         schema:
+    //  *           type: string
+    //  *       - in: query
+    //  *         name: category_id
+    //  *         schema:
+    //  *           type: integer
+    //  *       - in: query
+    //  *         name: min_price
+    //  *         schema:
+    //  *           type: number
+    //  *       - in: query
+    //  *         name: max_price
+    //  *         schema:
+    //  *           type: number
+    //  *       - in: query
+    //  *         name: tags
+    //  *         schema:
+    //  *           type: array
+    //  *           items:
+    //  *             type: string
+    //  *       - in: query
+    //  *         name: sort_by
+    //  *         schema:
+    //  *           type: string
+    //  *       - in: query
+    //  *         name: sort_order
+    //  *         schema:
+    //  *           type: string
+    //  *           enum: [asc, desc]
+    //  *       - in: query
+    //  *         name: page
+    //  *         schema:
+    //  *           type: integer
+    //  *       - in: query
+    //  *         name: size
+    //  *         schema:
+    //  *           type: integer
+    //  *     responses:
+    //  *       200:
+    //  *         description: Search results
+    //  *         content:
+    //  *           application/json:
+    //  *             schema:
+    //  *               type: object
+    //  *               properties:
+    //  *                 total:
+    //  *                   type: integer
+    //  *                 hits:
+    //  *                   type: array
+    //  *                   items:
+    //  *                     $ref: '#/components/schemas/Product'
+    //  *                 page:
+    //  *                   type: integer
+    //  *                 size:
+    //  *                   type: integer
+    //  *       500:
+    //  *         description: Server error
+    //  */
+    // app.get('/products/search/advanced', cacheMiddleware(300), async function(req, res) {
+    //     try {
+    //         const results = await advancedSearch(req.query);
+    //         res.json(results);
+    //     } catch (error) {
+    //         res.status(500).json({ error: error.message });
+    //     }
+    // });
     
     // Start server
     app.listen(PORT, function() {
