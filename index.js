@@ -22,7 +22,7 @@ const REDIS_URI = process.env.REDIS_URI || "redis://localhost:6379";
 /*
 const ELASTICSEARCH_URI = process.env.ELASTICSEARCH_URI || 'https://localhost:9200';
 
-// Elasticsearch client setup
+
 const elasticClient = new Client({
     node: ELASTICSEARCH_URI,
     tls: {
@@ -31,7 +31,6 @@ const elasticClient = new Client({
 });
 */
 
-// Redis client setup
 const redisClient = createClient({
   url: REDIS_URI,
 });
@@ -40,17 +39,15 @@ redisClient.on("error", function (err) {
   console.error("Redis Client Error:", err);
 });
 
-// Rate limiting configuration
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: "Too many requests from this IP, please try again later.",
 });
 
-// Slow down configuration for potential DDoS attacks
 const speedLimiter = slowDown({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  delayAfter: 50, // Allow 50 requests per 15 minutes, then...
+  windowMs: 15 * 60 * 1000,
+  delayAfter: 50,
   delayMs: (used, req) => {
     const delayAfter = req.slowDown.limit;
     return (used - delayAfter) * 500;
@@ -58,19 +55,19 @@ const speedLimiter = slowDown({
 });
 
 /*
-// Elasticsearch index configuration
+
 const ELASTIC_INDEX = 'products';
 
-// Elasticsearch setup function
+
 async function setupElasticsearch() {
     try {
-        // Check if index exists
+        
         const indexExists = await elasticClient.indices.exists({
             index: ELASTIC_INDEX
         });
 
         if (!indexExists) {
-            // Create index with mappings
+            
             await elasticClient.indices.create({
                 index: ELASTIC_INDEX,
                 body: {
@@ -113,10 +110,10 @@ async function setupElasticsearch() {
     }
 }
 
-// Elasticsearch indexing function
+
 async function indexProduct(product) {
     try {
-        // Get category name if category_id exists
+        
         let category_name = null;
         if (product.category_id) {
             const categoryResult = await pgPool.query(
@@ -128,14 +125,14 @@ async function indexProduct(product) {
             }
         }
 
-        // Get product tags
+        
         const tagsResult = await pgPool.query(
             'SELECT tag_name FROM product_tags WHERE product_id = $1',
             [product.id]
         );
         const tags = tagsResult.rows.map(row => row.tag_name);
 
-        // Index document
+        
         await elasticClient.index({
             index: ELASTIC_INDEX,
             id: product.id.toString(),
@@ -152,7 +149,7 @@ async function indexProduct(product) {
     }
 }
 
-// Advanced search function
+
 async function advancedSearch(searchParams) {
     try {
         const {
@@ -170,7 +167,7 @@ async function advancedSearch(searchParams) {
         const must = [];
         const filter = [];
 
-        // Text search
+        
         if (query) {
             must.push({
                 multi_match: {
@@ -181,12 +178,12 @@ async function advancedSearch(searchParams) {
             });
         }
 
-        // Category filter
+        
         if (category_id) {
             filter.push({ term: { category_id } });
         }
 
-        // Price range
+        
         if (min_price || max_price) {
             const range = {};
             if (min_price) range.gte = min_price;
@@ -194,12 +191,12 @@ async function advancedSearch(searchParams) {
             filter.push({ range: { price: range } });
         }
 
-        // Tags filter
+        
         if (tags && tags.length > 0) {
             filter.push({ terms: { tags } });
         }
 
-        // Build sort
+        
         const sort = [];
         if (sort_by) {
             sort.push({ [sort_by]: { order: sort_order } });
@@ -234,7 +231,6 @@ async function advancedSearch(searchParams) {
 }
 */
 
-// Advanced caching system
 const CACHE_PREFIXES = {
   PRODUCT: "product:",
   CATEGORY: "category:",
@@ -245,15 +241,14 @@ const CACHE_PREFIXES = {
 };
 
 const CACHE_TTL = {
-  PRODUCT: 300, // 5 minutes
-  CATEGORY: 600, // 10 minutes
+  PRODUCT: 300,
+  CATEGORY: 600,
   TAG: 300,
   COMMENT: 300,
   CHAT: 300,
   ANALYTICS: 600,
 };
 
-// Swagger configuration
 const swaggerOptions = {
   definition: {
     openapi: "3.0.0",
@@ -315,12 +310,11 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ["./index.js"], // Path to the API docs
+  apis: ["./index.js"],
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
 
-// Database connections
 const pgPool = new Pool({
   connectionString: POSTGRES_URI,
 });
@@ -359,7 +353,6 @@ async function invalidateCachePattern(pattern) {
   }
 }
 
-// Enhanced cache middleware
 function enhancedCacheMiddleware(prefix, ttl) {
   return function (req, res, next) {
     if (req.method !== "GET") {
@@ -390,10 +383,8 @@ function enhancedCacheMiddleware(prefix, ttl) {
   };
 }
 
-// Cache warming function
 async function warmCache() {
   try {
-    // Warm product cache
     const products = await pgPool.query(
       "SELECT id FROM products ORDER BY created_at DESC LIMIT 100"
     );
@@ -407,7 +398,6 @@ async function warmCache() {
       );
     }
 
-    // Warm category cache
     const categories = await pgPool.query("SELECT id FROM categories");
     for (const category of categories.rows) {
       const key = `${CACHE_PREFIXES.CATEGORY}${category.id}`;
@@ -419,7 +409,6 @@ async function warmCache() {
       );
     }
 
-    // Warm analytics cache
     const analytics = await pgPool.query(
       "SELECT id FROM products ORDER BY created_at DESC LIMIT 50"
     );
@@ -439,36 +428,28 @@ async function warmCache() {
   }
 }
 
-// Schedule cache warming
 function scheduleCacheWarming() {
-  // Warm cache every 4 hours
   setInterval(warmCache, 4 * 60 * 60 * 1000);
 }
 
-// Initialize function
 async function init() {
   const app = express();
 
-  // Connect to Redis and setup Elasticsearch
   await redisClient.connect();
-  // await setupElasticsearch();
 
-  // Middleware
   app.use(cors());
   app.use(express.json());
   app.use(limiter);
   app.use(speedLimiter);
 
-  // Swagger UI
   app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-  // Initialize databases and system
   createDatabaseSchema()
     .then(() => setupMongoCollections())
     /* .then(() => optimizeSystemForService()) */
     .then(() => scheduleMaterializedViewRefresh())
     .then(() => scheduleCacheWarming())
-    .then(() => warmCache()) // Initial cache warming
+    .then(() => warmCache())
     .catch((error) => {
       console.error("Initialization failed:", error);
       process.exit(1);
@@ -515,9 +496,8 @@ async function init() {
       const result = await createProduct(req.body);
       const product = result.rows[0];
       await storeProductDocument(product);
-      // await indexProduct(product);
+      /*await indexProduct(product);*/
 
-      // Invalidate caches
       await invalidateCachePattern("/products*");
       await invalidateCachePattern(`/products/${product.id}`);
 
@@ -972,7 +952,6 @@ async function init() {
   });
   */
 
-  // Chat functions
   /**
    * @swagger
    * /products/{productId}/chats:
@@ -1163,7 +1142,6 @@ async function init() {
     }
   });
 
-  // Add analytics endpoints
   /**
    * @swagger
    * /products/{productId}/analytics:
@@ -1292,7 +1270,6 @@ async function init() {
     }
   );
 
-  // Add recommendation endpoint
   /**
    * @swagger
    * /products/{productId}/recommendations:
@@ -2138,7 +2115,6 @@ async function init() {
     }
   );
 
-  // Add new functions for the new endpoints
   function getProductAttributes(product_id) {
     return pgPool.query(
       `SELECT pa.name, pa.type, pav.value 
@@ -2184,7 +2160,6 @@ async function init() {
     );
   }
 
-  // Start server
   app.listen(PORT, function () {
     console.log(`Product service is running on port ${PORT}`);
     console.log(
@@ -2193,7 +2168,6 @@ async function init() {
   });
 }
 
-// Database schema creation
 function createDatabaseSchema() {
   const createTablesQuery = `
         -- Install required extensions
@@ -2497,7 +2471,6 @@ function createDatabaseSchema() {
   return pgPool.query(createTablesQuery);
 }
 
-// Add function to refresh materialized views
 async function refreshMaterializedViews() {
   try {
     await pgPool.query("REFRESH MATERIALIZED VIEW CONCURRENTLY product_stats");
@@ -2508,13 +2481,10 @@ async function refreshMaterializedViews() {
   }
 }
 
-// Add scheduled refresh of materialized views
 function scheduleMaterializedViewRefresh() {
-  // Refresh every hour
   setInterval(refreshMaterializedViews, 60 * 60 * 1000);
 }
 
-// Linux utility functions
 function executeLinuxCommand(command) {
   try {
     return execSync(command, { encoding: "utf-8" });
@@ -2525,10 +2495,8 @@ function executeLinuxCommand(command) {
 }
 
 function optimizeSystemForService() {
-  // Increase system limits for better performance
   executeLinuxCommand("ulimit -n 65535");
 
-  // Optimize PostgreSQL settings
   executeLinuxCommand(
     'sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = 500;"'
   );
@@ -2545,25 +2513,20 @@ function optimizeSystemForService() {
     'sudo -u postgres psql -c "ALTER SYSTEM SET work_mem = 16MB;"'
   );
 
-  // Clear system cache if needed
   executeLinuxCommand("sync; echo 3 > /proc/sys/vm/drop_caches");
 
-  // Optimize Redis settings
   executeLinuxCommand("redis-cli config set maxmemory 2gb");
   executeLinuxCommand("redis-cli config set maxmemory-policy allkeys-lru");
 
-  // Set CPU governor to performance mode
   executeLinuxCommand(
     "echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
   );
 }
 
-// MongoDB collections setup
 async function setupMongoCollections() {
   await mongoClient.connect();
   const db = mongoClient.db();
 
-  // Create indexes for better search performance
   await db.collection("product_documents").createIndex({
     name: "text",
     description: "text",
@@ -2574,7 +2537,6 @@ async function setupMongoCollections() {
   });
 }
 
-// Product functions
 function createProduct(productData) {
   const { name, description, price, category_id, metadata } = productData;
   const query = `
@@ -2621,7 +2583,6 @@ function searchProducts(searchParams) {
   return pgPool.query(query, params);
 }
 
-// Category functions
 function createCategory(categoryData) {
   const { name, parent_id } = categoryData;
   const query = `
@@ -2649,7 +2610,6 @@ function getCategoryTree() {
   return pgPool.query(query);
 }
 
-// Comment functions
 function addComment(commentData) {
   const { product_id, user_id, comment } = commentData;
   const query = `
@@ -2667,7 +2627,6 @@ function getProductComments(product_id) {
   );
 }
 
-// Tag functions
 function addTagToProduct(product_id, tag_name) {
   const query = `
         INSERT INTO product_tags (product_id, tag_name)
@@ -2687,12 +2646,10 @@ function getProductsByTag(tag_name) {
   return pgPool.query(query, [tag_name]);
 }
 
-// MongoDB document functions
 async function storeProductDocument(productData) {
   const db = mongoClient.db();
   const collection = db.collection("product_documents");
 
-  // Store additional document data in MongoDB
   const document = {
     product_id: productData.id,
     name: productData.name,
@@ -2710,7 +2667,6 @@ async function searchProductDocuments(searchQuery) {
   const db = mongoClient.db();
   const collection = db.collection("product_documents");
 
-  // Create text search query
   const query = {
     $text: {
       $search: searchQuery,
@@ -2720,7 +2676,6 @@ async function searchProductDocuments(searchQuery) {
   return collection.find(query).toArray();
 }
 
-// Chat functions
 function createProductChat(chatData) {
   const { product_id, user_id, seller_id } = chatData;
   const query = `
@@ -2777,7 +2732,6 @@ function markChatMessagesAsRead(chat_id, user_id) {
   return pgPool.query(query, [chat_id, user_id]);
 }
 
-// Simple neural network for product recommendations
 class SimpleNeuralNetwork {
   constructor(inputSize, hiddenSize, outputSize) {
     this.weights1 = Array(inputSize)
@@ -2827,7 +2781,6 @@ class SimpleNeuralNetwork {
       (e, i) => e * this.sigmoidDerivative(this.hidden[i])
     );
 
-    // Update weights
     for (let i = 0; i < this.weights1.length; i++) {
       for (let j = 0; j < this.weights1[i].length; j++) {
         this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
@@ -2842,10 +2795,8 @@ class SimpleNeuralNetwork {
   }
 }
 
-// Product recommendation functions
 async function trainRecommendationModel() {
   try {
-    // Get user purchase history and product interactions
     const result = await pgPool.query(`
             SELECT 
                 p.id as product_id,
@@ -2859,18 +2810,16 @@ async function trainRecommendationModel() {
             GROUP BY p.id, p.category_id
         `);
 
-    // Prepare training data
     const trainingData = result.rows.map((row) => ({
       input: [
-        row.category_id / 100, // Normalize category_id
-        row.view_count / 1000, // Normalize view_count
-        row.tag_count / 10, // Normalize tag_count
-        row.avg_price / 1000, // Normalize price
+        row.category_id / 100,
+        row.view_count / 1000,
+        row.tag_count / 10,
+        row.avg_price / 1000,
       ],
-      output: [row.view_count > 10 ? 1 : 0], // Binary classification: popular or not
+      output: [row.view_count > 10 ? 1 : 0],
     }));
 
-    // Create and train neural network
     const nn = new SimpleNeuralNetwork(4, 8, 1);
     for (let i = 0; i < 1000; i++) {
       trainingData.forEach((data) => {
@@ -2894,7 +2843,6 @@ async function getProductRecommendations(productId) {
 
     const model = await trainRecommendationModel();
 
-    // Get similar products
     const result = await pgPool.query(
       `
             SELECT 
@@ -2916,7 +2864,6 @@ async function getProductRecommendations(productId) {
       [productId, product.rows[0].category_id]
     );
 
-    // Score products using neural network
     const scoredProducts = result.rows.map((row) => {
       const input = [
         row.category_id / 100,
@@ -2935,7 +2882,6 @@ async function getProductRecommendations(productId) {
   }
 }
 
-// Analytics functions
 function getProductAnalytics(productId) {
   const query = `
         WITH product_stats AS (
@@ -3038,7 +2984,6 @@ function getCategoryAnalytics(categoryId) {
   return pgPool.query(query, [categoryId]);
 }
 
-// Add new functions for product variants
 function createProductVariant(variantData) {
   const { product_id, sku, name, price, stock_quantity, attributes } =
     variantData;
@@ -3064,7 +3009,6 @@ function getProductVariants(product_id) {
   );
 }
 
-// Add new functions for product images
 function addProductImage(imageData) {
   const { product_id, variant_id, image_url, is_primary, order_index } =
     imageData;
@@ -3089,7 +3033,6 @@ function getProductImages(product_id) {
   );
 }
 
-// Add new functions for inventory management
 function updateInventory(inventoryData) {
   const { product_id, variant_id, quantity, reserved_quantity, location } =
     inventoryData;
@@ -3113,7 +3056,6 @@ function updateInventory(inventoryData) {
   ]);
 }
 
-// Add new functions for price history
 function addPriceHistory(priceData) {
   const {
     product_id,
@@ -3232,7 +3174,6 @@ function getProductPriceTrends(product_id, variant_id, period = "30 days") {
   return pgPool.query(query, params);
 }
 
-// Add new functions for product attributes
 function createProductAttribute(attributeData) {
   const { name, type } = attributeData;
   const query = `
@@ -3253,7 +3194,6 @@ function addProductAttributeValue(valueData) {
   return pgPool.query(query, [product_id, attribute_id, value]);
 }
 
-// Add new functions for product reviews
 function addProductReview(reviewData) {
   const { product_id, user_id, rating, review_text, is_verified } = reviewData;
   const query = `
@@ -3277,7 +3217,6 @@ function getProductReviews(product_id) {
   );
 }
 
-// Add new functions for wishlist
 function addToWishlist(wishlistData) {
   const { user_id, product_id } = wishlistData;
   const query = `
@@ -3295,7 +3234,6 @@ function getWishlist(user_id) {
   );
 }
 
-// Add new functions for product sharing
 function shareProduct(shareData) {
   const { product_id, user_id, share_type, share_data } = shareData;
   const query = `
@@ -3306,7 +3244,6 @@ function shareProduct(shareData) {
   return pgPool.query(query, [product_id, user_id, share_type, share_data]);
 }
 
-// Add new functions for product versions
 function createProductVersion(versionData) {
   const { product_id, version_number, changes, created_by } = versionData;
   const query = `
@@ -3317,7 +3254,6 @@ function createProductVersion(versionData) {
   return pgPool.query(query, [product_id, version_number, changes, created_by]);
 }
 
-// Add new functions for product relationships
 function addProductRelationship(relationshipData) {
   const { product_id, related_product_id, relationship_type } =
     relationshipData;
@@ -3333,7 +3269,6 @@ function addProductRelationship(relationshipData) {
   ]);
 }
 
-// Enhanced neural network for better recommendations
 class EnhancedNeuralNetwork {
   constructor(inputSize, hiddenSize, outputSize) {
     this.weights1 = Array(inputSize)
@@ -3393,7 +3328,6 @@ class EnhancedNeuralNetwork {
       (e, i) => e * this.sigmoidDerivative(this.hidden[i])
     );
 
-    // Update weights and biases
     for (let i = 0; i < this.weights1.length; i++) {
       for (let j = 0; j < this.weights1[i].length; j++) {
         this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
