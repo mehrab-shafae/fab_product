@@ -2149,10 +2149,10 @@ async function init() {
     const query = variant_id
       ? `SELECT * FROM product_price_history 
          WHERE product_id = $1 AND variant_id = $2 
-         ORDER BY change_date DESC`
+         ORDER BY effective_date DESC`
       : `SELECT * FROM product_price_history 
          WHERE product_id = $1 
-         ORDER BY change_date DESC`;
+         ORDER BY effective_date DESC`;
     const params = variant_id ? [product_id, variant_id] : [product_id];
     return pgPool.query(query, params);
   }
@@ -2204,6 +2204,7 @@ function createDatabaseSchema() {
         CREATE EXTENSION IF NOT EXISTS pg_trgm;
         
         -- Drop existing triggers if they exist
+        -- TODO(Dmitrii): remove this after testing
         DROP TRIGGER IF EXISTS refresh_product_stats_trigger ON products;
         DROP TRIGGER IF EXISTS refresh_product_stats_comments_trigger ON product_comments;
         DROP TRIGGER IF EXISTS refresh_product_stats_tags_trigger ON product_tags;
@@ -2373,14 +2374,24 @@ function createDatabaseSchema() {
         );
 
         -- Product Price History
+        -- TODO(Dmitrii): remove this after testing
+        DROP TABLE IF EXISTS product_price_history;
         CREATE TABLE IF NOT EXISTS product_price_history (
             id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            variant_id INTEGER REFERENCES product_variants(id),
-            price DECIMAL(10,2),
-            change_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            change_reason VARCHAR(255)
+            product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+            variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE,
+            price DECIMAL(10,2) NOT NULL,
+            change_reason VARCHAR(255) NOT NULL,
+            effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            discount_percentage DECIMAL(5,2) DEFAULT 0,
+            currency VARCHAR(3) DEFAULT 'USD',
+            source VARCHAR(50) DEFAULT 'system',
+            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE INDEX IF NOT EXISTS idx_price_history_product ON product_price_history(product_id);
+        CREATE INDEX IF NOT EXISTS idx_price_history_variant ON product_price_history(variant_id);
+        CREATE INDEX IF NOT EXISTS idx_price_history_date ON product_price_history(effective_date);
 
         -- Product Attributes
         CREATE TABLE IF NOT EXISTS product_attributes (
@@ -2447,23 +2458,6 @@ function createDatabaseSchema() {
             relationship_type VARCHAR(50),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-
-        CREATE TABLE IF NOT EXISTS product_price_history (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-            variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE,
-            price DECIMAL(10,2) NOT NULL,
-            change_reason VARCHAR(255) NOT NULL,
-            effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            discount_percentage DECIMAL(5,2) DEFAULT 0,
-            currency VARCHAR(3) DEFAULT 'USD',
-            source VARCHAR(50) DEFAULT 'system',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE INDEX IF NOT EXISTS idx_price_history_product ON product_price_history(product_id);
-        CREATE INDEX IF NOT EXISTS idx_price_history_variant ON product_price_history(variant_id);
-        CREATE INDEX IF NOT EXISTS idx_price_history_date ON product_price_history(effective_date);
 
         -- Create indexes for new tables
         CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
@@ -3125,7 +3119,16 @@ function updateInventory(inventoryData) {
 
 // Add new functions for price history
 function addPriceHistory(priceData) {
-  const { product_id, variant_id, price, change_reason, effective_date, discount_percentage, currency, source } = priceData;
+  const {
+    product_id,
+    variant_id,
+    price,
+    change_reason,
+    effective_date,
+    discount_percentage,
+    currency,
+    source,
+  } = priceData;
   const query = `
         INSERT INTO product_price_history (
             product_id, 
@@ -3147,8 +3150,8 @@ function addPriceHistory(priceData) {
     change_reason,
     effective_date || new Date(),
     discount_percentage || 0,
-    currency || 'USD',
-    source || 'system'
+    currency || "USD",
+    source || "system",
   ]);
 }
 
@@ -3165,7 +3168,7 @@ function getProductPriceStatistics(product_id, variant_id) {
                 (MAX(price) - MIN(price)) / MIN(price) * 100 as price_change_percentage
             FROM product_price_history
             WHERE product_id = $1
-            ${variant_id ? 'AND variant_id = $2' : ''}
+            ${variant_id ? "AND variant_id = $2" : ""}
         ),
         recent_changes AS (
             SELECT 
@@ -3177,7 +3180,7 @@ function getProductPriceStatistics(product_id, variant_id) {
                 ((price - LAG(price) OVER (ORDER BY effective_date)) / LAG(price) OVER (ORDER BY effective_date) * 100) as percentage_change
             FROM product_price_history
             WHERE product_id = $1
-            ${variant_id ? 'AND variant_id = $2' : ''}
+            ${variant_id ? "AND variant_id = $2" : ""}
             ORDER BY effective_date DESC
             LIMIT 5
         )
@@ -3199,7 +3202,7 @@ function getProductPriceStatistics(product_id, variant_id) {
   return pgPool.query(query, params);
 }
 
-function getProductPriceTrends(product_id, variant_id, period = '30 days') {
+function getProductPriceTrends(product_id, variant_id, period = "30 days") {
   const query = `
         WITH price_trends AS (
             SELECT 
@@ -3210,7 +3213,7 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
                 COUNT(*) as change_count
             FROM product_price_history
             WHERE product_id = $1
-            ${variant_id ? 'AND variant_id = $2' : ''}
+            ${variant_id ? "AND variant_id = $2" : ""}
             AND effective_date >= NOW() - $3::interval
             GROUP BY date_trunc('day', effective_date)
             ORDER BY date
@@ -3227,7 +3230,9 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
             ) as trends
         FROM price_trends
     `;
-  const params = variant_id ? [product_id, variant_id, period] : [product_id, period];
+  const params = variant_id
+    ? [product_id, variant_id, period]
+    : [product_id, period];
   return pgPool.query(query, params);
 }
 
