@@ -1,24 +1,17 @@
+import "dotenv/config";
+// ======================================================================
 import express from "express";
 import { execSync } from "child_process";
 import { Pool } from "pg";
 import { MongoClient } from "mongodb";
 import cors from "cors";
-import dotenv from "dotenv";
-// import { fileURLToPath } from 'url';
-// import { dirname } from 'path';
 import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import { createClient } from "redis";
 import rateLimit from "express-rate-limit";
 import slowDown from "express-slow-down";
 // import { Client } from '@elastic/elasticsearch';
-
-// Load environment variables
-dotenv.config();
-
-// Constants
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = dirname(__filename);
+// ======================================================================
 const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
   process.env.POSTGRES_URI ||
@@ -256,6 +249,85 @@ const CACHE_TTL = {
   ANALYTICS: 600,
 };
 
+// Swagger configuration
+const swaggerOptions = {
+  definition: {
+    openapi: "3.0.0",
+    info: {
+      title: "Product Microservice API",
+      version: "1.0.0",
+      description:
+        "A comprehensive product management microservice with category, tag, and comment support",
+    },
+    servers: [
+      {
+        url: `http://localhost:${PORT}`,
+        description: "Development server",
+      },
+    ],
+    components: {
+      schemas: {
+        Product: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            description: { type: "string" },
+            price: { type: "number", format: "float" },
+            category_id: { type: "integer" },
+            metadata: { type: "object" },
+            created_at: { type: "string", format: "date-time" },
+            updated_at: { type: "string", format: "date-time" },
+          },
+        },
+        Category: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            name: { type: "string" },
+            parent_id: { type: "integer", nullable: true },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        Comment: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            product_id: { type: "integer" },
+            user_id: { type: "integer" },
+            comment: { type: "string" },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+        Tag: {
+          type: "object",
+          properties: {
+            id: { type: "integer" },
+            product_id: { type: "integer" },
+            tag_name: { type: "string" },
+            created_at: { type: "string", format: "date-time" },
+          },
+        },
+      },
+    },
+  },
+  apis: ["./index.js"], // Path to the API docs
+};
+
+const swaggerDocs = swaggerJsdoc(swaggerOptions);
+
+// Database connections
+const pgPool = new Pool({
+  connectionString: POSTGRES_URI,
+});
+
+const mongoClient = new MongoClient(MONGO_URI);
+// ======================================================================
+function main() {
+  init();
+}
+main();
+// ======================================================================
 async function getCachedData(key, fetchData, ttl) {
   try {
     const cachedData = await redisClient.get(key);
@@ -368,80 +440,6 @@ function scheduleCacheWarming() {
   // Warm cache every 4 hours
   setInterval(warmCache, 4 * 60 * 60 * 1000);
 }
-
-// Swagger configuration
-const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "Product Microservice API",
-      version: "1.0.0",
-      description:
-        "A comprehensive product management microservice with category, tag, and comment support",
-    },
-    servers: [
-      {
-        url: `http://localhost:${PORT}`,
-        description: "Development server",
-      },
-    ],
-    components: {
-      schemas: {
-        Product: {
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            name: { type: "string" },
-            description: { type: "string" },
-            price: { type: "number", format: "float" },
-            category_id: { type: "integer" },
-            metadata: { type: "object" },
-            created_at: { type: "string", format: "date-time" },
-            updated_at: { type: "string", format: "date-time" },
-          },
-        },
-        Category: {
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            name: { type: "string" },
-            parent_id: { type: "integer", nullable: true },
-            created_at: { type: "string", format: "date-time" },
-          },
-        },
-        Comment: {
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            product_id: { type: "integer" },
-            user_id: { type: "integer" },
-            comment: { type: "string" },
-            created_at: { type: "string", format: "date-time" },
-          },
-        },
-        Tag: {
-          type: "object",
-          properties: {
-            id: { type: "integer" },
-            product_id: { type: "integer" },
-            tag_name: { type: "string" },
-            created_at: { type: "string", format: "date-time" },
-          },
-        },
-      },
-    },
-  },
-  apis: ["./index.js"], // Path to the API docs
-};
-
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-
-// Database connections
-const pgPool = new Pool({
-  connectionString: POSTGRES_URI,
-});
-
-const mongoClient = new MongoClient(MONGO_URI);
 
 // Initialize function
 async function init() {
@@ -2188,14 +2186,6 @@ async function init() {
     );
   });
 }
-
-// Main function
-function main() {
-  init();
-}
-
-// Start the service
-main();
 
 // Database schema creation
 function createDatabaseSchema() {
