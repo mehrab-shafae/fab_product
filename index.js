@@ -27,13 +27,62 @@ const elasticClient = new Client({
 });
 */
 
-const redisClient = createClient({
-    url: REDIS_URI,
-});
+// Redis connection manager
+let redisClient = null;
+let redisConnected = false;
+let redisRetryCount = 0;
+const MAX_REDIS_RETRIES = 5;
+const REDIS_RETRY_DELAY = 5000;
 
-redisClient.on('error', function (err) {
-    console.error('Redis Client Error:', err);
-});
+async function initializeRedis() {
+    try {
+        redisClient = createClient({
+            url: REDIS_URI,
+            retry_strategy: function(options) {
+                if (options.error && options.error.code === 'ECONNREFUSED') {
+                    console.error('Redis connection refused. Retrying...');
+                    return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
+                }
+                if (options.total_retry_time > 1000 * 60 * 60) {
+                    return new Error('Redis retry time exhausted');
+                }
+                if (options.attempt > MAX_REDIS_RETRIES) {
+                    return new Error('Redis max retries reached');
+                }
+                return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
+            }
+        });
+
+        redisClient.on('error', function(err) {
+            console.error('Redis Client Error:', err);
+            redisConnected = false;
+            redisRetryCount++;
+            
+            if (redisRetryCount <= MAX_REDIS_RETRIES) {
+                console.log(`Attempting to reconnect to Redis (${redisRetryCount}/${MAX_REDIS_RETRIES})...`);
+                setTimeout(initializeRedis, REDIS_RETRY_DELAY);
+            } else {
+                console.error('Redis connection failed after maximum retries. Service will continue without Redis.');
+            }
+        });
+
+        redisClient.on('connect', function() {
+            console.log('Redis connected successfully');
+            redisConnected = true;
+            redisRetryCount = 0;
+        });
+
+        redisClient.on('reconnecting', function() {
+            console.log('Redis reconnecting...');
+            redisConnected = false;
+        });
+
+        await redisClient.connect();
+    } catch (error) {
+        console.error('Redis initialization error:', error);
+        redisConnected = false;
+    }
+}
 
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -319,36 +368,10 @@ function main() {
 }
 main();
 // ======================================================================
-async function getCachedData(key, fetchData, ttl) {
-    try {
-        const cachedData = await redisClient.get(key);
-        if (cachedData) {
-            return JSON.parse(cachedData);
-        }
-
-        const data = await fetchData();
-        await redisClient.setEx(key, ttl, JSON.stringify(data));
-        return data;
-    } catch (error) {
-        console.error('Cache error:', error);
-        return fetchData();
-    }
-}
-
-async function invalidateCachePattern(pattern) {
-    try {
-        const keys = await redisClient.keys(pattern);
-        if (keys.length > 0) {
-            await redisClient.del(keys);
-        }
-    } catch (error) {
-        console.error('Cache invalidation error:', error);
-    }
-}
-
+// Enhanced cache middleware with fallback
 function enhancedCacheMiddleware(prefix, ttl) {
-    return function (req, res, next) {
-        if (req.method !== 'GET') {
+    return function(req, res, next) {
+        if (req.method !== 'GET' || !redisConnected) {
             return next();
         }
 
@@ -361,8 +384,11 @@ function enhancedCacheMiddleware(prefix, ttl) {
                 }
 
                 res.sendResponse = res.json;
-                res.json = function (body) {
-                    redisClient.setEx(key, ttl, JSON.stringify(body)).catch(error => console.error('Cache error:', error));
+                res.json = function(body) {
+                    if (redisConnected) {
+                        redisClient.setEx(key, ttl, JSON.stringify(body))
+                            .catch(error => console.error('Cache error:', error));
+                    }
                     res.sendResponse(body);
                 };
                 next();
@@ -374,27 +400,78 @@ function enhancedCacheMiddleware(prefix, ttl) {
     };
 }
 
+// Enhanced cache data retrieval with fallback
+async function getCachedData(key, fetchData, ttl) {
+    try {
+        if (!redisConnected) {
+            return await fetchData();
+        }
+
+        const cachedData = await redisClient.get(key);
+        if (cachedData) {
+            return JSON.parse(cachedData);
+        }
+
+        const data = await fetchData();
+        if (redisConnected) {
+            await redisClient.setEx(key, ttl, JSON.stringify(data));
+        }
+        return data;
+    } catch (error) {
+        console.error('Cache error:', error);
+        return fetchData();
+    }
+}
+
+// Enhanced cache invalidation with fallback
+async function invalidateCachePattern(pattern) {
+    try {
+        if (!redisConnected) {
+            return;
+        }
+
+        const keys = await redisClient.keys(pattern);
+        if (keys.length > 0) {
+            await redisClient.del(keys);
+        }
+    } catch (error) {
+        console.error('Cache invalidation error:', error);
+    }
+}
+
+// Enhanced cache warming with fallback
 async function warmCache() {
     try {
+        if (!redisConnected) {
+            console.log('Skipping cache warming - Redis not connected');
+            return;
+        }
+
         const products = await pgPool.query('SELECT id FROM products ORDER BY created_at DESC LIMIT 100');
         for (const product of products.rows) {
             const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
             const data = await getProductById(product.id);
-            await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows[0]));
+            if (redisConnected) {
+                await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows[0]));
+            }
         }
 
         const categories = await pgPool.query('SELECT id FROM categories');
         for (const category of categories.rows) {
             const key = `${CACHE_PREFIXES.CATEGORY}${category.id}`;
             const data = await getCategoryTree();
-            await redisClient.setEx(key, CACHE_TTL.CATEGORY, JSON.stringify(data.rows));
+            if (redisConnected) {
+                await redisClient.setEx(key, CACHE_TTL.CATEGORY, JSON.stringify(data.rows));
+            }
         }
 
         const analytics = await pgPool.query('SELECT id FROM products ORDER BY created_at DESC LIMIT 50');
         for (const product of analytics.rows) {
             const key = `${CACHE_PREFIXES.ANALYTICS}${product.id}`;
             const data = await getProductAnalytics(product.id);
-            await redisClient.setEx(key, CACHE_TTL.ANALYTICS, JSON.stringify(data.rows[0]));
+            if (redisConnected) {
+                await redisClient.setEx(key, CACHE_TTL.ANALYTICS, JSON.stringify(data.rows[0]));
+            }
         }
 
         console.log('Cache warming completed successfully');
@@ -410,7 +487,7 @@ function scheduleCacheWarming() {
 async function init() {
     const app = express();
 
-    await redisClient.connect();
+    await initializeRedis();
 
     app.use(cors());
     app.use(express.json());
@@ -1607,9 +1684,21 @@ async function init() {
             timestamp: new Date(),
             services: {
                 postgres: pgPool ? 'connected' : 'disconnected',
-                redis: redisClient ? 'connected' : 'disconnected',
+                redis: {
+                    status: redisConnected ? 'connected' : 'disconnected',
+                    retryCount: redisRetryCount,
+                    maxRetries: MAX_REDIS_RETRIES,
+                    lastError: redisClient ? redisClient.lastError : null
+                },
                 mongo: mongoClient ? 'connected' : 'disconnected',
             },
+            cache: {
+                enabled: redisConnected,
+                warming: {
+                    lastRun: new Date(),
+                    status: redisConnected ? 'active' : 'disabled'
+                }
+            }
         };
         res.json(health);
     });
