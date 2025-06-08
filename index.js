@@ -51,9 +51,7 @@ const speedLimiter = slowDown({
 });
 
 /*
-
 const ELASTIC_INDEX = 'products';
-
 
 async function setupElasticsearch() {
     try {
