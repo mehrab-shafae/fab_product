@@ -690,6 +690,8 @@ async function init() {
         await setupMongoCollections();
         await createOptimizedIndexes();
         await createMaterializedViews();
+        // Create unique indexes for materialized views
+        await createMaterializedViewIndexes();
         await refreshMaterializedViews();
         scheduleMaterializedViewRefresh();
         scheduleCacheWarming();
@@ -3779,6 +3781,37 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
         client.release();
     }
 });
+
+// Create unique indexes for materialized views
+async function createMaterializedViewIndexes() {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Create unique index for product analytics
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_analytics_id ON mv_product_analytics(id)');
+        console.log('Created unique index for mv_product_analytics');
+
+        // Create unique index for category analytics
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)');
+        console.log('Created unique index for mv_category_analytics');
+
+        // Create unique index for product price trends
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_price_trends_id ON mv_product_price_trends(id)');
+        console.log('Created unique index for mv_product_price_trends');
+
+        // Create unique index for product inventory status
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_inventory_status_id ON mv_product_inventory_status(id)');
+        console.log('Created unique index for mv_product_inventory_status');
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
 
 // ======================================================================
 async function main() {

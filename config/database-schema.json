@@ -107,27 +107,35 @@
         {
             "name": "idx_product_reviews_product",
             "query": "CREATE INDEX IF NOT EXISTS idx_product_reviews_product ON product_reviews(product_id)"
+        },
+        {
+            "name": "idx_mv_product_analytics_id",
+            "query": "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_analytics_id ON mv_product_analytics(id)"
+        },
+        {
+            "name": "idx_mv_category_analytics_id",
+            "query": "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)"
         }
     ],
     "materializedViews": [
         {
             "name": "mv_product_analytics",
-            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_analytics AS SELECT p.id, p.name, p.price, p.status, c.name as category_name, COUNT(DISTINCT oi.id) as total_orders, SUM(oi.quantity) as total_quantity_sold, AVG(pr.rating) as average_rating, COUNT(DISTINCT pr.id) as total_reviews FROM products p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN order_items oi ON p.id = oi.product_id LEFT JOIN product_reviews pr ON p.id = pr.product_id GROUP BY p.id, p.name, p.price, p.status, c.name",
+            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_analytics AS SELECT DISTINCT ON (p.id) p.id, p.name, p.price, p.status, c.name as category_name, COUNT(DISTINCT oi.id) as total_orders, SUM(oi.quantity) as total_quantity_sold, AVG(pr.rating) as average_rating, COUNT(DISTINCT pr.id) as total_reviews FROM products p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN order_items oi ON p.id = oi.product_id LEFT JOIN product_reviews pr ON p.id = pr.product_id GROUP BY p.id, p.name, p.price, p.status, c.name",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_product_analytics"
         },
         {
             "name": "mv_category_analytics",
-            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_analytics AS SELECT c.id, c.name, COUNT(DISTINCT p.id) as total_products, AVG(p.price) as average_price, COUNT(DISTINCT oi.id) as total_orders, SUM(oi.quantity) as total_quantity_sold FROM categories c LEFT JOIN products p ON c.id = p.category_id LEFT JOIN order_items oi ON p.id = oi.product_id GROUP BY c.id, c.name",
+            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_analytics AS SELECT DISTINCT ON (c.id) c.id, c.name, COUNT(DISTINCT p.id) as total_products, AVG(p.price) as average_price, COUNT(DISTINCT oi.id) as total_orders, SUM(oi.quantity) as total_quantity_sold FROM categories c LEFT JOIN products p ON c.id = p.category_id LEFT JOIN order_items oi ON p.id = oi.product_id GROUP BY c.id, c.name",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_category_analytics"
         },
         {
             "name": "mv_product_price_trends",
-            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_price_trends AS SELECT p.id, p.name, ph.variant_id, ph.price, ph.created_at, ph.change_type FROM products p JOIN price_history ph ON p.id = ph.product_id ORDER BY ph.created_at DESC",
+            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_price_trends AS SELECT DISTINCT ON (p.id, ph.variant_id) p.id, p.name, ph.variant_id, ph.price, ph.created_at, ph.change_type FROM products p JOIN price_history ph ON p.id = ph.product_id ORDER BY p.id, ph.variant_id, ph.created_at DESC",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_product_price_trends"
         },
         {
             "name": "mv_product_inventory_status",
-            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_inventory_status AS SELECT p.id, p.name, pv.id as variant_id, pv.sku, pi.quantity, pi.reserved_quantity, (pi.quantity - pi.reserved_quantity) as available_quantity FROM products p JOIN product_variants pv ON p.id = pv.product_id JOIN product_inventory pi ON pv.id = pi.variant_id",
+            "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_inventory_status AS SELECT DISTINCT ON (p.id, pv.id) p.id, p.name, pv.id as variant_id, pv.sku, pi.quantity, pi.reserved_quantity, (pi.quantity - pi.reserved_quantity) as available_quantity FROM products p JOIN product_variants pv ON p.id = pv.product_id JOIN product_inventory pi ON pv.id = pi.variant_id ORDER BY p.id, pv.id",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_product_inventory_status"
         }
     ]
