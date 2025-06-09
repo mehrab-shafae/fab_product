@@ -1746,6 +1746,41 @@ async function init() {
 
     /**
      * @swagger
+     * /attributes:
+     *   post:
+     *     summary: Create a new product attribute
+     *     tags: [Products]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - name
+     *               - type
+     *             properties:
+     *               name:
+     *                 type: string
+     *               type:
+     *                 type: string
+     *     responses:
+     *       200:
+     *         description: Attribute created successfully
+     *       500:
+     *         description: Server error
+     */
+    app.post('/attributes', async function (req, res) {
+        try {
+            const result = await createProductAttribute(req.body);
+            res.json(result.rows[0]);
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    /**
+     * @swagger
      * /products/{productId}/attributes:
      *   get:
      *     summary: Get all attributes for a product
@@ -2283,7 +2318,8 @@ function createDatabaseSchema() {
             reserved_quantity INTEGER DEFAULT 0,
             location VARCHAR(100),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(product_id, variant_id)
         );
 
         -- Product Price History
@@ -3012,6 +3048,14 @@ function getProductPriceStatistics(product_id, variant_id) {
 }
 
 function getProductPriceTrends(product_id, variant_id, period = '30 days') {
+    const periodMatch = period.match(/^(\d+)\s+(day|week|month|year)s?$/i);
+    if (!periodMatch) {
+        throw new Error('Invalid period format. Use format like "30 days", "1 week", "6 months", "1 year"');
+    }
+
+    const [_, amount, unit] = periodMatch;
+    const interval = `${amount} ${unit}`;
+
     const query = `
         WITH price_trends AS (
             SELECT 
@@ -3023,7 +3067,7 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
             FROM product_price_history
             WHERE product_id = $1
             ${variant_id ? 'AND variant_id = $2' : ''}
-            AND effective_date >= NOW() - $3::interval
+            AND effective_date >= NOW() - ${variant_id ? '$3' : '$2'}::interval
             GROUP BY date_trunc('day', effective_date)
             ORDER BY date
         )
@@ -3039,7 +3083,9 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
             ) as trends
         FROM price_trends
     `;
-    const params = variant_id ? [product_id, variant_id, period] : [product_id, period];
+
+    const params = variant_id ? [product_id, variant_id, interval] : [product_id, interval];
+
     return pgPool.query(query, params);
 }
 

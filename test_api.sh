@@ -1,326 +1,441 @@
 #!/bin/bash
 
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m'
 
-LOG_FILE="api_test_$(date +%Y%m%d_%H%M%S).log"
+# Configuration
 API_BASE_URL="http://localhost:3000"
+LOG_FILE="api_test_$(date +%Y%m%d_%H%M%S).log"
+STATE_FILE="test_state.json"
 
+# Initialize state file
+echo "{}" >"$STATE_FILE"
+
+# Helper functions
 log() {
     local message=$1
     local color=$2
-
-    echo -e "${color:-$NC}$message${NC}"
-
-    echo "$message" >>"$LOG_FILE"
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo -e "${color:-$NC}[$timestamp] $message${NC}"
+    echo "[$timestamp] $message" >>"$LOG_FILE"
 }
 
-check_last_test() {
-    if [[ $? -ne 0 ]]; then
-        log "Previous test failed. Stopping test suite." "$RED"
-        exit 1
-    fi
+save_state() {
+    local key=$1
+    local value=$2
+    local temp_file=$(mktemp)
+    jq --arg key "$key" --arg value "$value" '.[$key] = $value' "$STATE_FILE" >"$temp_file"
+    mv "$temp_file" "$STATE_FILE"
 }
 
+get_state() {
+    local key=$1
+    jq -r --arg key "$key" '.[$key] // empty' "$STATE_FILE"
+}
+
+cleanup() {
+    log "Cleaning up test environment..." "$YELLOW"
+    rm -f "$STATE_FILE"
+    log "Cleanup completed" "$GREEN"
+}
+
+trap cleanup EXIT
+
+# Test execution function with improved error handling and response validation
 test_endpoint() {
-    local method=$1
-    local endpoint=$2
-    local data=$3
-    local description=$4
+    local test_name=$1
+    local method=$2
+    local endpoint=$3
+    local data=$4
     local expected_status=${5:-200}
+    local state_key=$6
+    local jq_filter=$7
+    local description=$8
 
-    log "\n=== Testing $description ===" "$YELLOW"
-    log "Endpoint: $method $endpoint"
+    log "\n=== Testing $test_name ===" "$BLUE"
+    log "Description: $description" "$YELLOW"
+    log "Endpoint: $method $endpoint" "$YELLOW"
+
     if [ ! -z "$data" ]; then
-        log "Data: $data"
+        log "Request Data: $data" "$YELLOW"
     fi
 
     local response
+    local status_code
+    local response_body
+
+    # Execute the request
     if [ "$method" = "GET" ]; then
         response=$(curl -s -w "\n%{http_code}" "$API_BASE_URL$endpoint")
     else
-        response=$(curl -s -X "$method" -H "Content-Type: application/json" -d "$data" -w "\n%{http_code}" "$API_BASE_URL$endpoint")
+        response=$(curl -s -X "$method" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            -w "\n%{http_code}" \
+            "$API_BASE_URL$endpoint")
     fi
 
-    local status_code=$(echo "$response" | tail -n1)
-    local body=$(echo "$response" | sed '$d')
+    status_code=$(echo "$response" | tail -n1)
+    response_body=$(echo "$response" | sed '$d')
 
-    log "Status Code: $status_code"
-    log "Response: $body"
+    log "Status Code: $status_code" "$YELLOW"
+    log "Response: $response_body" "$YELLOW"
 
-    if [[ $status_code -eq $expected_status ]]; then
-        log "✓ Test passed" "$GREEN"
-        return 0
-    else
-        log "✗ Test failed (Expected: $expected_status, Got: $status_code)" "$RED"
+    # Validate status code
+    if [[ $status_code -ne $expected_status ]]; then
+        log "✗ Test failed: Expected status $expected_status, got $status_code" "$RED"
         return 1
     fi
+
+    # Validate and save state if needed
+    if [ ! -z "$state_key" ] && [ ! -z "$jq_filter" ]; then
+        local extracted_value
+        if ! extracted_value=$(echo "$response_body" | jq -r "$jq_filter" 2>/dev/null); then
+            log "✗ Test failed: Invalid JSON response or jq filter" "$RED"
+            return 1
+        fi
+
+        if [ -z "$extracted_value" ]; then
+            log "✗ Test failed: Could not extract value using jq filter" "$RED"
+            return 1
+        fi
+
+        save_state "$state_key" "$extracted_value"
+        log "✓ State saved: $state_key = $extracted_value" "$GREEN"
+    fi
+
+    log "✓ Test passed" "$GREEN"
+    return 0
 }
 
-log "API Test Suite Started at $(date)" "$YELLOW"
-log "API Base URL: $API_BASE_URL"
+# Test suite execution
+run_test_suite() {
+    log "Starting API Test Suite" "$BLUE"
+    log "API Base URL: $API_BASE_URL" "$YELLOW"
+    log "Log file: $LOG_FILE" "$YELLOW"
 
-log "\n=== Testing System Health ===" "$YELLOW"
-test_endpoint "GET" "/health" "" "Health Check"
-check_last_test
+    # 1. System Health Check
+    test_endpoint "System Health" "GET" "/health" "" 200 "" "" "Check system health status"
+    [ $? -ne 0 ] && return 1
 
-log "\n=== Testing Category Management ===" "$YELLOW"
+    # 2. Category Management
+    # Create parent category
+    test_endpoint "Create Parent Category" "POST" "/categories" \
+        '{"name": "Electronics", "parent_id": null}' \
+        200 "parent_category_id" ".id" \
+        "Create parent category for product hierarchy"
+    [ $? -ne 0 ] && return 1
 
-PARENT_CATEGORY_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d '{
-    "name": "Electronics",
-    "parent_id": null
-}' "$API_BASE_URL/categories")
-PARENT_CATEGORY_ID=$(echo "$PARENT_CATEGORY_RESPONSE" | grep -o '"id":[0-9]*' | cut -d':' -f2)
+    PARENT_CATEGORY_ID=$(get_state "parent_category_id")
 
-if [ -z "$PARENT_CATEGORY_ID" ]; then
-    log "Failed to get parent category ID" "$RED"
+    # Create subcategory
+    test_endpoint "Create Subcategory" "POST" "/categories" \
+        "{\"name\": \"Smartphones\", \"parent_id\": $PARENT_CATEGORY_ID}" \
+        200 "subcategory_id" ".id" \
+        "Create subcategory under parent category"
+    [ $? -ne 0 ] && return 1
+
+    # Get category tree
+    test_endpoint "Get Category Tree" "GET" "/categories/tree" \
+        "" 200 "" "" \
+        "Retrieve complete category hierarchy"
+    [ $? -ne 0 ] && return 1
+
+    # 3. Product Management
+    # Create first product
+    test_endpoint "Create First Product" "POST" "/products" \
+        "{
+            \"name\": \"iPhone 13\",
+            \"description\": \"Latest iPhone model\",
+            \"price\": 999.99,
+            \"category_id\": $PARENT_CATEGORY_ID,
+            \"metadata\": {
+                \"brand\": \"Apple\",
+                \"color\": \"Midnight Blue\",
+                \"storage\": \"128GB\"
+            }
+        }" \
+        200 "first_product_id" ".id" \
+        "Create first test product"
+    [ $? -ne 0 ] && return 1
+
+    FIRST_PRODUCT_ID=$(get_state "first_product_id")
+
+    # Create second product for relationships
+    test_endpoint "Create Second Product" "POST" "/products" \
+        "{
+            \"name\": \"Samsung Galaxy S21\",
+            \"description\": \"Flagship Android phone\",
+            \"price\": 899.99,
+            \"category_id\": $PARENT_CATEGORY_ID,
+            \"metadata\": {
+                \"brand\": \"Samsung\",
+                \"color\": \"Phantom Gray\",
+                \"storage\": \"256GB\"
+            }
+        }" \
+        200 "second_product_id" ".id" \
+        "Create second test product for relationships"
+    [ $? -ne 0 ] && return 1
+
+    SECOND_PRODUCT_ID=$(get_state "second_product_id")
+
+    # 4. Product Attributes
+    # Create attributes
+    test_endpoint "Create Processor Attribute" "POST" "/attributes" \
+        '{"name": "Processor", "type": "string"}' \
+        200 "processor_attribute_id" ".id" \
+        "Create processor attribute type"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Create Screen Size Attribute" "POST" "/attributes" \
+        '{"name": "Screen Size", "type": "string"}' \
+        200 "screen_size_attribute_id" ".id" \
+        "Create screen size attribute type"
+    [ $? -ne 0 ] && return 1
+
+    PROCESSOR_ATTR_ID=$(get_state "processor_attribute_id")
+    SCREEN_SIZE_ATTR_ID=$(get_state "screen_size_attribute_id")
+
+    # Add attributes to product
+    test_endpoint "Add Processor Attribute" "POST" "/products/$FIRST_PRODUCT_ID/attributes" \
+        "{\"attribute_id\": $PROCESSOR_ATTR_ID, \"value\": \"A15 Bionic\"}" \
+        200 "" "" \
+        "Add processor attribute to first product"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Add Screen Size Attribute" "POST" "/products/$FIRST_PRODUCT_ID/attributes" \
+        "{\"attribute_id\": $SCREEN_SIZE_ATTR_ID, \"value\": \"6.1 inches\"}" \
+        200 "" "" \
+        "Add screen size attribute to first product"
+    [ $? -ne 0 ] && return 1
+
+    # 5. Product Variants
+    test_endpoint "Create Product Variant" "POST" "/products/$FIRST_PRODUCT_ID/variants" \
+        "{
+            \"sku\": \"IP13-256-BLK\",
+            \"name\": \"iPhone 13 256GB Black\",
+            \"price\": 1099.99,
+            \"stock_quantity\": 50,
+            \"attributes\": {
+                \"storage\": \"256GB\",
+                \"color\": \"Black\"
+            }
+        }" \
+        200 "variant_id" ".id" \
+        "Create variant for first product"
+    [ $? -ne 0 ] && return 1
+
+    VARIANT_ID=$(get_state "variant_id")
+
+    # 6. Product Images
+    test_endpoint "Add Primary Product Image" "POST" "/products/$FIRST_PRODUCT_ID/images" \
+        "{
+            \"image_url\": \"https://example.com/iphone13-main.jpg\",
+            \"is_primary\": true,
+            \"order_index\": 1
+        }" \
+        200 "primary_image_id" ".id" \
+        "Add primary image to first product"
+    [ $? -ne 0 ] && return 1
+
+    # 7. Price and Inventory Management
+    test_endpoint "Add Price History" "POST" "/products/$FIRST_PRODUCT_ID/price-history" \
+        "{
+            \"variant_id\": $VARIANT_ID,
+            \"price\": 1049.99,
+            \"change_reason\": \"Holiday season price adjustment\"
+        }" \
+        200 "" "" \
+        "Add price history entry for product variant"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Update Inventory" "POST" "/products/$FIRST_PRODUCT_ID/inventory" \
+        "{
+            \"variant_id\": $VARIANT_ID,
+            \"quantity\": 100,
+            \"reserved_quantity\": 0,
+            \"location\": \"Main Warehouse\"
+        }" \
+        200 "" "" \
+        "Update inventory for product variant"
+    [ $? -ne 0 ] && return 1
+
+    # 8. Product Relationships
+    test_endpoint "Add Product Relationship" "POST" "/products/$FIRST_PRODUCT_ID/relationships" \
+        "{
+            \"related_product_id\": $SECOND_PRODUCT_ID,
+            \"relationship_type\": \"similar\"
+        }" \
+        200 "" "" \
+        "Add relationship between products"
+    [ $? -ne 0 ] && return 1
+
+    # 9. Product Reviews and Comments
+    test_endpoint "Add Product Review" "POST" "/products/$FIRST_PRODUCT_ID/reviews" \
+        '{
+            "user_id": 1,
+            "rating": 5,
+            "review_text": "Excellent product with amazing features!",
+            "is_verified": true
+        }' \
+        200 "review_id" ".id" \
+        "Add review to first product"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Add Product Comment" "POST" "/products/$FIRST_PRODUCT_ID/comments" \
+        '{
+            "user_id": 1,
+            "comment": "When will the new color variants be available?"
+        }' \
+        200 "comment_id" ".id" \
+        "Add comment to first product"
+    [ $? -ne 0 ] && return 1
+
+    # 10. Product Tags
+    test_endpoint "Add Product Tag" "POST" "/products/$FIRST_PRODUCT_ID/tags" \
+        '{"tag_name": "flagship"}' \
+        200 "tag_id" ".id" \
+        "Add tag to first product"
+    [ $? -ne 0 ] && return 1
+
+    # 11. Product Versions
+    test_endpoint "Create Product Version" "POST" "/products/$FIRST_PRODUCT_ID/versions" \
+        '{
+            "version_number": 2,
+            "changes": {
+                "price": "Updated to 1049.99",
+                "description": "Updated with new features",
+                "metadata": {
+                    "added_colors": ["Starlight", "Pink"]
+                }
+            },
+            "created_by": 1
+        }' \
+        200 "version_id" ".id" \
+        "Create new version of first product"
+    [ $? -ne 0 ] && return 1
+
+    # 12. Chat System
+    test_endpoint "Create Product Chat" "POST" "/products/$FIRST_PRODUCT_ID/chats" \
+        '{
+            "user_id": 1,
+            "seller_id": 2
+        }' \
+        200 "chat_id" ".id" \
+        "Create chat for first product"
+    [ $? -ne 0 ] && return 1
+
+    CHAT_ID=$(get_state "chat_id")
+
+    test_endpoint "Add Chat Message" "POST" "/chats/$CHAT_ID/messages" \
+        '{
+            "sender_id": 1,
+            "message": "Is this product available in other colors?"
+        }' \
+        200 "message_id" ".id" \
+        "Add message to product chat"
+    [ $? -ne 0 ] && return 1
+
+    # 13. Wishlist
+    test_endpoint "Add to Wishlist" "POST" "/users/1/wishlist" \
+        "{\"product_id\": $FIRST_PRODUCT_ID}" \
+        200 "wishlist_id" ".id" \
+        "Add first product to user wishlist"
+    [ $? -ne 0 ] && return 1
+
+    # 14. Get Operations (Testing cached responses)
+    log "\n=== Testing GET Operations ===" "$BLUE"
+
+    test_endpoint "Get Product by ID" "GET" "/products/$FIRST_PRODUCT_ID" \
+        "" 200 "" "" \
+        "Retrieve first product details"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Variants" "GET" "/products/$FIRST_PRODUCT_ID/variants" \
+        "" 200 "" "" \
+        "Retrieve product variants"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Images" "GET" "/products/$FIRST_PRODUCT_ID/images" \
+        "" 200 "" "" \
+        "Retrieve product images"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Reviews" "GET" "/products/$FIRST_PRODUCT_ID/reviews" \
+        "" 200 "" "" \
+        "Retrieve product reviews"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Comments" "GET" "/products/$FIRST_PRODUCT_ID/comments" \
+        "" 200 "" "" \
+        "Retrieve product comments"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Relationships" "GET" "/products/$FIRST_PRODUCT_ID/relationships" \
+        "" 200 "" "" \
+        "Retrieve product relationships"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Product Versions" "GET" "/products/$FIRST_PRODUCT_ID/versions" \
+        "" 200 "" "" \
+        "Retrieve product versions"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get User Wishlist" "GET" "/users/1/wishlist" \
+        "" 200 "" "" \
+        "Retrieve user wishlist"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Chat Messages" "GET" "/chats/$CHAT_ID/messages" \
+        "" 200 "" "" \
+        "Retrieve chat messages"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Price History" "GET" "/products/$FIRST_PRODUCT_ID/price-history" \
+        "" 200 "" "" \
+        "Retrieve product price history"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Get Price Statistics" "GET" "/products/$FIRST_PRODUCT_ID/price-statistics" \
+        "" 200 "" "" \
+        "Retrieve product price statistics"
+    [ $? -ne 0 ] && return 1
+
+    # Test price trends without variant_id
+    test_endpoint "Get Price Trends (No Variant)" "GET" "/products/$FIRST_PRODUCT_ID/price-trends?period=30%20days" \
+        "" 200 "" "" \
+        "Retrieve product price trends without variant"
+    [ $? -ne 0 ] && return 1
+
+    # Test price trends with variant_id
+    test_endpoint "Get Price Trends (With Variant)" "GET" "/products/$FIRST_PRODUCT_ID/price-trends?period=30%20days&variant_id=$VARIANT_ID" \
+        "" 200 "" "" \
+        "Retrieve product price trends with variant"
+    [ $? -ne 0 ] && return 1
+
+    log "\n=== API Test Suite Completed Successfully ===" "$GREEN"
+    return 0
+}
+
+# Check if jq is installed
+if ! command -v jq &>/dev/null; then
+    log "Error: jq is required but not installed. Please install jq to run the tests." "$RED"
     exit 1
 fi
 
-log "Created parent category with ID: $PARENT_CATEGORY_ID" "$GREEN"
+# Run the test suite
+run_test_suite
+TEST_RESULT=$?
 
-test_endpoint "POST" "/categories" "{
-    \"name\": \"Smartphones\",
-    \"parent_id\": $PARENT_CATEGORY_ID
-}" "Create Subcategory"
-check_last_test
-
-test_endpoint "GET" "/categories/tree" "" "Get Category Tree"
-check_last_test
-
-log "\n=== Testing Product Management ===" "$YELLOW"
-
-SUBCATEGORY_ID=$((PARENT_CATEGORY_ID + 1))
-
-FIRST_PRODUCT_RESPONSE=$(curl -s -X POST -H "Content-Type: application/json" -d "{
-    \"name\": \"iPhone 13\",
-    \"description\": \"Latest iPhone model\",
-    \"price\": 999.99,
-    \"category_id\": $SUBCATEGORY_ID,
-    \"metadata\": {
-        \"brand\": \"Apple\",
-        \"color\": \"Midnight Blue\",
-        \"storage\": \"128GB\"
-    }
-}" "$API_BASE_URL/products")
-
-FIRST_PRODUCT_ID=$(echo "$FIRST_PRODUCT_RESPONSE" | grep -o '"id":[0-9]*' | cut -d':' -f2)
-
-if [ -z "$FIRST_PRODUCT_ID" ]; then
-    log "Failed to get first product ID" "$RED"
-    exit 1
+if [ $TEST_RESULT -eq 0 ]; then
+    log "All tests passed successfully!" "$GREEN"
+else
+    log "Test suite failed!" "$RED"
 fi
 
-log "Created first product with ID: $FIRST_PRODUCT_ID" "$GREEN"
-
-test_endpoint "POST" "/products" "{
-    \"name\": \"Samsung Galaxy S21\",
-    \"description\": \"Flagship Android phone\",
-    \"price\": 899.99,
-    \"category_id\": $SUBCATEGORY_ID,
-    \"metadata\": {
-        \"brand\": \"Samsung\",
-        \"color\": \"Phantom Gray\",
-        \"storage\": \"256GB\"
-    }
-}" "Create Product 2"
-check_last_test
-
-test_endpoint "GET" "/products" "" "Get All Products"
-check_last_test
-
-test_endpoint "GET" "/products?category_id=$SUBCATEGORY_ID" "" "Get Products by Category"
-check_last_test
-
-test_endpoint "GET" "/products?min_price=800&max_price=1000" "" "Get Products with Price Filter"
-check_last_test
-
-log "\n=== Testing Product Variants ===" "$YELLOW"
-
-test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/variants" "{
-    \"sku\": \"IP13-256-BLK\",
-    \"name\": \"iPhone 13 256GB Black\",
-    \"price\": 1099.99,
-    \"stock_quantity\": 50,
-    \"attributes\": {
-        \"storage\": \"256GB\",
-        \"color\": \"Black\"
-    }
-}" "Create Product Variant"
-check_last_test
-
-test_endpoint "GET" "/products/$FIRST_PRODUCT_ID/variants" "" "Get Product Variants"
-check_last_test
-
-log "\n=== Testing Product Images ===" "$YELLOW"
-
-test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/images" "{
-    \"image_url\": \"https://example.com/iphone13-main.jpg\",
-    \"is_primary\": true,
-    \"order_index\": 1
-}" "Add Primary Product Image"
-check_last_test
-
-test_endpoint "POST" "/products/$FIRST_PRODUCT_ID/images" "{
-    \"image_url\": \"https://example.com/iphone13-angle.jpg\",
-    \"is_primary\": false,
-    \"order_index\": 2
-}" "Add Secondary Product Image"
-check_last_test
-
-test_endpoint "GET" "/products/$FIRST_PRODUCT_ID/images" "" "Get Product Images"
-check_last_test
-
-log "\n=== Testing Product Attributes ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/attributes" '{
-    "attribute_id": 1,
-    "value": "A15 Bionic"
-}' "Add Product Attribute (Processor)"
-check_last_test
-
-test_endpoint "POST" "/products/1/attributes" '{
-    "attribute_id": 2,
-    "value": "6.1 inches"
-}' "Add Product Attribute (Screen Size)"
-check_last_test
-
-test_endpoint "GET" "/products/1/attributes" "" "Get Product Attributes"
-check_last_test
-
-log "\n=== Testing Price Management ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/price-history" '{
-    "variant_id": 1,
-    "price": 1049.99,
-    "change_reason": "Holiday season price adjustment"
-}' "Add Price History"
-check_last_test
-
-test_endpoint "GET" "/products/1/price-history" "" "Get Price History"
-check_last_test
-
-test_endpoint "GET" "/products/1/price-statistics" "" "Get Price Statistics"
-check_last_test
-
-test_endpoint "GET" "/products/1/price-trends?period=30%20days" "" "Get Price Trends"
-check_last_test
-
-log "\n=== Testing Product Relationships ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/relationships" '{
-    "related_product_id": 2,
-    "relationship_type": "similar"
-}' "Add Similar Product Relationship"
-check_last_test
-
-test_endpoint "GET" "/products/1/relationships" "" "Get Product Relationships"
-check_last_test
-
-test_endpoint "GET" "/products/1/relationships?relationship_type=similar" "" "Get Product Relationships by Type"
-check_last_test
-
-log "\n=== Testing Product Versions ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/versions" '{
-    "version_number": 2,
-    "changes": {
-        "price": "Updated to 1049.99",
-        "description": "Updated with new features",
-        "metadata": {
-            "added_colors": ["Starlight", "Pink"]
-        }
-    },
-    "created_by": 1
-}' "Create Product Version"
-check_last_test
-
-test_endpoint "GET" "/products/1/versions" "" "Get Product Versions"
-check_last_test
-
-log "\n=== Testing Product Reviews ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/reviews" '{
-    "user_id": 1,
-    "rating": 5,
-    "review_text": "Excellent product with amazing features!",
-    "is_verified": true
-}' "Add Product Review"
-check_last_test
-
-test_endpoint "GET" "/products/1/reviews" "" "Get Product Reviews"
-check_last_test
-
-log "\n=== Testing Product Comments ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/comments" '{
-    "user_id": 1,
-    "comment": "When will the new color variants be available?"
-}' "Add Product Comment"
-check_last_test
-
-test_endpoint "GET" "/products/1/comments" "" "Get Product Comments"
-check_last_test
-
-log "\n=== Testing Product Tags ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/tags" '{
-    "tag_name": "flagship"
-}' "Add Product Tag"
-check_last_test
-
-test_endpoint "GET" "/products/tags/flagship" "" "Get Products by Tag"
-check_last_test
-
-log "\n=== Testing Wishlist ===" "$YELLOW"
-
-test_endpoint "POST" "/users/1/wishlist" '{
-    "product_id": 1
-}' "Add to Wishlist"
-check_last_test
-
-test_endpoint "GET" "/users/1/wishlist" "" "Get User Wishlist"
-check_last_test
-
-log "\n=== Testing Chat System ===" "$YELLOW"
-
-test_endpoint "POST" "/products/1/chats" '{
-    "user_id": 1,
-    "seller_id": 2
-}' "Create Product Chat"
-check_last_test
-
-test_endpoint "GET" "/users/1/chats" "" "Get User Chats"
-check_last_test
-
-test_endpoint "POST" "/chats/1/messages" '{
-    "sender_id": 1,
-    "message": "Is this product available in other colors?"
-}' "Add Chat Message"
-check_last_test
-
-test_endpoint "GET" "/chats/1/messages" "" "Get Chat Messages"
-check_last_test
-
-test_endpoint "POST" "/chats/1/read" '{
-    "user_id": 2
-}' "Mark Chat Messages as Read"
-check_last_test
-
-log "\n=== Testing Search and Recommendations ===" "$YELLOW"
-
-test_endpoint "GET" "/products/search/document?q=iphone" "" "Search Products by Document"
-check_last_test
-
-test_endpoint "GET" "/products/1/recommendations" "" "Get Product Recommendations"
-check_last_test
-
-log "\n=== Testing Analytics ===" "$YELLOW"
-
-test_endpoint "GET" "/categories/2/analytics" "" "Get Category Analytics"
-check_last_test
-
-log "\n=== API Test Suite Completed at $(date) ===" "$YELLOW"
-log "Full test results have been saved to: $LOG_FILE"
+exit $TEST_RESULT
