@@ -10,10 +10,10 @@ cleanup() {
         kill $NODE_PID 2>/dev/null || true
     fi
 
-    if [ ! -z "$DB_NAME" ]; then
-        echo "Dropping test database: $DB_NAME"
-        psql -U postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
-    fi
+    # if [ ! -z "$DB_NAME" ]; then
+    #     echo "Dropping test database: $DB_NAME"
+    #     psql -U postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
+    # fi
 }
 
 trap cleanup EXIT
@@ -30,5 +30,3 @@ NODE_PID=$!
 sleep 5
 
 ./test_api.sh
-
-## psql -U postgres -c "DROP DATABASE $DB_NAME;"
