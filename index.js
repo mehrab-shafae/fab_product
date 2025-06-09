@@ -11,9 +11,17 @@ import { createClient } from 'redis';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import Bull from 'bull';
-import compression from 'compression';
+import { gzip, gunzip } from 'zlib';
 import NodeCache from 'node-cache';
 /*import { Client } from '@elastic/elasticsearch';*/
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// ======================================================================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'config', 'database-schema.json'), 'utf8'));
 // ======================================================================
 const PORT = process.env.PORT || 3000;
 const POSTGRES_URI = process.env.POSTGRES_URI || 'postgresql://postgres:postgres@localhost:5432/product_db';
@@ -365,11 +373,6 @@ const pgPool = new Pool({
 
 const mongoClient = new MongoClient(MONGO_URI);
 // ======================================================================
-function main() {
-    init();
-}
-main();
-// ======================================================================
 
 // Enhanced caching configuration
 const memoryCache = new NodeCache({
@@ -387,6 +390,16 @@ const MAX_CONCURRENT_JOBS = 5;
 const productUpdateQueue = new Bull('product-updates', REDIS_URI);
 const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
 const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
+
+async function clearCorruptedCache() {
+    try {
+        if (redisClient) await redisClient.flushAll();
+        memoryCache.flushAll();
+        console.log('Cache cleared successfully');
+    } catch (error) {
+        console.error('Error clearing cache:', error);
+    }
+}
 
 // Enhanced cache middleware with compression and multi-level caching
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
@@ -456,8 +469,14 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 };
                 next();
         } catch (error) {
-                console.error('Cache error:', error);
-                next();
+            // if (error.code === 'Z_DATA_ERROR') {
+            //     console.warn('Cache decompression error detected, clearing corrupted cache');
+            //     await clearCorruptedCache();
+            //     // Continue without cache
+            //     return next();
+            // }
+            console.error('Cache error:', error);
+            next();
         }
     };
 }
@@ -465,7 +484,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 // Compression utilities
 async function compressData(data) {
     return new Promise((resolve, reject) => {
-        compression.gzip(data, (err, result) => {
+        gzip(Buffer.from(data), (err, result) => {
             if (err) reject(err);
             else resolve(result.toString('base64'));
         });
@@ -474,11 +493,15 @@ async function compressData(data) {
 
 async function decompressData(data) {
     return new Promise((resolve, reject) => {
-        const buffer = Buffer.from(data, 'base64');
-        compression.gunzip(buffer, (err, result) => {
-            if (err) reject(err);
-            else resolve(result.toString());
-        });
+        try {
+            const buffer = Buffer.from(data, 'base64');
+            gunzip(buffer, (err, result) => {
+                if (err) reject(err);
+                else resolve(result.toString('utf8'));
+            });
+        } catch (error) {
+            reject(error);
+        }
     });
 }
 
@@ -663,21 +686,27 @@ async function init() {
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-    createDatabaseSchema()
-        .then(() => setupMongoCollections())
-        /* .then(() => optimizeSystemForService()) */
-        .then(() => scheduleMaterializedViewRefresh())
-        .then(() => scheduleCacheWarming())
-        .then(() => warmCache())
-        .then(() => createOptimizedIndexes())
-        .then(() => createMaterializedViews())
-        .then(() => refreshMaterializedViews())
-        .catch(error => {
-            console.error('Initialization failed:', error);
-            process.exit(1);
-        });
+    try {
+        // Initialize database schema with version control
+        await createDatabaseSchema();
+        
+        if (false) optimizeSystemForService() // TODO("Test on docker")
+        // Setup other components
+        await setupMongoCollections();
+        await createOptimizedIndexes();
+        await createMaterializedViews();
+        await refreshMaterializedViews();
+        scheduleMaterializedViewRefresh();
+        scheduleCacheWarming();
+        await warmCache();
+        
+        console.log('Database initialization completed successfully');
+    } catch (error) {
+        console.error('Initialization failed:', error);
+        process.exit(1);
+    }
 
-        /**
+    /**
      * @swagger
      * /products/bulk-update:
      *   post:
@@ -2522,319 +2551,69 @@ async function init() {
     });
 }
 
-function createDatabaseSchema() {
-    const createTablesQuery = `
-        -- Install required extensions
-        CREATE EXTENSION IF NOT EXISTS pg_trgm;
-        
-        -- Drop existing triggers if they exist
-        -- TODO(Dmitrii): remove this after testing
-        DROP TRIGGER IF EXISTS refresh_product_stats_trigger ON products;
-        DROP TRIGGER IF EXISTS refresh_product_stats_comments_trigger ON product_comments;
-        DROP TRIGGER IF EXISTS refresh_product_stats_tags_trigger ON product_tags;
-        DROP TRIGGER IF EXISTS refresh_product_stats_chats_trigger ON product_chats;
-        
-        CREATE TABLE IF NOT EXISTS categories (
+// Add schema version tracking table
+async function createSchemaVersionTable() {
+    const query = `
+        CREATE TABLE IF NOT EXISTS schema_versions (
             id SERIAL PRIMARY KEY,
+            version INTEGER NOT NULL,
             name VARCHAR(255) NOT NULL,
-            parent_id INTEGER REFERENCES categories(id),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(version)
         );
-
-        CREATE TABLE IF NOT EXISTS products (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            description TEXT,
-            price DECIMAL(10,2),
-            category_id INTEGER REFERENCES categories(id),
-            metadata JSONB,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS product_tags (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            tag_name VARCHAR(100) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS product_comments (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            user_id INTEGER NOT NULL,
-            comment TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS product_chats (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            user_id INTEGER NOT NULL,
-            seller_id INTEGER NOT NULL,
-            status VARCHAR(20) DEFAULT 'active',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        CREATE TABLE IF NOT EXISTS chat_messages (
-            id SERIAL PRIMARY KEY,
-            chat_id INTEGER REFERENCES product_chats(id),
-            sender_id INTEGER NOT NULL,
-            message TEXT NOT NULL,
-            is_read BOOLEAN DEFAULT false,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Create indexes for better performance
-        CREATE INDEX IF NOT EXISTS idx_products_category_id ON products(category_id);
-        CREATE INDEX IF NOT EXISTS idx_products_created_at ON products(created_at);
-        CREATE INDEX IF NOT EXISTS idx_products_price ON products(price);
-        CREATE INDEX IF NOT EXISTS idx_products_name_trgm ON products USING gin (name gin_trgm_ops);
-        CREATE INDEX IF NOT EXISTS idx_products_description_trgm ON products USING gin (description gin_trgm_ops);
-        
-        CREATE INDEX IF NOT EXISTS idx_product_tags_product_id ON product_tags(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_tags_tag_name ON product_tags(tag_name);
-        
-        CREATE INDEX IF NOT EXISTS idx_product_comments_product_id ON product_comments(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_comments_user_id ON product_comments(user_id);
-        CREATE INDEX IF NOT EXISTS idx_product_comments_created_at ON product_comments(created_at);
-        
-        CREATE INDEX IF NOT EXISTS idx_product_chats_product_id ON product_chats(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_chats_user_id ON product_chats(user_id);
-        CREATE INDEX IF NOT EXISTS idx_product_chats_seller_id ON product_chats(seller_id);
-        CREATE INDEX IF NOT EXISTS idx_product_chats_status ON product_chats(status);
-        
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_sender_id ON chat_messages(sender_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
-        CREATE INDEX IF NOT EXISTS idx_chat_messages_is_read ON chat_messages(is_read);
-
-        -- Create materialized views for frequently accessed data
-        CREATE MATERIALIZED VIEW IF NOT EXISTS product_stats AS
-        SELECT 
-            p.id,
-            p.name,
-            p.category_id,
-            COUNT(DISTINCT pc.user_id) as view_count,
-            COUNT(DISTINCT pt.tag_name) as tag_count,
-            COUNT(DISTINCT pcm.id) as comment_count,
-            COUNT(DISTINCT pch.id) as chat_count,
-            AVG(p.price) as avg_price
-        FROM products p
-        LEFT JOIN product_comments pc ON p.id = pc.product_id
-        LEFT JOIN product_tags pt ON p.id = pt.product_id
-        LEFT JOIN product_comments pcm ON p.id = pcm.product_id
-        LEFT JOIN product_chats pch ON p.id = pch.product_id
-        GROUP BY p.id, p.name, p.category_id;
-
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_product_stats_id ON product_stats(id);
-
-        -- Create function to refresh materialized view
-        CREATE OR REPLACE FUNCTION refresh_product_stats()
-        RETURNS trigger AS $$
-        BEGIN
-            REFRESH MATERIALIZED VIEW CONCURRENTLY product_stats;
-            RETURN NULL;
-        END;
-        $$ LANGUAGE plpgsql;
-
-        -- Create triggers to refresh materialized view
-        CREATE TRIGGER refresh_product_stats_trigger
-        AFTER INSERT OR UPDATE OR DELETE ON products
-        FOR EACH STATEMENT
-        EXECUTE FUNCTION refresh_product_stats();
-
-        CREATE TRIGGER refresh_product_stats_comments_trigger
-        AFTER INSERT OR UPDATE OR DELETE ON product_comments
-        FOR EACH STATEMENT
-        EXECUTE FUNCTION refresh_product_stats();
-
-        CREATE TRIGGER refresh_product_stats_tags_trigger
-        AFTER INSERT OR UPDATE OR DELETE ON product_tags
-        FOR EACH STATEMENT
-        EXECUTE FUNCTION refresh_product_stats();
-
-        CREATE TRIGGER refresh_product_stats_chats_trigger
-        AFTER INSERT OR UPDATE OR DELETE ON product_chats
-        FOR EACH STATEMENT
-        EXECUTE FUNCTION refresh_product_stats();
-
-        -- Product Variants
-        CREATE TABLE IF NOT EXISTS product_variants (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            sku VARCHAR(100) UNIQUE,
-            name VARCHAR(255),
-            price DECIMAL(10,2),
-            stock_quantity INTEGER DEFAULT 0,
-            attributes JSONB,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Images
-        CREATE TABLE IF NOT EXISTS product_images (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            variant_id INTEGER REFERENCES product_variants(id),
-            image_url TEXT NOT NULL,
-            is_primary BOOLEAN DEFAULT false,
-            order_index INTEGER DEFAULT 0,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Inventory
-        CREATE TABLE IF NOT EXISTS product_inventory (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            variant_id INTEGER REFERENCES product_variants(id),
-            quantity INTEGER DEFAULT 0,
-            reserved_quantity INTEGER DEFAULT 0,
-            location VARCHAR(100),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(product_id, variant_id)
-        );
-
-        -- Product Price History
-        -- TODO(Dmitrii): remove this after testing
-        DROP TABLE IF EXISTS product_price_history;
-        CREATE TABLE IF NOT EXISTS product_price_history (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-            variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE,
-            price DECIMAL(10,2) NOT NULL,
-            change_reason VARCHAR(255) NOT NULL,
-            effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            discount_percentage DECIMAL(5,2) DEFAULT 0,
-            currency VARCHAR(3) DEFAULT 'USD',
-            source VARCHAR(50) DEFAULT 'system',
-            created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-        );
-        CREATE INDEX IF NOT EXISTS idx_price_history_product ON product_price_history(product_id);
-        CREATE INDEX IF NOT EXISTS idx_price_history_variant ON product_price_history(variant_id);
-        CREATE INDEX IF NOT EXISTS idx_price_history_date ON product_price_history(effective_date);
-
-        -- Product Attributes
-        CREATE TABLE IF NOT EXISTS product_attributes (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(100) NOT NULL,
-            type VARCHAR(50) NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Attribute Values
-        CREATE TABLE IF NOT EXISTS product_attribute_values (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            attribute_id INTEGER REFERENCES product_attributes(id),
-            value TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Reviews
-        CREATE TABLE IF NOT EXISTS product_reviews (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            user_id INTEGER NOT NULL,
-            rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-            review_text TEXT,
-            is_verified BOOLEAN DEFAULT false,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Wishlist
-        CREATE TABLE IF NOT EXISTS product_wishlist (
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            product_id INTEGER REFERENCES products(id),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Sharing
-        CREATE TABLE IF NOT EXISTS product_shares (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            user_id INTEGER NOT NULL,
-            share_type VARCHAR(50),
-            share_data JSONB,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Versions
-        CREATE TABLE IF NOT EXISTS product_versions (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            version_number INTEGER,
-            changes JSONB,
-            created_by INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Product Relationships
-        CREATE TABLE IF NOT EXISTS product_relationships (
-            id SERIAL PRIMARY KEY,
-            product_id INTEGER REFERENCES products(id),
-            related_product_id INTEGER REFERENCES products(id),
-            relationship_type VARCHAR(50),
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        );
-
-        -- Create indexes for new tables
-        CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_variants_sku ON product_variants(sku);
-        CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_inventory_product_id ON product_inventory(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_price_history_product_id ON product_price_history(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_attribute_values_product_id ON product_attribute_values(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_reviews_product_id ON product_reviews(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_wishlist_user_id ON product_wishlist(user_id);
-        CREATE INDEX IF NOT EXISTS idx_product_shares_product_id ON product_shares(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_versions_product_id ON product_versions(product_id);
-        CREATE INDEX IF NOT EXISTS idx_product_relationships_product_id ON product_relationships(product_id);
-
-        -- Create materialized views for new features
-        CREATE MATERIALIZED VIEW IF NOT EXISTS product_variant_stats AS
-        SELECT 
-            pv.product_id,
-            COUNT(DISTINCT pv.id) as variant_count,
-            AVG(pv.price) as avg_variant_price,
-            MIN(pv.price) as min_variant_price,
-            MAX(pv.price) as max_variant_price,
-            SUM(pi.quantity) as total_stock
-        FROM product_variants pv
-        LEFT JOIN product_inventory pi ON pv.id = pi.variant_id
-        GROUP BY pv.product_id;
-
-        CREATE MATERIALIZED VIEW IF NOT EXISTS product_review_stats AS
-        SELECT 
-            pr.product_id,
-            COUNT(*) as review_count,
-            AVG(pr.rating) as avg_rating,
-            COUNT(CASE WHEN pr.rating >= 4 THEN 1 END) as positive_reviews
-        FROM product_reviews pr
-        GROUP BY pr.product_id;
-
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variant_stats_product_id ON product_variant_stats(product_id);
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_product_review_stats_product_id ON product_review_stats(product_id);
     `;
-
-    return pgPool.query(createTablesQuery);
+    await pgPool.query(query);
 }
 
-// async function refreshMaterializedViews() {
-//     try {
-//         await pgPool.query('REFRESH MATERIALIZED VIEW CONCURRENTLY product_stats');
-//         console.log('Materialized views refreshed successfully');
-//     } catch (error) {
-//         console.error('Error refreshing materialized views:', error);
-//         throw error;
-//     }
-// }
+async function getCurrentSchemaVersion() {
+    const query = 'SELECT MAX(version) as current_version FROM schema_versions';
+    const result = await pgPool.query(query);
+    return result.rows[0]?.current_version || 0;
+}
+
+async function applySchemaMigration(version, name, migrationQuery) {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        // Check if migration already applied
+        const checkQuery = 'SELECT version FROM schema_versions WHERE version = $1';
+        const checkResult = await client.query(checkQuery, [version]);
+        
+        if (checkResult.rows.length === 0) {
+            // Apply migration
+            await client.query(migrationQuery);
+            
+            // Record migration
+            const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
+            await client.query(insertQuery, [version, name]);
+        }
+        
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function createDatabaseSchema() {
+    // Create schema version tracking table first
+    await createSchemaVersionTable();
+    
+    const currentVersion = await getCurrentSchemaVersion();
+    
+    // Apply migrations from config
+    for (const migration of schemaConfig.migrations) {
+        if (migration.version > currentVersion) {
+            // Execute each query in the migration
+            for (const query of migration.queries) {
+                await applySchemaMigration(migration.version, migration.name, query);
+            }
+        }
+    }
+}
 
 function scheduleMaterializedViewRefresh() {
     setInterval(refreshMaterializedViews, 60 * 60 * 1000);
@@ -3009,136 +2788,76 @@ async function searchProducts(searchParams) {
 
 // Create optimized indexes
 async function createOptimizedIndexes() {
-    const indexes = [
-        // Product table indexes
-        `CREATE INDEX IF NOT EXISTS idx_products_name ON products USING gin (to_tsvector('english', name))`,
-        `CREATE INDEX IF NOT EXISTS idx_products_category ON products (category_id)`,
-        `CREATE INDEX IF NOT EXISTS idx_products_price ON products (price)`,
-        `CREATE INDEX IF NOT EXISTS idx_products_created_at ON products (created_at DESC)`,
-        `CREATE INDEX IF NOT EXISTS idx_products_updated_at ON products (updated_at DESC)`,
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
         
-        // Composite indexes for common query patterns
-        `CREATE INDEX IF NOT EXISTS idx_products_category_price ON products (category_id, price)`,
-        `CREATE INDEX IF NOT EXISTS idx_products_category_created ON products (category_id, created_at DESC)`,
-        
-        // Tag indexes
-        `CREATE INDEX IF NOT EXISTS idx_product_tags_tag ON product_tags (tag_name)`,
-        `CREATE INDEX IF NOT EXISTS idx_product_tags_product ON product_tags (product_id)`,
-        
-        // Attribute indexes
-        `CREATE INDEX IF NOT EXISTS idx_product_attributes_name_value ON product_attributes (attribute_name, attribute_value)`,
-        `CREATE INDEX IF NOT EXISTS idx_product_attributes_product ON product_attributes (product_id)`,
-        
-        // Price history indexes
-        `CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history (product_id, created_at DESC)`,
-        `CREATE INDEX IF NOT EXISTS idx_price_history_variant ON price_history (variant_id, created_at DESC)`,
-        
-        // Review indexes
-        `CREATE INDEX IF NOT EXISTS idx_product_reviews_product ON product_reviews (product_id, created_at DESC)`,
-        `CREATE INDEX IF NOT EXISTS idx_product_reviews_rating ON product_reviews (rating)`,
-        
-        // Partial indexes for filtered queries
-        `CREATE INDEX IF NOT EXISTS idx_products_active ON products (id) WHERE status = 'active'`,
-        `CREATE INDEX IF NOT EXISTS idx_products_featured ON products (id) WHERE featured = true`,
-        
-        // Expression indexes for computed columns
-        `CREATE INDEX IF NOT EXISTS idx_products_name_lower ON products (lower(name))`,
-        `CREATE INDEX IF NOT EXISTS idx_products_price_range ON products (CASE 
-            WHEN price < 100 THEN 'low'
-            WHEN price < 1000 THEN 'medium'
-            ELSE 'high'
-        END)`
-    ];
-
-    for (const indexQuery of indexes) {
-        try {
-            await pgPool.query(indexQuery);
-        } catch (error) {
-            console.error(`Error creating index: ${error.message}`);
+        for (const index of schemaConfig.indexes) {
+            try {
+                await client.query(index.query);
+                console.log(`Created index: ${index.name}`);
+            } catch (error) {
+                console.error(`Failed to create index ${index.name}:`, error);
+                throw error;
+            }
         }
+        
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
 // Create materialized views for complex queries
 async function createMaterializedViews() {
-    const views = [
-        // Product analytics view
-        `CREATE MATERIALIZED VIEW IF NOT EXISTS product_analytics_view AS
-        SELECT 
-            p.id as product_id,
-            p.name,
-            p.category_id,
-            COUNT(DISTINCT r.id) as review_count,
-            AVG(r.rating) as average_rating,
-            COUNT(DISTINCT ph.id) as price_change_count,
-            MIN(ph.price) as min_price,
-            MAX(ph.price) as max_price,
-            AVG(ph.price) as avg_price,
-            COUNT(DISTINCT t.tag_name) as tag_count,
-            COUNT(DISTINCT w.user_id) as wishlist_count
-        FROM products p
-        LEFT JOIN product_reviews r ON p.id = r.product_id
-        LEFT JOIN price_history ph ON p.id = ph.product_id
-        LEFT JOIN product_tags t ON p.id = t.product_id
-        LEFT JOIN wishlist w ON p.id = w.product_id
-        GROUP BY p.id, p.name, p.category_id
-        WITH DATA`,
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
         
-        // Category analytics view
-        `CREATE MATERIALIZED VIEW IF NOT EXISTS category_analytics_view AS
-        SELECT 
-            c.id as category_id,
-            c.name,
-            COUNT(DISTINCT p.id) as product_count,
-            AVG(p.price) as average_price,
-            COUNT(DISTINCT r.id) as review_count,
-            AVG(r.rating) as average_rating
-        FROM categories c
-        LEFT JOIN products p ON c.id = p.category_id
-        LEFT JOIN product_reviews r ON p.id = r.product_id
-        GROUP BY c.id, c.name
-        WITH DATA`,
-        
-        // Product relationship view
-        `CREATE MATERIALIZED VIEW IF NOT EXISTS product_relationships_view AS
-        SELECT 
-            p1.id as product_id,
-            p1.name as product_name,
-            p2.id as related_product_id,
-            p2.name as related_product_name,
-            pr.relationship_type,
-            COUNT(DISTINCT o.id) as co_purchase_count
-        FROM products p1
-        JOIN product_relationships pr ON p1.id = pr.product_id
-        JOIN products p2 ON pr.related_product_id = p2.id
-        LEFT JOIN order_items o ON p1.id = o.product_id
-        GROUP BY p1.id, p1.name, p2.id, p2.name, pr.relationship_type
-        WITH DATA`
-    ];
-
-    for (const viewQuery of views) {
-        try {
-            await pgPool.query(viewQuery);
-        } catch (error) {
-            console.error(`Error creating materialized view: ${error.message}`);
+        for (const view of schemaConfig.materializedViews) {
+            try {
+                await client.query(view.query);
+                console.log(`Created materialized view: ${view.name}`);
+            } catch (error) {
+                console.error(`Failed to create materialized view ${view.name}:`, error);
+                throw error;
+            }
         }
+        
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
 // Function to refresh materialized views
 async function refreshMaterializedViews() {
-    const views = [
-        'product_analytics_view',
-        'category_analytics_view',
-        'product_relationships_view'
-    ];
-
-    for (const view of views) {
-        try {
-            await pgPool.query(`REFRESH MATERIALIZED VIEW CONCURRENTLY ${view}`);
-        } catch (error) {
-            console.error(`Error refreshing materialized view ${view}: ${error.message}`);
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        
+        for (const view of schemaConfig.materializedViews) {
+            try {
+                await client.query(view.refreshQuery);
+                console.log(`Refreshed materialized view: ${view.name}`);
+            } catch (error) {
+                console.error(`Failed to refresh materialized view ${view.name}:`, error);
+                throw error;
+            }
         }
+        
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
     }
 }
 
@@ -3553,11 +3272,10 @@ function updateInventory(inventoryData) {
     const query = `
         INSERT INTO product_inventory (product_id, variant_id, quantity, reserved_quantity, location)
         VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (product_id, variant_id) 
+        ON CONFLICT (product_id, variant_id, location) 
         DO UPDATE SET 
             quantity = EXCLUDED.quantity,
             reserved_quantity = EXCLUDED.reserved_quantity,
-            location = EXCLUDED.location,
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
     `;
@@ -3682,13 +3400,13 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
 }
 
 function createProductAttribute(attributeData) {
-    const { name, type } = attributeData;
+    const { name, data_type } = attributeData;
     const query = `
-        INSERT INTO product_attributes (name, type)
+        INSERT INTO product_attributes (name, data_type)
         VALUES ($1, $2)
         RETURNING *
     `;
-    return pgPool.query(query, [name, type]);
+    return pgPool.query(query, [name, data_type]);
 }
 
 function addProductAttributeValue(valueData) {
@@ -3718,7 +3436,7 @@ function getProductReviews(product_id) {
 function addToWishlist(wishlistData) {
     const { user_id, product_id } = wishlistData;
     const query = `
-        INSERT INTO product_wishlist (user_id, product_id)
+        INSERT INTO wishlist (user_id, product_id)
         VALUES ($1, $2)
         RETURNING *
     `;
@@ -3726,7 +3444,7 @@ function addToWishlist(wishlistData) {
 }
 
 function getWishlist(user_id) {
-    return pgPool.query('SELECT p.* FROM products p JOIN product_wishlist pw ON p.id = pw.product_id WHERE pw.user_id = $1', [user_id]);
+    return pgPool.query('SELECT p.* FROM products p JOIN wishlist pw ON p.id = pw.product_id WHERE pw.user_id = $1', [user_id]);
 }
 
 function shareProduct(shareData) {
@@ -3984,3 +3702,11 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async (job) =>
         client.release();
     }
 });
+
+// ======================================================================
+async function main() {
+    await clearCorruptedCache()
+    init();
+}
+main();
+// ======================================================================
