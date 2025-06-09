@@ -3481,13 +3481,13 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
 }
 
 function createProductAttribute(attributeData) {
-    const { name, data_type } = attributeData;
+    const { name, type } = attributeData;
     const query = `
         INSERT INTO product_attributes (name, data_type)
         VALUES ($1, $2)
         RETURNING *
     `;
-    return pgPool.query(query, [name, data_type]);
+    return pgPool.query(query, [name, type]);
 }
 
 function addProductAttributeValue(valueData) {
