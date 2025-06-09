@@ -691,7 +691,7 @@ async function init() {
                     WHERE table_name = 'products'
                 );
             `);
-            
+
             if (!result.rows[0].exists) {
                 return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
             }
@@ -2726,7 +2726,7 @@ async function applySchemaMigration(version, name, migrationQuery) {
 async function createDatabaseSchema() {
     try {
         console.log('Starting database schema creation...');
-        
+
         // Create schema version tracking table first
         await createSchemaVersionTable();
         console.log('Schema version table created successfully');
@@ -3882,3 +3882,23 @@ async function main() {
 }
 main();
 // ======================================================================
+
+function free() {
+    console.log('\nCore free...');
+
+    try {
+        clearCorruptedCache();
+    } catch (_) {
+    } finally {
+        console.log('Cache cleared');
+    }
+
+    setTimeout(() => {
+        process.exit(0);
+    }, 2 * 1000);
+}
+
+process.on('beforeExit', free);
+process.on('SIGINT', free);
+process.on('SIGTERM', free);
+process.on('SIGQUIT', free);
