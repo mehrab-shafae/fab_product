@@ -379,7 +379,7 @@ const memoryCache = new NodeCache({
     stdTTL: 300, // 5 minutes
     checkperiod: 60,
     useClones: false,
-    maxKeys: 10000
+    maxKeys: 10000,
 });
 
 const CACHE_COMPRESSION_THRESHOLD = 1024; // 1KB
@@ -403,12 +403,7 @@ async function clearCorruptedCache() {
 
 // Enhanced cache middleware with compression and multi-level caching
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
-    const {
-        compress = true,
-        useMemoryCache = true,
-        preloadRelated = false,
-        version = '1'
-    } = options;
+    const { compress = true, useMemoryCache = true, preloadRelated = false, version = '1' } = options;
 
     return async function (req, res, next) {
         if (req.method !== 'GET' || !redisConnected) {
@@ -429,12 +424,12 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 
             // Try Redis cache
             let cachedResponse = await redisClient.get(key);
-                if (cachedResponse) {
+            if (cachedResponse) {
                 if (compress) {
                     cachedResponse = await decompressData(cachedResponse);
                 }
                 const data = JSON.parse(cachedResponse);
-                
+
                 // Update memory cache
                 if (useMemoryCache) {
                     memoryCache.set(memoryKey, data);
@@ -444,7 +439,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 if (preloadRelated && data.id) {
                     cacheWarmingQueue.add('preload-related', {
                         productId: data.id,
-                        types: ['variants', 'images', 'reviews']
+                        types: ['variants', 'images', 'reviews'],
                     });
                 }
 
@@ -452,22 +447,22 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
             }
 
             // Cache miss - proceed with original handler
-                res.sendResponse = res.json;
+            res.sendResponse = res.json;
             res.json = async function (body) {
-                    if (redisConnected) {
+                if (redisConnected) {
                     let dataToCache = JSON.stringify(body);
                     if (compress && dataToCache.length > CACHE_COMPRESSION_THRESHOLD) {
                         dataToCache = await compressData(dataToCache);
                     }
                     await redisClient.setEx(key, ttl, dataToCache);
-                    
+
                     if (useMemoryCache) {
                         memoryCache.set(memoryKey, body);
                     }
-                    }
-                    res.sendResponse(body);
-                };
-                next();
+                }
+                res.sendResponse(body);
+            };
+            next();
         } catch (error) {
             // if (error.code === 'Z_DATA_ERROR') {
             //     console.warn('Cache decompression error detected, clearing corrupted cache');
@@ -553,16 +548,16 @@ async function warmCache() {
         // Add cache warming jobs to queue
         await cacheWarmingQueue.add('warm-products', {
             limit: 100,
-            priority: 1
+            priority: 1,
         });
 
         await cacheWarmingQueue.add('warm-categories', {
-            priority: 2
+            priority: 2,
         });
 
         await cacheWarmingQueue.add('warm-analytics', {
             limit: 50,
-            priority: 3
+            priority: 3,
         });
 
         console.log('Cache warming jobs queued successfully');
@@ -572,29 +567,26 @@ async function warmCache() {
 }
 
 // Process cache warming jobs
-cacheWarmingQueue.process('warm-products', async (job) => {
+cacheWarmingQueue.process('warm-products', async job => {
     const { limit } = job.data;
-    const products = await pgPool.query(
-        'SELECT id FROM products ORDER BY created_at DESC LIMIT $1',
-        [limit]
-    );
+    const products = await pgPool.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
 
-        for (const product of products.rows) {
-            const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
-            const data = await getProductById(product.id);
-            if (redisConnected) {
-                await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows[0]));
-            }
+    for (const product of products.rows) {
+        const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
+        const data = await getProductById(product.id);
+        if (redisConnected) {
+            await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows[0]));
         }
+    }
 });
 
-cacheWarmingQueue.process('preload-related', async (job) => {
+cacheWarmingQueue.process('preload-related', async job => {
     const { productId, types } = job.data;
-    
+
     for (const type of types) {
         const key = `${CACHE_PREFIXES.PRODUCT}${productId}:${type}`;
         let data;
-        
+
         switch (type) {
             case 'variants':
                 data = await getProductVariants(productId);
@@ -606,7 +598,7 @@ cacheWarmingQueue.process('preload-related', async (job) => {
                 data = await getProductReviews(productId);
                 break;
         }
-        
+
         if (data && redisConnected) {
             await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows));
         }
@@ -622,15 +614,19 @@ async function processBulkProductUpdate(products) {
 
     const results = [];
     for (const chunk of chunks) {
-        const result = await bulkOperationQueue.add('update-products', {
-            products: chunk
-        }, {
-            attempts: 3,
-            backoff: {
-                type: 'exponential',
-                delay: 1000
+        const result = await bulkOperationQueue.add(
+            'update-products',
+            {
+                products: chunk,
+            },
+            {
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
             }
-        });
+        );
         results.push(result);
     }
 
@@ -638,29 +634,28 @@ async function processBulkProductUpdate(products) {
 }
 
 // Process bulk update jobs
-bulkOperationQueue.process('update-products', async (job) => {
+bulkOperationQueue.process('update-products', async job => {
     const { products } = job.data;
     const client = await pgPool.connect();
-    
+
     try {
         await client.query('BEGIN');
-        
+
         for (const product of products) {
             await client.query(
                 `UPDATE products 
                  SET name = $1, description = $2, price = $3, 
                      category_id = $4, metadata = $5, updated_at = NOW()
                  WHERE id = $6`,
-                [product.name, product.description, product.price, 
-                 product.category_id, product.metadata, product.id]
+                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
             );
         }
-        
+
         await client.query('COMMIT');
-        
+
         // Invalidate related caches
         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-        
+
         return { success: true, count: products.length };
     } catch (error) {
         await client.query('ROLLBACK');
@@ -689,8 +684,8 @@ async function init() {
     try {
         // Initialize database schema with version control
         await createDatabaseSchema();
-        
-        if (false) optimizeSystemForService() // TODO("Test on docker")
+
+        if (false) optimizeSystemForService(); // TODO("Test on docker")
         // Setup other components
         await setupMongoCollections();
         await createOptimizedIndexes();
@@ -699,7 +694,7 @@ async function init() {
         scheduleMaterializedViewRefresh();
         scheduleCacheWarming();
         await warmCache();
-        
+
         console.log('Database initialization completed successfully');
     } catch (error) {
         console.error('Initialization failed:', error);
@@ -756,7 +751,7 @@ async function init() {
             const results = await processBulkOperation(type, data, options);
             res.json({
                 message: 'Bulk operation queued successfully',
-                jobIds: results.map(r => r.id)
+                jobIds: results.map(r => r.id),
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -795,12 +790,12 @@ async function init() {
                 attemptsMade: job.attemptsMade,
                 timestamp: job.timestamp,
                 processedOn: job.processedOn,
-                finishedOn: job.finishedOn
+                finishedOn: job.finishedOn,
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
-        });
+    });
 
     /**
      * @swagger
@@ -878,21 +873,25 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:id', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductById(req.params.id)
-            .then(result => {
-                if (result.rows.length === 0) {
-                    return res.status(404).json({ error: 'Product not found' });
-                }
-                res.json(result.rows[0]);
-            })
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:id',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductById(req.params.id)
+                .then(result => {
+                    if (result.rows.length === 0) {
+                        return res.status(404).json({ error: 'Product not found' });
+                    }
+                    res.json(result.rows[0]);
+                })
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -929,16 +928,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        searchProducts(req.query)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            searchProducts(req.query)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -997,16 +1000,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/categories/tree', enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getCategoryTree()
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/categories/tree',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getCategoryTree()
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1082,16 +1089,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/comments', enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductComments(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/comments',
+        enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductComments(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1162,16 +1173,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/tags/:tagName', enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductsByTag(req.params.tagName)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/tags/:tagName',
+        enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductsByTag(req.params.tagName)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1206,24 +1221,28 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/search/document', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        try {
-            const { q } = req.query;
-            if (!q) {
-                return res.status(400).json({ error: 'Search query is required' });
+    app.get(
+        '/products/search/document',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            try {
+                const { q } = req.query;
+                if (!q) {
+                    return res.status(400).json({ error: 'Search query is required' });
+                }
+                searchProductDocuments(q)
+                    .then(results => res.json(results))
+                    .catch(error => res.status(500).json({ error: error.message }));
+            } catch (error) {
+                res.status(500).json({ error: error.message });
             }
-            searchProductDocuments(q)
-                .then(results => res.json(results))
-                .catch(error => res.status(500).json({ error: error.message }));
-        } catch (error) {
-            res.status(500).json({ error: error.message });
         }
-    });
+    );
 
     /**
      * @swagger
@@ -1367,16 +1386,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/users/:userId/chats', enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductChats(req.params.userId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/users/:userId/chats',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductChats(req.params.userId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1442,16 +1465,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/chats/:chatId/messages', enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getChatMessages(req.params.chatId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/chats/:chatId/messages',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getChatMessages(req.params.chatId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1543,21 +1570,25 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/analytics', enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductAnalytics(req.params.productId)
-            .then(result => {
-                if (result.rows.length === 0) {
-                    return res.status(404).json({ error: 'Product not found' });
-                }
-                res.json(result.rows[0]);
-            })
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/analytics',
+        enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductAnalytics(req.params.productId)
+                .then(result => {
+                    if (result.rows.length === 0) {
+                        return res.status(404).json({ error: 'Product not found' });
+                    }
+                    res.json(result.rows[0]);
+                })
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1606,21 +1637,25 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/categories/:categoryId/analytics', enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getCategoryAnalytics(req.params.categoryId)
-            .then(result => {
-                if (result.rows.length === 0) {
-                    return res.status(404).json({ error: 'Category not found' });
-                }
-                res.json(result.rows);
-            })
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/categories/:categoryId/analytics',
+        enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getCategoryAnalytics(req.params.categoryId)
+                .then(result => {
+                    if (result.rows.length === 0) {
+                        return res.status(404).json({ error: 'Category not found' });
+                    }
+                    res.json(result.rows);
+                })
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1646,16 +1681,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/recommendations', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductRecommendations(req.params.productId)
-            .then(result => res.json(result))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/recommendations',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductRecommendations(req.params.productId)
+                .then(result => res.json(result))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1728,16 +1767,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/variants', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductVariants(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/variants',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductVariants(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1806,16 +1849,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/images', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductImages(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/images',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductImages(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -1936,16 +1983,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/reviews', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductReviews(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/reviews',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductReviews(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2008,16 +2059,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/users/:userId/wishlist', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getWishlist(req.params.userId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/users/:userId/wishlist',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getWishlist(req.params.userId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2172,16 +2227,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/attributes', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductAttributes(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/attributes',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductAttributes(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2205,16 +2264,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/price-history', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductPriceHistory(req.params.productId, req.query.variant_id)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/price-history',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductPriceHistory(req.params.productId, req.query.variant_id)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2238,16 +2301,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/price-statistics', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductPriceStatistics(req.params.productId, req.query.variant_id)
-            .then(result => res.json(result.rows[0]))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/price-statistics',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductPriceStatistics(req.params.productId, req.query.variant_id)
+                .then(result => res.json(result.rows[0]))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2277,16 +2344,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/price-trends', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductPriceTrends(req.params.productId, req.query.variant_id, req.query.period)
-            .then(result => res.json(result.rows[0]))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/price-trends',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductPriceTrends(req.params.productId, req.query.variant_id, req.query.period)
+                .then(result => res.json(result.rows[0]))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2417,16 +2488,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/relationships', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductRelationships(req.params.productId, req.query.relationship_type)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/relationships',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductRelationships(req.params.productId, req.query.relationship_type)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     /**
      * @swagger
@@ -2494,16 +2569,20 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/versions', enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-        compress: true,
-        useMemoryCache: true,
-        preloadRelated: true,
-        version: '1'
-    }), function (req, res) {
-        getProductVersions(req.params.productId)
-            .then(result => res.json(result.rows))
-            .catch(error => res.status(500).json({ error: error.message }));
-    });
+    app.get(
+        '/products/:productId/versions',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        function (req, res) {
+            getProductVersions(req.params.productId)
+                .then(result => res.json(result.rows))
+                .catch(error => res.status(500).json({ error: error.message }));
+        }
+    );
 
     function getProductAttributes(product_id) {
         return pgPool.query(
@@ -2575,20 +2654,20 @@ async function applySchemaMigration(version, name, migrationQuery) {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
-        
+
         // Check if migration already applied
         const checkQuery = 'SELECT version FROM schema_versions WHERE version = $1';
         const checkResult = await client.query(checkQuery, [version]);
-        
+
         if (checkResult.rows.length === 0) {
             // Apply migration
             await client.query(migrationQuery);
-            
+
             // Record migration
             const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
             await client.query(insertQuery, [version, name]);
         }
-        
+
         await client.query('COMMIT');
     } catch (error) {
         await client.query('ROLLBACK');
@@ -2601,9 +2680,9 @@ async function applySchemaMigration(version, name, migrationQuery) {
 async function createDatabaseSchema() {
     // Create schema version tracking table first
     await createSchemaVersionTable();
-    
+
     const currentVersion = await getCurrentSchemaVersion();
-    
+
     // Apply migrations from config
     for (const migration of schemaConfig.migrations) {
         if (migration.version > currentVersion) {
@@ -2691,13 +2770,13 @@ async function searchProducts(searchParams) {
         min_price,
         max_price,
         tags,
-        attributes
+        attributes,
     } = searchParams;
 
     // Validate and sanitize inputs
     const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
     const offset = (page - 1) * validatedPageSize;
-    
+
     // Build the base query with proper indexing hints
     let query = `
         SELECT p.*, 
@@ -2712,7 +2791,7 @@ async function searchProducts(searchParams) {
         LEFT JOIN product_attributes a ON p.id = a.product_id
         WHERE 1=1
     `;
-    
+
     const queryParams = [];
     let paramIndex = 1;
 
@@ -2774,15 +2853,15 @@ async function searchProducts(searchParams) {
 
     // Execute query with proper indexing hints
     const result = await pgPool.query(query, queryParams);
-    
+
     return {
         items: result.rows,
         pagination: {
             total: parseInt(result.rows[0]?.total_count || 0),
             page: page,
             pageSize: validatedPageSize,
-            totalPages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / validatedPageSize)
-        }
+            totalPages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / validatedPageSize),
+        },
     };
 }
 
@@ -2791,7 +2870,7 @@ async function createOptimizedIndexes() {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
-        
+
         for (const index of schemaConfig.indexes) {
             try {
                 await client.query(index.query);
@@ -2801,7 +2880,7 @@ async function createOptimizedIndexes() {
                 throw error;
             }
         }
-        
+
         await client.query('COMMIT');
     } catch (error) {
         await client.query('ROLLBACK');
@@ -2816,7 +2895,7 @@ async function createMaterializedViews() {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
-        
+
         for (const view of schemaConfig.materializedViews) {
             try {
                 await client.query(view.query);
@@ -2826,7 +2905,7 @@ async function createMaterializedViews() {
                 throw error;
             }
         }
-        
+
         await client.query('COMMIT');
     } catch (error) {
         await client.query('ROLLBACK');
@@ -2841,7 +2920,7 @@ async function refreshMaterializedViews() {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
-        
+
         for (const view of schemaConfig.materializedViews) {
             try {
                 await client.query(view.refreshQuery);
@@ -2851,7 +2930,7 @@ async function refreshMaterializedViews() {
                 throw error;
             }
         }
-        
+
         await client.query('COMMIT');
     } catch (error) {
         await client.query('ROLLBACK');
@@ -3546,17 +3625,12 @@ const BULK_OPERATION_TYPES = {
     DELETE: 'delete',
     PRICE_UPDATE: 'price_update',
     INVENTORY_UPDATE: 'inventory_update',
-    ATTRIBUTE_UPDATE: 'attribute_update'
+    ATTRIBUTE_UPDATE: 'attribute_update',
 };
 
 // Enhanced bulk operations
 async function processBulkOperation(type, data, options = {}) {
-    const {
-        batchSize = BATCH_SIZE,
-        concurrency = MAX_CONCURRENT_JOBS,
-        retryAttempts = 3,
-        retryDelay = 1000
-    } = options;
+    const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
 
     // Split data into batches
     const batches = [];
@@ -3578,21 +3652,25 @@ async function processBulkOperation(type, data, options = {}) {
         activeJobs.add(jobId);
 
         try {
-            const result = await bulkOperationQueue.add(type, {
-                batch,
-                options: {
-                    retryAttempts,
-                    retryDelay
-                }
-            }, {
-                attempts: retryAttempts,
-                backoff: {
-                    type: 'exponential',
-                    delay: retryDelay
+            const result = await bulkOperationQueue.add(
+                type,
+                {
+                    batch,
+                    options: {
+                        retryAttempts,
+                        retryDelay,
+                    },
                 },
-                removeOnComplete: true,
-                removeOnFail: false
-            });
+                {
+                    attempts: retryAttempts,
+                    backoff: {
+                        type: 'exponential',
+                        delay: retryDelay,
+                    },
+                    removeOnComplete: true,
+                    removeOnFail: false,
+                }
+            );
 
             results.push(result);
         } finally {
@@ -3604,7 +3682,7 @@ async function processBulkOperation(type, data, options = {}) {
 }
 
 // Process different types of bulk operations
-bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async (job) => {
+bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
     const { batch, options } = job.data;
     const client = await pgPool.connect();
 
@@ -3617,14 +3695,13 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async (job) => {
                  SET name = $1, description = $2, price = $3, 
                      category_id = $4, metadata = $5, updated_at = NOW()
                  WHERE id = $6`,
-                [product.name, product.description, product.price, 
-                 product.category_id, product.metadata, product.id]
+                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
             );
         }
 
         await client.query('COMMIT');
         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-        
+
         return { success: true, count: batch.length };
     } catch (error) {
         await client.query('ROLLBACK');
@@ -3634,7 +3711,7 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async (job) => {
     }
 });
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async (job) => {
+bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
     const { batch, options } = job.data;
     const client = await pgPool.connect();
 
@@ -3661,7 +3738,7 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async (job) => {
 
         await client.query('COMMIT');
         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-        
+
         return { success: true, count: batch.length };
     } catch (error) {
         await client.query('ROLLBACK');
@@ -3671,7 +3748,7 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async (job) => {
     }
 });
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async (job) => {
+bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
     const { batch, options } = job.data;
     const client = await pgPool.connect();
 
@@ -3693,7 +3770,7 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async (job) =>
 
         await client.query('COMMIT');
         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-        
+
         return { success: true, count: batch.length };
     } catch (error) {
         await client.query('ROLLBACK');
@@ -3705,7 +3782,7 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async (job) =>
 
 // ======================================================================
 async function main() {
-    await clearCorruptedCache()
+    await clearCorruptedCache();
     init();
 }
 main();
