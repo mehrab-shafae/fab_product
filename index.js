@@ -681,6 +681,42 @@ async function init() {
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
+    // Add health check endpoint
+    app.get('/health', async (req, res) => {
+        try {
+            // Check if products table exists and is ready
+            const result = await pgPool.query(`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_name = 'products'
+                );
+            `);
+            
+            if (!result.rows[0].exists) {
+                return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
+            }
+
+            // Check if required indexes exist
+            const indexResult = await pgPool.query(`
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM pg_indexes
+                    WHERE tablename = 'products'
+                    AND indexname = 'idx_products_name_trgm'
+                );
+            `);
+
+            if (!indexResult.rows[0].exists) {
+                return res.status(503).json({ status: 'initializing', message: 'Database indexes are being created' });
+            }
+
+            res.json({ status: 'ready', message: 'Server is ready to handle requests' });
+        } catch (error) {
+            console.error('Health check failed:', error);
+            res.status(500).json({ status: 'error', message: 'Health check failed' });
+        }
+    });
+
     try {
         // Initialize database schema with version control
         await createDatabaseSchema();
@@ -2655,6 +2691,7 @@ async function getCurrentSchemaVersion() {
 async function applySchemaMigration(version, name, migrationQuery) {
     const client = await pgPool.connect();
     try {
+        console.log(`Starting migration ${version}: ${name}`);
         await client.query('BEGIN');
 
         // Check if migration already applied
@@ -2662,16 +2699,23 @@ async function applySchemaMigration(version, name, migrationQuery) {
         const checkResult = await client.query(checkQuery, [version]);
 
         if (checkResult.rows.length === 0) {
+            console.log(`Executing migration query: ${migrationQuery.substring(0, 100)}...`);
             // Apply migration
             await client.query(migrationQuery);
 
             // Record migration
             const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
             await client.query(insertQuery, [version, name]);
+            console.log(`Successfully applied migration ${version}: ${name}`);
+        } else {
+            console.log(`Migration ${version}: ${name} already applied, skipping`);
         }
 
         await client.query('COMMIT');
     } catch (error) {
+        console.error(`Failed to apply migration ${version}: ${name}`);
+        console.error('Migration query:', migrationQuery);
+        console.error('Error details:', error);
         await client.query('ROLLBACK');
         throw error;
     } finally {
@@ -2680,19 +2724,37 @@ async function applySchemaMigration(version, name, migrationQuery) {
 }
 
 async function createDatabaseSchema() {
-    // Create schema version tracking table first
-    await createSchemaVersionTable();
+    try {
+        console.log('Starting database schema creation...');
+        
+        // Create schema version tracking table first
+        await createSchemaVersionTable();
+        console.log('Schema version table created successfully');
 
-    const currentVersion = await getCurrentSchemaVersion();
+        const currentVersion = await getCurrentSchemaVersion();
+        console.log(`Current schema version: ${currentVersion}`);
 
-    // Apply migrations from config
-    for (const migration of schemaConfig.migrations) {
-        if (migration.version > currentVersion) {
-            // Execute each query in the migration
-            for (const query of migration.queries) {
-                await applySchemaMigration(migration.version, migration.name, query);
+        // Apply migrations from config
+        for (const migration of schemaConfig.migrations) {
+            if (migration.version > currentVersion) {
+                console.log(`Applying migration version ${migration.version}: ${migration.name}`);
+                // Execute each query in the migration
+                for (const query of migration.queries) {
+                    try {
+                        await applySchemaMigration(migration.version, migration.name, query);
+                        console.log(`Successfully executed query: ${query.substring(0, 100)}...`);
+                    } catch (error) {
+                        console.error(`Failed to execute query: ${query.substring(0, 100)}...`);
+                        console.error('Error details:', error);
+                        throw error;
+                    }
+                }
             }
         }
+        console.log('Database schema creation completed successfully');
+    } catch (error) {
+        console.error('Failed to create database schema:', error);
+        throw error;
     }
 }
 
