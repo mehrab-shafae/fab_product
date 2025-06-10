@@ -31,6 +31,34 @@ const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 let redisClient = null;
 let redisConnected = false;
 
+// Cache Configuration
+const CACHE_VERSION = 'v1';
+const CACHE_PATTERNS = {
+    PRODUCT: {
+        SEARCH: 'api:products:search:*',
+        DETAILS: 'api:products:${id}:*',
+        REVIEWS: 'api:products:${id}:reviews:*',
+        PRICE: 'api:products:${id}:price:*',
+        ANALYTICS: 'api:products:${id}:analytics:*',
+        VARIANTS: 'api:products:${id}:variants:*',
+        IMAGES: 'api:products:${id}:images:*',
+        INVENTORY: 'api:products:${id}:inventory:*',
+        ATTRIBUTES: 'api:products:${id}:attributes:*',
+        RELATIONSHIPS: 'api:products:${id}:relationships:*',
+        VERSIONS: 'api:products:${id}:versions:*'
+    },
+    CATEGORY: {
+        TREE: 'api:categories:tree:*',
+        DETAILS: 'api:categories:${id}:*'
+    },
+    USER: {
+        WISHLIST: 'api:users:${id}:wishlist:*'
+    },
+    CHAT: {
+        MESSAGES: 'api:chats:${id}:messages:*'
+    }
+};
+
 // Configure logger
 const { combine, timestamp, printf, colorize } = format;
 
@@ -189,12 +217,13 @@ const CACHE_PREFIXES = {
 };
 
 const CACHE_TTL = {
-    PRODUCT: 300,
-    CATEGORY: 600,
-    TAG: 300,
-    COMMENT: 300,
-    CHAT: 300,
-    ANALYTICS: 600,
+    PRODUCT: 3600,    // 1 hour
+    CATEGORY: 7200,   // 2 hours
+    USER: 1800,       // 30 minutes
+    CHAT: 300,        // 5 minutes
+    TAG: 3600,        // 1 hour
+    COMMENT: 1800,    // 30 minutes
+    ANALYTICS: 3600   // 1 hour
 };
 
 // Swagger configuration
@@ -692,7 +721,9 @@ async function decompressData(data) {
                 return;
             }
 
-            if (!data.includes('base64')) {
+            // Check if the data starts with the gzip magic number (0x1f8b)
+            const isCompressed = data.startsWith('H4sI');
+            if (!isCompressed) {
                 resolve(data);
                 return;
             }
@@ -762,75 +793,182 @@ function validateProductId(req, res, next) {
     next();
 }
 
-// Update invalidateCachePattern function
-async function invalidateCachePattern(pattern) {
+/**
+ * Invalidates cache entries matching the given pattern
+ * @param {string} pattern - Redis key pattern to match
+ * @param {Object} options - Additional options
+ * @param {number} options.maxRetries - Maximum number of retry attempts (default: 3)
+ * @param {number} options.retryDelay - Delay between retries in milliseconds (default: 1000)
+ * @param {number} options.batchSize - Number of keys to process in each batch (default: 100)
+ * @returns {Promise<void>}
+ */
+async function invalidateCachePattern(pattern, options = {}) {
+    const {
+        maxRetries = 3,
+        retryDelay = 1000,
+        batchSize = 100
+    } = options;
+
     if (!redisConnected || !redisClient.isOpen) {
         logger.warn('Redis not connected, skipping cache invalidation', { pattern });
         return;
     }
 
-    try {
-        const keys = await redisClient.keys(pattern);
-        if (keys.length > 0) {
-            await redisClient.del(keys);
+    let retries = 0;
+    while (retries < maxRetries) {
+        try {
+            const keys = await redisClient.keys(pattern);
+            if (keys.length === 0) {
+                logger.debug('No cache keys found to invalidate', { pattern });
+                return;
+            }
+
+            // Process keys in batches
+            for (let i = 0; i < keys.length; i += batchSize) {
+                const batch = keys.slice(i, i + batchSize);
+                const multi = redisClient.multi();
+                
+                batch.forEach(key => {
+                    multi.del(key);
+                    // Also delete associated metadata
+                    multi.del(`${key}:meta`);
+                });
+
+                await multi.exec();
+                
+                logger.debug('Cache batch invalidated', {
+                    pattern,
+                    batchSize: batch.length,
+                    totalProcessed: Math.min(i + batchSize, keys.length),
+                    totalKeys: keys.length
+                });
+            }
+
             logger.info('Cache invalidated successfully', {
                 pattern,
                 keysCount: keys.length
             });
+            return;
+        } catch (error) {
+            retries++;
+            if (retries === maxRetries) {
+                logger.error('Failed to invalidate cache after maximum retries', {
+                    pattern,
+                    error: error.message,
+                    retries
+                });
+                throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
+            }
+            
+            logger.warn('Cache invalidation attempt failed, retrying', {
+                pattern,
+                error: error.message,
+                attempt: retries,
+                nextAttemptIn: retryDelay
+            });
+            
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
+    }
+}
+
+/**
+ * Invalidates multiple cache patterns in parallel
+ * @param {string[]} patterns - Array of Redis key patterns to match
+ * @param {Object} options - Additional options passed to invalidateCachePattern
+ * @returns {Promise<void>}
+ */
+async function invalidateCachePatterns(patterns, options = {}) {
+    if (!Array.isArray(patterns) || patterns.length === 0) {
+        logger.warn('No patterns provided for cache invalidation');
+        return;
+    }
+
+    try {
+        await Promise.all(patterns.map(pattern => invalidateCachePattern(pattern, options)));
+        logger.info('Multiple cache patterns invalidated successfully', { patterns });
     } catch (error) {
-        // Log error but don't throw - cache invalidation should not break the application
-        logger.warn('Cache invalidation skipped', {
-            error: error.message,
-            pattern
+        logger.error('Failed to invalidate multiple cache patterns', {
+            patterns,
+            error: error.message
         });
+        throw error;
     }
 }
 
 // Enhanced cache warming with background processing
 async function warmCache() {
-    try {
-        if (!redisConnected) {
-            logger.warn('Skipping cache warming - Redis not connected');
-            return;
-        }
-
-        logger.info('Starting cache warming process');
-
-        // Add cache warming jobs to queue with priorities and retry options
-        const jobs = [
-            {
-                name: 'warm-products',
-                data: { limit: 100 },
-                opts: { priority: 1, attempts: 3, backoff: { type: 'exponential', delay: 1000 } }
-            },
-            {
-                name: 'warm-categories',
-                data: {},
-                opts: { priority: 2, attempts: 2, backoff: { type: 'exponential', delay: 2000 } }
-            },
-            {
-                name: 'warm-analytics',
-                data: { limit: 50 },
-                opts: { priority: 3, attempts: 2, backoff: { type: 'exponential', delay: 3000 } }
-            }
-        ];
-
-        for (const job of jobs) {
-            await cacheWarmingQueue.add(job.name, job.data, job.opts);
-            logger.debug(`Added ${job.name} warming job to queue`, {
-                priority: job.opts.priority,
-                attempts: job.opts.attempts
-            });
-        }
-
-        logger.info('Cache warming jobs queued successfully');
-    } catch (error) {
-        logger.error('Cache warming error', {
-            error: error.message,
-            stack: error.stack
-        });
+    if (!redisConnected || !redisClient.isOpen) {
+        logger.warn('Redis not connected, skipping cache warm-up');
+        return;
     }
+
+    const warmUpTasks = [
+        {
+            name: 'Product Search',
+            pattern: CACHE_PATTERNS.PRODUCT.SEARCH,
+            fetchData: async () => {
+                const result = await searchProducts({ limit: 100 });
+                return result.items || [];
+            }
+        },
+        {
+            name: 'Category Tree',
+            pattern: CACHE_PATTERNS.CATEGORY.TREE,
+            fetchData: async () => {
+                const result = await getCategoryTree();
+                return result.rows || [];
+            }
+        }
+    ];
+
+    logger.info('Starting cache warm-up');
+
+    for (const task of warmUpTasks) {
+        try {
+            logger.debug(`Warming up ${task.name} cache`);
+            
+            // Invalidate existing cache first
+            await invalidateCachePattern(task.pattern);
+            
+            // Fetch and cache new data
+            const data = await task.fetchData();
+            if (!data || !Array.isArray(data)) {
+                logger.warn(`No data returned for ${task.name}, skipping cache warm-up`);
+                continue;
+            }
+
+            const key = task.pattern.replace('*', 'warm');
+            const ttl = CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || CACHE_TTL.PRODUCT;
+            
+            await redisClient.setEx(
+                key,
+                ttl,
+                JSON.stringify(data)
+            );
+
+            // Set metadata
+            await redisClient.hSet(`${key}:meta`, {
+                created: Date.now().toString(),
+                size: JSON.stringify(data).length.toString(),
+                compressed: 'false'
+            });
+            await redisClient.expire(`${key}:meta`, ttl);
+
+            logger.info(`${task.name} cache warmed up successfully`, {
+                key,
+                dataSize: data.length
+            });
+        } catch (error) {
+            logger.error(`Failed to warm up ${task.name} cache`, {
+                error: error.message,
+                stack: error.stack
+            });
+            // Continue with other tasks even if one fails
+        }
+    }
+
+    logger.info('Cache warm-up completed');
 }
 
 // Process cache warming jobs with improved error handling
@@ -3470,14 +3608,15 @@ async function searchProducts(searchParams) {
     let query = `
         SELECT p.*, 
                COUNT(*) OVER() as total_count,
-               array_agg(DISTINCT t.tag_name) as tags,
+               array_agg(DISTINCT t.tag_name) FILTER (WHERE t.tag_name IS NOT NULL) as tags,
                jsonb_object_agg(
-                   a.attribute_name,
-                   a.attribute_value
-               ) as attributes
+                   pa.name,
+                   pav.value
+               ) FILTER (WHERE pa.name IS NOT NULL AND pav.value IS NOT NULL) as attributes
         FROM products p
         LEFT JOIN product_tags t ON p.id = t.product_id
-        LEFT JOIN product_attributes a ON p.id = a.product_id
+        LEFT JOIN product_attribute_values pav ON p.id = pav.product_id
+        LEFT JOIN product_attributes pa ON pav.attribute_id = pa.id
         WHERE 1=1
     `;
 
@@ -3523,8 +3662,8 @@ async function searchProducts(searchParams) {
         const attributeConditions = [];
         for (const [key, value] of Object.entries(attributes)) {
             attributeConditions.push(`(
-                a.attribute_name = $${paramIndex} 
-                AND a.attribute_value = $${paramIndex + 1}
+                pa.name = $${paramIndex} 
+                AND pav.value = $${paramIndex + 1}
             )`);
             queryParams.push(key, value);
             paramIndex += 2;
