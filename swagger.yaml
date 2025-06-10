@@ -1,0 +1,689 @@
+openapi: 3.0.0
+info:
+  title: Product Microservice API
+  version: 1.0.0
+  description: API for managing products and related features
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The product ID
+        name:
+          type: string
+          description: The product name
+        description:
+          type: string
+          description: The product description
+        price:
+          type: number
+          description: The product price
+        category_id:
+          type: integer
+          description: The category ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Review:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The review ID
+        product_id:
+          type: integer
+          description: The product ID
+        user_id:
+          type: string
+          description: The user hash ID
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: The review rating (1-5)
+        review_text:
+          type: string
+          description: The review text
+        is_verified:
+          type: boolean
+          description: Whether the review is from a verified purchase
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - product_id
+        - user_id
+        - rating
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The comment ID
+        product_id:
+          type: integer
+          description: The product ID
+        user_id:
+          type: string
+          description: The user hash ID
+        comment:
+          type: string
+          description: The comment text
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - product_id
+        - user_id
+        - comment
+
+    Chat:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The chat ID
+        product_id:
+          type: integer
+          description: The product ID
+        user_id:
+          type: string
+          description: The user hash ID
+        seller_id:
+          type: string
+          description: The seller hash ID
+        status:
+          type: string
+          enum: [active, closed]
+          description: The chat status
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - product_id
+        - user_id
+        - seller_id
+
+    ChatMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The message ID
+        chat_id:
+          type: integer
+          description: The chat ID
+        sender_id:
+          type: string
+          description: The sender hash ID
+        message:
+          type: string
+          description: The message text
+        is_read:
+          type: boolean
+          description: Whether the message has been read
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - chat_id
+        - sender_id
+        - message
+
+    Wishlist:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The wishlist item ID
+        user_id:
+          type: string
+          description: The user hash ID
+        product_id:
+          type: integer
+          description: The product ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+      required:
+        - user_id
+        - product_id
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        message:
+          type: string
+          description: Detailed error message (only in development)
+
+paths:
+  /products:
+    post:
+      summary: Create a new product
+      tags: [Products]
+      description: |
+        Create a new product in the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - price
+              properties:
+                name:
+                  type: string
+                  description: Product name
+                description:
+                  type: string
+                  description: Product description
+                price:
+                  type: number
+                  description: Product price
+                category_id:
+                  type: integer
+                  description: Category ID
+                metadata:
+                  type: object
+                  description: Additional product metadata
+      responses:
+        '200':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    get:
+      summary: Get a paginated list of products
+      tags: [Products]
+      description: |
+        Get a paginated list of products
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        description: Current page number
+                      limit:
+                        type: integer
+                        description: Items per page
+                      total:
+                        type: integer
+                        description: Total number of items
+                      pages:
+                        type: integer
+                        description: Total number of pages
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/bulk-update:
+    post:
+      summary: Bulk update products
+      tags: [Products]
+      description: |
+        Update multiple products simultaneously
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type
+                - data
+              properties:
+                type:
+                  type: string
+                  enum: [update, price_update, inventory_update]
+                  description: Update type
+                data:
+                  type: array
+                  items:
+                    type: object
+                  description: Update data
+                options:
+                  type: object
+                  properties:
+                    batchSize:
+                      type: integer
+                      description: Number of items per batch
+                    concurrency:
+                      type: integer
+                      description: Number of concurrent operations
+                    retryAttempts:
+                      type: integer
+                      description: Number of retry attempts
+                    retryDelay:
+                      type: integer
+                      description: Delay between retries
+      responses:
+        '200':
+          description: Operation queued successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+                  jobIds:
+                    type: array
+                    items:
+                      type: string
+                    description: Job IDs
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/search/advanced:
+    get:
+      summary: Advanced product search
+      tags: [Products]
+      description: |
+        Search products with complex filters
+      parameters:
+        - in: query
+          name: query
+          schema:
+            type: string
+          description: Search query
+        - in: query
+          name: filters
+          schema:
+            type: object
+            properties:
+              categories:
+                type: array
+                items:
+                  type: integer
+                description: Category IDs
+              price_range:
+                type: object
+                properties:
+                  min:
+                    type: number
+                    description: Minimum price
+                  max:
+                    type: number
+                    description: Maximum price
+              attributes:
+                type: object
+                additionalProperties:
+                  type: string
+                description: Attribute filters
+              tags:
+                type: array
+                items:
+                  type: string
+                description: Tag filters
+        - in: query
+          name: sort
+          schema:
+            type: object
+            properties:
+              field:
+                type: string
+                enum: [price, created_at, name, rating]
+                description: Sort field
+              order:
+                type: string
+                enum: [asc, desc]
+                description: Sort order
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  total:
+                    type: integer
+                    description: Total number of results
+                  facets:
+                    type: object
+                    properties:
+                      categories:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              description: Category ID
+                            name:
+                              type: string
+                              description: Category name
+                            count:
+                              type: integer
+                              description: Number of products
+                      price_ranges:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            min:
+                              type: number
+                              description: Minimum price
+                            max:
+                              type: number
+                              description: Maximum price
+                            count:
+                              type: integer
+                              description: Number of products
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/analytics:
+    get:
+      summary: Get product analytics
+      tags: [Analytics]
+      description: |
+        Get detailed analytics for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: Product analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: Product ID
+                  name:
+                    type: string
+                    description: Product name
+                  unique_viewers:
+                    type: integer
+                    description: Number of unique viewers
+                  tag_count:
+                    type: integer
+                    description: Number of tags
+                  comment_count:
+                    type: integer
+                    description: Number of comments
+                  chat_count:
+                    type: integer
+                    description: Number of chats
+                  avg_price:
+                    type: number
+                    description: Average price
+                  min_price:
+                    type: number
+                    description: Minimum price
+                  max_price:
+                    type: number
+                    description: Maximum price
+                  category_name:
+                    type: string
+                    description: Category name
+                  tag_analytics:
+                    type: array
+                    items:
+                      type: object
+                    description: Tag analytics
+                  recent_comments:
+                    type: array
+                    items:
+                      type: object
+                    description: Recent comments
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/variants:
+    post:
+      summary: Create a new product variant
+      tags: [Products]
+      description: |
+        Add a new variant to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sku
+                - name
+                - price
+              properties:
+                sku:
+                  type: string
+                  description: Stock keeping unit
+                name:
+                  type: string
+                  description: Variant name
+                price:
+                  type: number
+                  description: Variant price
+                stock_quantity:
+                  type: integer
+                  description: Stock quantity
+                attributes:
+                  type: object
+                  description: Variant attributes
+      responses:
+        '200':
+          description: Variant created successfully
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/images:
+    post:
+      summary: Add an image to a product
+      tags: [Products]
+      description: |
+        Add a new image to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - image_url
+              properties:
+                image_url:
+                  type: string
+                  description: Image URL
+                variant_id:
+                  type: integer
+                  description: Variant ID
+                is_primary:
+                  type: boolean
+                  description: Whether this is the primary image
+                order_index:
+                  type: integer
+                  description: Display order
+      responses:
+        '200':
+          description: Image added successfully
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/attributes:
+    post:
+      summary: Add an attribute to a product
+      tags: [Products]
+      description: |
+        Add a new attribute to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - attribute_id
+                - value
+              properties:
+                attribute_id:
+                  type: integer
+                  description: Attribute ID
+                value:
+                  type: string
+                  description: Attribute value
+      responses:
+        '200':
+          description: Attribute added successfully
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/versions:
+    post:
+      summary: Create a new product version
+      tags: [Products]
+      description: |
+        Create a new version of a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - version_number
+                - changes
+              properties:
+                version_number:
+                  type: integer
+                  description: Version number
+                changes:
+                  type: object
+                  description: Version changes
+                created_by:
+                  type: integer
+                  description: Creator ID
+      responses:
+        '200':
+          description: Version created successfully
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error' 

@@ -22,6 +22,7 @@ import helmet from 'helmet';
 import xss from 'xss-clean';
 import hpp from 'hpp';
 import mongoSanitize from 'express-mongo-sanitize';
+import YAML from 'yamljs';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -228,242 +229,11 @@ const CACHE_TTL = {
     ANALYTICS: 3600,
 };
 
-const swaggerOptions = {
-    definition: {
-        openapi: '3.0.0',
-        info: {
-            title: 'Product Microservice API',
-            version: '1.0.0',
-            description: 'API for managing products and related features',
-        },
-        servers: [
-            {
-                url: `http://localhost:${PORT}`,
-                description: 'Development server',
-            },
-        ],
-        components: {
-            schemas: {
-                Product: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The product ID',
-                        },
-                        name: {
-                            type: 'string',
-                            description: 'The product name',
-                        },
-                        description: {
-                            type: 'string',
-                            description: 'The product description',
-                        },
-                        price: {
-                            type: 'number',
-                            format: 'float',
-                            description: 'The product price',
-                        },
-                        category_id: {
-                            type: 'integer',
-                            description: 'The category ID',
-                        },
-                        metadata: {
-                            type: 'object',
-                            description: 'Additional product metadata',
-                        },
-                        status: {
-                            type: 'string',
-                            enum: ['active', 'inactive', 'draft'],
-                            description: 'The product status',
-                        },
-                        featured: {
-                            type: 'boolean',
-                            description: 'Whether the product is featured',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                        updated_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Last update timestamp',
-                        },
-                    },
-                    required: ['name', 'price', 'category_id'],
-                },
-                Review: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The review ID',
-                        },
-                        product_id: {
-                            type: 'integer',
-                            description: 'The product ID',
-                        },
-                        user_id: {
-                            type: 'string',
-                            description: 'The user hash ID',
-                        },
-                        rating: {
-                            type: 'integer',
-                            minimum: 1,
-                            maximum: 5,
-                            description: 'The review rating (1-5)',
-                        },
-                        review_text: {
-                            type: 'string',
-                            description: 'The review text',
-                        },
-                        is_verified: {
-                            type: 'boolean',
-                            description: 'Whether the review is from a verified purchase',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                    },
-                    required: ['product_id', 'user_id', 'rating'],
-                },
-                Comment: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The comment ID',
-                        },
-                        product_id: {
-                            type: 'integer',
-                            description: 'The product ID',
-                        },
-                        user_id: {
-                            type: 'string',
-                            description: 'The user hash ID',
-                        },
-                        comment: {
-                            type: 'string',
-                            description: 'The comment text',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                    },
-                    required: ['product_id', 'user_id', 'comment'],
-                },
-                Chat: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The chat ID',
-                        },
-                        product_id: {
-                            type: 'integer',
-                            description: 'The product ID',
-                        },
-                        user_id: {
-                            type: 'string',
-                            description: 'The user hash ID',
-                        },
-                        seller_id: {
-                            type: 'string',
-                            description: 'The seller hash ID',
-                        },
-                        status: {
-                            type: 'string',
-                            enum: ['active', 'closed'],
-                            description: 'The chat status',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                    },
-                    required: ['product_id', 'user_id', 'seller_id'],
-                },
-                ChatMessage: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The message ID',
-                        },
-                        chat_id: {
-                            type: 'integer',
-                            description: 'The chat ID',
-                        },
-                        sender_id: {
-                            type: 'string',
-                            description: 'The sender hash ID',
-                        },
-                        message: {
-                            type: 'string',
-                            description: 'The message text',
-                        },
-                        is_read: {
-                            type: 'boolean',
-                            description: 'Whether the message has been read',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                    },
-                    required: ['chat_id', 'sender_id', 'message'],
-                },
-                Wishlist: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The wishlist entry ID',
-                        },
-                        user_id: {
-                            type: 'string',
-                            description: 'The user hash ID',
-                        },
-                        product_id: {
-                            type: 'integer',
-                            description: 'The product ID',
-                        },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp',
-                        },
-                    },
-                    required: ['user_id', 'product_id'],
-                },
-                Error: {
-                    type: 'object',
-                    properties: {
-                        error: {
-                            type: 'string',
-                            description: 'Error message',
-                        },
-                        message: {
-                            type: 'string',
-                            description: 'Detailed error message (only in development)',
-                        },
-                    },
-                },
-            },
-        },
-    },
-    apis: [join(__dirname, 'index.js')],
-};
+const swaggerDocument = YAML.parse(readFileSync(join(__dirname, 'swagger.yaml'), 'utf8'));
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
+swaggerDocument.info.title = 'Product Microservice API';
+swaggerDocument.info.description = 'API for managing products and related features';
+swaggerDocument.servers[0].description = 'Development server';
 
 const pgPool = new Pool({
     connectionString: POSTGRES_URI,
@@ -1095,7 +865,42 @@ async function init() {
     app.use(requestLogger);
     app.use(errorLogger);
 
-    app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+    // English Swagger UI
+    app.use('/api-docs/en', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: "API Documentation",
+        swaggerOptions: {
+            persistAuthorization: true,
+            docExpansion: 'none',
+            filter: true,
+            showExtensions: true,
+            showCommonExtensions: true,
+            supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+            displayRequestDuration: true,
+            deepLinking: true,
+            defaultModelsExpandDepth: 3,
+            defaultModelExpandDepth: 3,
+            defaultModelRendering: 'model',
+            displayOperationId: false,
+            filter: true,
+            maxDisplayedTags: 10,
+            showExtensions: true,
+            showCommonExtensions: true,
+            syntaxHighlight: {
+                activated: true,
+                theme: 'monokai'
+            },
+            tryItOutEnabled: true,
+        },
+    }));
+
+    // Persian Documentation
+    app.use('/api-docs/fa', express.static(join(__dirname, 'docs/fa')));
+
+    // Redirect root /api-docs to English documentation
+    app.get('/api-docs', (req, res) => {
+        res.redirect('/api-docs/en');
+    });
 
     app.get('/health', async (req, res) => {
         try {
