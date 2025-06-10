@@ -13,10 +13,12 @@ import slowDown from 'express-slow-down';
 import Bull from 'bull';
 import { gzip, gunzip } from 'zlib';
 import NodeCache from 'node-cache';
-/*import { Client } from '@elastic/elasticsearch';*/
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import expressValidator from 'express-validator';
+import { createLogger, format, transports } from 'winston';
+const { combine, timestamp, printf, colorize } = format;
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -27,22 +29,44 @@ const PORT = process.env.PORT || 3000;
 const POSTGRES_URI = process.env.POSTGRES_URI || 'postgresql://postgres:postgres@localhost:5432/product_db';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
-/*
-const ELASTICSEARCH_URI = process.env.ELASTICSEARCH_URI || 'https://localhost:9200';
-
-const elasticClient = new Client({
-    node: ELASTICSEARCH_URI,
-    tls: {
-        rejectUnauthorized: false
-    }
-});
-*/
 
 let redisClient = null;
 let redisConnected = false;
 let redisRetryCount = 0;
 const MAX_REDIS_RETRIES = 5;
 const REDIS_RETRY_DELAY = 5000;
+
+// Configure logger
+const logger = createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: combine(
+        timestamp(),
+        printf(({ level, message, timestamp, ...metadata }) => {
+            let msg = `${timestamp} [${level}] : ${message}`;
+            if (Object.keys(metadata).length > 0) {
+                msg += JSON.stringify(metadata);
+            }
+            return msg;
+        })
+    ),
+    transports: [
+        new transports.Console({
+            format: combine(
+                colorize(),
+                timestamp(),
+                printf(({ level, message, timestamp, ...metadata }) => {
+                    let msg = `${timestamp} [${level}] : ${message}`;
+                    if (Object.keys(metadata).length > 0) {
+                        msg += JSON.stringify(metadata);
+                    }
+                    return msg;
+                })
+            )
+        }),
+        new transports.File({ filename: 'error.log', level: 'error' }),
+        new transports.File({ filename: 'combined.log' })
+    ]
+});
 
 async function initializeRedis() {
     try {
@@ -108,181 +132,6 @@ const speedLimiter = slowDown({
         return (used - delayAfter) * 500;
     },
 });
-
-/*
-const ELASTIC_INDEX = 'products';
-
-async function setupElasticsearch() {
-    try {
-        
-        const indexExists = await elasticClient.indices.exists({
-            index: ELASTIC_INDEX
-        });
-
-        if (!indexExists) {
-            
-            await elasticClient.indices.create({
-                index: ELASTIC_INDEX,
-                body: {
-                    mappings: {
-                        properties: {
-                            id: { type: 'integer' },
-                            name: {
-                                type: 'text',
-                                fields: {
-                                    keyword: { type: 'keyword' }
-                                }
-                            },
-                            description: { type: 'text' },
-                            price: { type: 'float' },
-                            category_id: { type: 'integer' },
-                            category_name: { type: 'keyword' },
-                            tags: { type: 'keyword' },
-                            metadata: { type: 'object' },
-                            created_at: { type: 'date' },
-                            updated_at: { type: 'date' }
-                        }
-                    },
-                    settings: {
-                        analysis: {
-                            analyzer: {
-                                custom_analyzer: {
-                                    type: 'custom',
-                                    tokenizer: 'standard',
-                                    filter: ['lowercase', 'asciifolding']
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    } catch (error) {
-        console.error('Elasticsearch setup error:', error);
-        throw error;
-    }
-}
-
-
-async function indexProduct(product) {
-    try {
-        
-        let category_name = null;
-        if (product.category_id) {
-            const categoryResult = await pgPool.query(
-                'SELECT name FROM categories WHERE id = $1',
-                [product.category_id]
-            );
-            if (categoryResult.rows.length > 0) {
-                category_name = categoryResult.rows[0].name;
-            }
-        }
-
-        
-        const tagsResult = await pgPool.query(
-            'SELECT tag_name FROM product_tags WHERE product_id = $1',
-            [product.id]
-        );
-        const tags = tagsResult.rows.map(row => row.tag_name);
-
-        
-        await elasticClient.index({
-            index: ELASTIC_INDEX,
-            id: product.id.toString(),
-            body: {
-                ...product,
-                category_name,
-                tags,
-                updated_at: new Date()
-            }
-        });
-    } catch (error) {
-        console.error('Elasticsearch indexing error:', error);
-        throw error;
-    }
-}
-
-
-async function advancedSearch(searchParams) {
-    try {
-        const {
-            query,
-            category_id,
-            min_price,
-            max_price,
-            tags,
-            sort_by,
-            sort_order = 'desc',
-            page = 1,
-            size = 10
-        } = searchParams;
-
-        const must = [];
-        const filter = [];
-
-        
-        if (query) {
-            must.push({
-                multi_match: {
-                    query,
-                    fields: ['name^3', 'description^2', 'category_name'],
-                    fuzziness: 'AUTO'
-                }
-            });
-        }
-
-        
-        if (category_id) {
-            filter.push({ term: { category_id } });
-        }
-
-        
-        if (min_price || max_price) {
-            const range = {};
-            if (min_price) range.gte = min_price;
-            if (max_price) range.lte = max_price;
-            filter.push({ range: { price: range } });
-        }
-
-        
-        if (tags && tags.length > 0) {
-            filter.push({ terms: { tags } });
-        }
-
-        
-        const sort = [];
-        if (sort_by) {
-            sort.push({ [sort_by]: { order: sort_order } });
-        }
-        sort.push({ _score: { order: 'desc' } });
-
-        const response = await elasticClient.search({
-            index: ELASTIC_INDEX,
-            body: {
-                query: {
-                    bool: {
-                        must,
-                        filter
-                    }
-                },
-                sort,
-                from: (page - 1) * size,
-                size
-            }
-        });
-
-        return {
-            total: response.hits.total.value,
-            hits: response.hits.hits.map(hit => hit._source),
-            page,
-            size
-        };
-    } catch (error) {
-        console.error('Elasticsearch search error:', error);
-        throw error;
-    }
-}
-*/
 
 const CACHE_PREFIXES = {
     PRODUCT: 'product:',
@@ -675,9 +524,13 @@ async function init() {
     await initializeRedis();
 
     app.use(cors());
-    app.use(express.json());
+    app.use(express.json({ limit: '1mb' }));
+    app.use(express.urlencoded({ limit: '1mb', extended: true }));
     app.use(limiter);
     app.use(speedLimiter);
+    // Apply logging middleware
+    app.use(requestLogger);
+    app.use(errorLogger);
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
@@ -2622,45 +2475,93 @@ async function init() {
         }
     );
 
-    function getProductAttributes(product_id) {
-        return pgPool.query(
-            `SELECT pa.name, pa.type, pav.value 
-       FROM product_attributes pa 
-       JOIN product_attribute_values pav ON pa.id = pav.attribute_id 
-       WHERE pav.product_id = $1`,
-            [product_id]
-        );
-    }
+    // Update list endpoints with pagination
+    app.get('/products', paginateResults, async function(req, res) {
+        try {
+            const { page, limit, offset } = req.pagination;
+            const result = await pgPool.query(
+                'SELECT * FROM products WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2',
+                [limit, offset]
+            );
+            const countResult = await pgPool.query('SELECT COUNT(*) FROM products WHERE deleted_at IS NULL');
+            const total = parseInt(countResult.rows[0].count);
+            
+            res.json({
+                data: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-    function getProductPriceHistory(product_id, variant_id) {
-        const query = variant_id
-            ? `SELECT * FROM product_price_history 
-         WHERE product_id = $1 AND variant_id = $2 
-         ORDER BY effective_date DESC`
-            : `SELECT * FROM product_price_history 
-         WHERE product_id = $1 
-         ORDER BY effective_date DESC`;
-        const params = variant_id ? [product_id, variant_id] : [product_id];
-        return pgPool.query(query, params);
-    }
+    app.get('/categories', paginateResults, async function(req, res) {
+        try {
+            const { page, limit, offset } = req.pagination;
+            const result = await pgPool.query(
+                'SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2',
+                [limit, offset]
+            );
+            const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
+            const total = parseInt(countResult.rows[0].count);
+            
+            res.json({
+                data: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-    function getProductRelationships(product_id, relationship_type) {
-        const query = relationship_type
-            ? `SELECT p.*, pr.relationship_type 
-         FROM products p 
-         JOIN product_relationships pr ON p.id = pr.related_product_id 
-         WHERE pr.product_id = $1 AND pr.relationship_type = $2`
-            : `SELECT p.*, pr.relationship_type 
-         FROM products p 
-         JOIN product_relationships pr ON p.id = pr.related_product_id 
-         WHERE pr.product_id = $1`;
-        const params = relationship_type ? [product_id, relationship_type] : [product_id];
-        return pgPool.query(query, params);
-    }
+    app.get('/products/:productId/reviews', paginateResults, async function(req, res) {
+        try {
+            const { page, limit, offset } = req.pagination;
+            const result = await pgPool.query(
+                'SELECT * FROM product_reviews WHERE product_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3',
+                [req.params.productId, limit, offset]
+            );
+            const countResult = await pgPool.query(
+                'SELECT COUNT(*) FROM product_reviews WHERE product_id = $1 AND deleted_at IS NULL',
+                [req.params.productId]
+            );
+            const total = parseInt(countResult.rows[0].count);
+            
+            res.json({
+                data: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
-    function getProductVersions(product_id) {
-        return pgPool.query('SELECT * FROM product_versions WHERE product_id = $1 ORDER BY version_number DESC', [product_id]);
-    }
+    // Update error handling in routes
+    app.use((err, req, res, next) => {
+        logger.error('Unhandled error', {
+            error: err.message,
+            stack: err.stack
+        });
+        res.status(500).json({
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? err.message : undefined
+        });
+    });
 
     app.listen(PORT, function () {
         console.log(`Product service is running on port ${PORT}`);
@@ -3902,3 +3803,88 @@ process.on('beforeExit', free);
 process.on('SIGINT', free);
 process.on('SIGTERM', free);
 process.on('SIGQUIT', free);
+
+// Pagination middleware
+function paginateResults(req, res, next) {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const offset = (page - 1) * limit;
+    
+    req.pagination = {
+        page,
+        limit,
+        offset
+    };
+    next();
+}
+
+// Logging middleware
+function requestLogger(req, res, next) {
+    const start = Date.now();
+    res.on('finish', () => {
+        const duration = Date.now() - start;
+        logger.info('Request completed', {
+            method: req.method,
+            url: req.url,
+            status: res.statusCode,
+            duration: `${duration}ms`,
+            ip: req.ip,
+            userAgent: req.get('user-agent')
+        });
+    });
+    next();
+}
+
+// Error logging middleware
+function errorLogger(err, req, res, next) {
+    logger.error('Error occurred', {
+        error: err.message,
+        stack: err.stack,
+        method: req.method,
+        url: req.url,
+        body: req.body,
+        params: req.params,
+        query: req.query
+    });
+    next(err);
+}
+
+function getProductAttributes(product_id) {
+    return pgPool.query(
+        `SELECT pa.name, pa.type, pav.value 
+   FROM product_attributes pa 
+   JOIN product_attribute_values pav ON pa.id = pav.attribute_id 
+   WHERE pav.product_id = $1`,
+        [product_id]
+    );
+}
+
+function getProductPriceHistory(product_id, variant_id) {
+    const query = variant_id
+        ? `SELECT * FROM product_price_history 
+     WHERE product_id = $1 AND variant_id = $2 
+     ORDER BY effective_date DESC`
+        : `SELECT * FROM product_price_history 
+     WHERE product_id = $1 
+     ORDER BY effective_date DESC`;
+    const params = variant_id ? [product_id, variant_id] : [product_id];
+    return pgPool.query(query, params);
+}
+
+function getProductRelationships(product_id, relationship_type) {
+    const query = relationship_type
+        ? `SELECT p.*, pr.relationship_type 
+     FROM products p 
+     JOIN product_relationships pr ON p.id = pr.related_product_id 
+     WHERE pr.product_id = $1 AND pr.relationship_type = $2`
+        : `SELECT p.*, pr.relationship_type 
+     FROM products p 
+     JOIN product_relationships pr ON p.id = pr.related_product_id 
+     WHERE pr.product_id = $1`;
+    const params = relationship_type ? [product_id, relationship_type] : [product_id];
+    return pgPool.query(query, params);
+}
+
+function getProductVersions(product_id) {
+    return pgPool.query('SELECT * FROM product_versions WHERE product_id = $1 ORDER BY version_number DESC', [product_id]);
+}
