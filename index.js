@@ -741,63 +741,6 @@ async function init() {
 
     /**
      * @swagger
-     * /products/bulk-update:
-     *   post:
-     *     summary: Bulk update products
-     *     tags: [Products]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - type
-     *               - data
-     *             properties:
-     *               type:
-     *                 type: string
-     *                 enum: [update, price_update, inventory_update]
-     *               data:
-     *                 type: array
-     *                 items:
-     *                   type: object
-     *               options:
-     *                 type: object
-     *                 properties:
-     *                   batchSize:
-     *                     type: integer
-     *                   concurrency:
-     *                     type: integer
-     *                   retryAttempts:
-     *                     type: integer
-     *                   retryDelay:
-     *                     type: integer
-     */
-    app.post('/products/bulk-update', async function (req, res) {
-        try {
-            const { type, data, options } = req.body;
-
-            if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
-                return res.status(400).json({ error: 'Invalid operation type' });
-            }
-
-            if (!Array.isArray(data) || data.length === 0) {
-                return res.status(400).json({ error: 'Invalid data array' });
-            }
-
-            const results = await processBulkOperation(type, data, options);
-            res.json({
-                message: 'Bulk operation queued successfully',
-                jobIds: results.map(r => r.id),
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    /**
-     * @swagger
      * /jobs/{jobId}/status:
      *   get:
      *     summary: Get job status
@@ -980,6 +923,63 @@ async function init() {
                 .catch(error => res.status(500).json({ error: error.message }));
         }
     );
+
+    /**
+     * @swagger
+     * /products/bulk-update:
+     *   post:
+     *     summary: Bulk update products
+     *     tags: [Products]
+     *     requestBody:
+     *       required: true
+     *       content:
+     *         application/json:
+     *           schema:
+     *             type: object
+     *             required:
+     *               - type
+     *               - data
+     *             properties:
+     *               type:
+     *                 type: string
+     *                 enum: [update, price_update, inventory_update]
+     *               data:
+     *                 type: array
+     *                 items:
+     *                   type: object
+     *               options:
+     *                 type: object
+     *                 properties:
+     *                   batchSize:
+     *                     type: integer
+     *                   concurrency:
+     *                     type: integer
+     *                   retryAttempts:
+     *                     type: integer
+     *                   retryDelay:
+     *                     type: integer
+     */
+    app.post('/products/bulk-update', async function (req, res) {
+        try {
+            const { type, data, options } = req.body;
+
+            if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
+                return res.status(400).json({ error: 'Invalid operation type' });
+            }
+
+            if (!Array.isArray(data) || data.length === 0) {
+                return res.status(400).json({ error: 'Invalid data array' });
+            }
+
+            const results = await processBulkOperation(type, data, options);
+            res.json({
+                message: 'Bulk operation queued successfully',
+                jobIds: results.map(r => r.id),
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
     /**
      * @swagger
