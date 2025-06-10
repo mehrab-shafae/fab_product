@@ -18,7 +18,6 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import expressValidator from 'express-validator';
 import { createLogger, format, transports } from 'winston';
-const { combine, timestamp, printf, colorize } = format;
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -32,11 +31,10 @@ const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
 let redisClient = null;
 let redisConnected = false;
-let redisRetryCount = 0;
-const MAX_REDIS_RETRIES = 5;
-const REDIS_RETRY_DELAY = 5000;
 
 // Configure logger
+const { combine, timestamp, printf, colorize } = format;
+
 const logger = createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: combine(
@@ -102,88 +100,54 @@ logger.debug = function(message, metadata = {}) {
 };
 
 async function initializeRedis() {
-    try {
-        logger.info('Initializing Redis connection', { uri: REDIS_URI });
-        redisClient = createClient({
-            url: REDIS_URI,
-            retry_strategy: function (options) {
-                if (options.error && options.error.code === 'ECONNREFUSED') {
-                    logger.error('Redis connection refused', { 
-                        attempt: options.attempt,
-                        totalRetryTime: options.total_retry_time,
-                        error: options.error.message 
-                    });
-                    return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
-                }
-                if (options.total_retry_time > 1000 * 60 * 60) {
-                    logger.error('Redis retry time exhausted', { 
-                        totalRetryTime: options.total_retry_time 
-                    });
-                    return new Error('Redis retry time exhausted');
-                }
-                if (options.attempt > MAX_REDIS_RETRIES) {
-                    logger.error('Redis max retries reached', { 
-                        maxRetries: MAX_REDIS_RETRIES,
-                        attempt: options.attempt 
-                    });
-                    return new Error('Redis max retries reached');
-                }
-                return Math.min(options.attempt * REDIS_RETRY_DELAY, 30000);
-            },
-        });
+    const ONE_HOUR = 60 * 60 * 1000;
+    let retryTimer = null;
 
-        redisClient.on('error', function (err) {
-            logger.error('Redis Client Error', { 
-                error: err.message,
-                retryCount: redisRetryCount,
-                maxRetries: MAX_REDIS_RETRIES 
+    const connectToRedis = async () => {
+        try {
+            logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
+            redisClient = createClient({
+                url: REDIS_URI
             });
-            redisConnected = false;
-            redisRetryCount++;
 
-            if (redisRetryCount <= MAX_REDIS_RETRIES) {
-                logger.info(`Attempting to reconnect to Redis`, { 
-                    attempt: redisRetryCount,
-                    maxRetries: MAX_REDIS_RETRIES 
-                });
-                setTimeout(initializeRedis, REDIS_RETRY_DELAY);
-            } else {
-                logger.error('Redis connection failed after maximum retries', {
-                    maxRetries: MAX_REDIS_RETRIES,
-                    retryCount: redisRetryCount
-                });
+            redisClient.on('error', (err) => {
+                logger.error('Redis connection error', { error: err.message });
+                redisConnected = false;
+                if (!retryTimer) {
+                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
+                }
+            });
+
+            redisClient.on('connect', () => {
+                logger.info('Successfully connected to Redis');
+                redisConnected = true;
+                if (retryTimer) {
+                    clearInterval(retryTimer);
+                    retryTimer = null;
+                }
+            });
+
+            redisClient.on('end', () => {
+                logger.info('Redis connection ended');
+                redisConnected = false;
+                if (!retryTimer) {
+                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
+                }
+            });
+
+            await redisClient.connect();
+            return true;
+        } catch (error) {
+            logger.error('Failed to connect to Redis', { error: error.message });
+            redisConnected = false;
+            if (!retryTimer) {
+                retryTimer = setInterval(connectToRedis, ONE_HOUR);
             }
-        });
+            return false;
+        }
+    };
 
-        redisClient.on('connect', function () {
-            logger.info('Redis connected successfully', {
-                uri: REDIS_URI,
-                retryCount: redisRetryCount
-            });
-            redisConnected = true;
-            redisRetryCount = 0;
-        });
-
-        redisClient.on('reconnecting', function () {
-            logger.warn('Redis reconnecting', {
-                retryCount: redisRetryCount,
-                maxRetries: MAX_REDIS_RETRIES
-            });
-            redisConnected = false;
-        });
-
-        await redisClient.connect();
-        logger.debug('Redis initialization completed', {
-            connected: redisConnected,
-            retryCount: redisRetryCount
-        });
-    } catch (error) {
-        logger.error('Redis initialization error', {
-            error: error.message,
-            stack: error.stack
-        });
-        redisConnected = false;
-    }
+    return connectToRedis();
 }
 
 const limiter = rateLimit({
@@ -2529,8 +2493,6 @@ async function init() {
                 postgres: pgPool ? 'connected' : 'disconnected',
                 redis: {
                     status: redisConnected ? 'connected' : 'disconnected',
-                    retryCount: redisRetryCount,
-                    maxRetries: MAX_REDIS_RETRIES,
                     lastError: redisClient ? redisClient.lastError : null,
                 },
                 mongo: mongoClient ? 'connected' : 'disconnected',
