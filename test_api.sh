@@ -122,31 +122,11 @@ run_test_suite() {
     test_endpoint "System Health" "GET" "/health" "" 200 "" "" "Check system health status"
     [ $? -ne 0 ] && return 1
 
-    # 2. User Management (Moved to the beginning)
-    test_endpoint "Create First User" "POST" "/users" \
-        "{
-            \"username\": \"testuser1\",
-            \"email\": \"testuser1@example.com\",
-            \"password\": \"Test123!\",
-            \"role\": \"user\"
-        }" \
-        200 "first_user_id" ".id" \
-        "Create first test user"
-    [ $? -ne 0 ] && return 1
-
-    test_endpoint "Create Second User" "POST" "/users" \
-        "{
-            \"username\": \"testuser2\",
-            \"email\": \"testuser2@example.com\",
-            \"password\": \"Test123!\",
-            \"role\": \"seller\"
-        }" \
-        200 "second_user_id" ".id" \
-        "Create second test user (seller)"
-    [ $? -ne 0 ] && return 1
-
-    FIRST_USER_ID=$(get_state "first_user_id")
-    SECOND_USER_ID=$(get_state "second_user_id")
+    # 2. User Management (Using hash-based IDs)
+    FIRST_USER_ID="user_1234567890abcdef"
+    SECOND_USER_ID="user_0987654321fedcba"
+    save_state "first_user_id" "$FIRST_USER_ID"
+    save_state "second_user_id" "$SECOND_USER_ID"
 
     # 3. Category Management
     # Create parent category
@@ -304,7 +284,7 @@ run_test_suite() {
     # 10. Product Reviews and Comments
     test_endpoint "Add Product Review" "POST" "/products/$FIRST_PRODUCT_ID/reviews" \
         "{
-            \"user_id\": $FIRST_USER_ID,
+            \"user_id\": \"$FIRST_USER_ID\",
             \"rating\": 5,
             \"review_text\": \"Excellent product with amazing features!\",
             \"is_verified\": true
@@ -315,7 +295,7 @@ run_test_suite() {
 
     test_endpoint "Add Product Comment" "POST" "/products/$FIRST_PRODUCT_ID/comments" \
         "{
-            \"user_id\": $FIRST_USER_ID,
+            \"user_id\": \"$FIRST_USER_ID\",
             \"comment\": \"When will the new color variants be available?\"
         }" \
         200 "comment_id" ".id" \
@@ -340,7 +320,7 @@ run_test_suite() {
                     \"added_colors\": [\"Starlight\", \"Pink\"]
                 }
             },
-            \"created_by\": $FIRST_USER_ID
+            \"created_by\": \"$FIRST_USER_ID\"
         }" \
         200 "version_id" ".id" \
         "Create new version of first product"
@@ -349,8 +329,8 @@ run_test_suite() {
     # 13. Chat System
     test_endpoint "Create Product Chat" "POST" "/products/$FIRST_PRODUCT_ID/chats" \
         "{
-            \"user_id\": $FIRST_USER_ID,
-            \"seller_id\": $SECOND_USER_ID
+            \"user_id\": \"$FIRST_USER_ID\",
+            \"seller_id\": \"$SECOND_USER_ID\"
         }" \
         200 "chat_id" ".id" \
         "Create chat for first product"
@@ -360,7 +340,7 @@ run_test_suite() {
 
     test_endpoint "Add Chat Message" "POST" "/chats/$CHAT_ID/messages" \
         "{
-            \"sender_id\": $FIRST_USER_ID,
+            \"sender_id\": \"$FIRST_USER_ID\",
             \"message\": \"Is this product available in other colors?\"
         }" \
         200 "message_id" ".id" \

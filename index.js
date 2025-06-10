@@ -219,13 +219,14 @@ const CACHE_TTL = {
     ANALYTICS: 600,
 };
 
+// Swagger configuration
 const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
         info: {
             title: 'Product Microservice API',
             version: '1.0.0',
-            description: 'A comprehensive product management microservice with category, tag, and comment support',
+            description: 'API for managing products and related features'
         },
         servers: [
             {
@@ -252,39 +253,25 @@ const swaggerOptions = {
                         },
                         price: {
                             type: 'number',
+                            format: 'float',
                             description: 'The product price'
                         },
                         category_id: {
                             type: 'integer',
                             description: 'The category ID'
                         },
-                        created_at: {
-                            type: 'string',
-                            format: 'date-time',
-                            description: 'Creation timestamp'
+                        metadata: {
+                            type: 'object',
+                            description: 'Additional product metadata'
                         },
-                        updated_at: {
+                        status: {
                             type: 'string',
-                            format: 'date-time',
-                            description: 'Last update timestamp'
-                        }
-                    },
-                    required: ['name', 'price']
-                },
-                Category: {
-                    type: 'object',
-                    properties: {
-                        id: {
-                            type: 'integer',
-                            description: 'The category ID'
+                            enum: ['active', 'inactive', 'draft'],
+                            description: 'The product status'
                         },
-                        name: {
-                            type: 'string',
-                            description: 'The category name'
-                        },
-                        parent_id: {
-                            type: 'integer',
-                            description: 'The parent category ID'
+                        featured: {
+                            type: 'boolean',
+                            description: 'Whether the product is featured'
                         },
                         created_at: {
                             type: 'string',
@@ -297,7 +284,7 @@ const swaggerOptions = {
                             description: 'Last update timestamp'
                         }
                     },
-                    required: ['name']
+                    required: ['name', 'price', 'category_id']
                 },
                 Review: {
                     type: 'object',
@@ -311,8 +298,8 @@ const swaggerOptions = {
                             description: 'The product ID'
                         },
                         user_id: {
-                            type: 'integer',
-                            description: 'The user ID'
+                            type: 'string',
+                            description: 'The user hash ID'
                         },
                         rating: {
                             type: 'integer',
@@ -348,8 +335,8 @@ const swaggerOptions = {
                             description: 'The product ID'
                         },
                         user_id: {
-                            type: 'integer',
-                            description: 'The user ID'
+                            type: 'string',
+                            description: 'The user hash ID'
                         },
                         comment: {
                             type: 'string',
@@ -362,6 +349,92 @@ const swaggerOptions = {
                         }
                     },
                     required: ['product_id', 'user_id', 'comment']
+                },
+                Chat: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'integer',
+                            description: 'The chat ID'
+                        },
+                        product_id: {
+                            type: 'integer',
+                            description: 'The product ID'
+                        },
+                        user_id: {
+                            type: 'string',
+                            description: 'The user hash ID'
+                        },
+                        seller_id: {
+                            type: 'string',
+                            description: 'The seller hash ID'
+                        },
+                        status: {
+                            type: 'string',
+                            enum: ['active', 'closed'],
+                            description: 'The chat status'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        }
+                    },
+                    required: ['product_id', 'user_id', 'seller_id']
+                },
+                ChatMessage: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'integer',
+                            description: 'The message ID'
+                        },
+                        chat_id: {
+                            type: 'integer',
+                            description: 'The chat ID'
+                        },
+                        sender_id: {
+                            type: 'string',
+                            description: 'The sender hash ID'
+                        },
+                        message: {
+                            type: 'string',
+                            description: 'The message text'
+                        },
+                        is_read: {
+                            type: 'boolean',
+                            description: 'Whether the message has been read'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        }
+                    },
+                    required: ['chat_id', 'sender_id', 'message']
+                },
+                Wishlist: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'integer',
+                            description: 'The wishlist entry ID'
+                        },
+                        user_id: {
+                            type: 'string',
+                            description: 'The user hash ID'
+                        },
+                        product_id: {
+                            type: 'integer',
+                            description: 'The product ID'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        }
+                    },
+                    required: ['user_id', 'product_id']
                 },
                 Error: {
                     type: 'object',
@@ -379,7 +452,7 @@ const swaggerOptions = {
             }
         }
     },
-    apis: ['./index.js']
+    apis: [join(__dirname, 'index.js')] // Use absolute path with join
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
@@ -1693,71 +1766,6 @@ async function init() {
 
     /**
      * @swagger
-     * /users:
-     *   post:
-     *     summary: Create a new user
-     *     tags: [Users]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - username
-     *               - email
-     *               - password
-     *             properties:
-     *               username:
-     *                 type: string
-     *               email:
-     *                 type: string
-     *                 format: email
-     *               password:
-     *                 type: string
-     *               role:
-     *                 type: string
-     *                 enum: [user, seller, admin]
-     *                 default: user
-     *     responses:
-     *       200:
-     *         description: User created successfully
-     *       400:
-     *         description: Invalid input
-     *       500:
-     *         description: Server error
-     */
-        app.post('/users', async function (req, res) {
-            try {
-                const { username, email, password, role = 'user' } = req.body;
-    
-                // Basic validation
-                if (!username || !email || !password) {
-                    return res.status(400).json({ error: 'Missing required fields' });
-                }
-    
-                // Hash password (in a real app, use bcrypt or similar)
-                const password_hash = password; // TODO: Implement proper password hashing
-    
-                const query = `
-                    INSERT INTO users (username, email, password_hash, role)
-                    VALUES ($1, $2, $3, $4)
-                    RETURNING id, username, email, role, created_at
-                `;
-    
-                const result = await pgPool.query(query, [username, email, password_hash, role]);
-                res.json(result.rows[0]);
-            } catch (error) {
-                if (error.code === '23505') { // Unique violation
-                    res.status(400).json({ error: 'Username or email already exists' });
-                } else {
-                    res.status(500).json({ error: error.message });
-                }
-            }
-        });
-    
-    /**
-     * @swagger
      * /users/{userId}/chats:
      *   get:
      *     summary: Get all chats for a user
@@ -1767,7 +1775,8 @@ async function init() {
      *         name: userId
      *         required: true
      *         schema:
-     *           type: integer
+     *           type: string
+     *           description: User hash ID
      *     responses:
      *       200:
      *         description: List of chats
@@ -1782,10 +1791,15 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductChats(req.params.userId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
+        async (req, res) => {
+            try {
+                const { userId } = req.params;
+                const chats = await getProductChats(userId);
+                res.json(chats);
+            } catch (error) {
+                console.error('Error getting user chats:', error);
+                res.status(500).json({ error: 'Failed to get user chats' });
+            }
         }
     );
 
@@ -2402,7 +2416,8 @@ async function init() {
      *         name: userId
      *         required: true
      *         schema:
-     *           type: integer
+     *           type: string
+     *           description: User hash ID
      *     requestBody:
      *       required: true
      *       content:
@@ -2420,17 +2435,21 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.post('/users/:userId/wishlist', async function (req, res) {
+    app.post('/users/:userId/wishlist', async (req, res) => {
         try {
-            const wishlistData = {
-                ...req.body,
-                user_id: req.params.userId,
-            };
-            const result = await addToWishlist(wishlistData);
-            await invalidateCachePattern(`/users/${req.params.userId}/wishlist`);
-            res.json(result.rows[0]);
+            const { userId } = req.params;
+            const { product_id } = req.body;
+            
+            if (!userId || !product_id) {
+                return res.status(400).json({ error: 'Missing required fields' });
+            }
+
+            const result = await addToWishlist(userId, product_id);
+            await invalidateCachePattern(`/users/${userId}/wishlist`);
+            res.json({ id: result.rows[0].id });
         } catch (error) {
-            res.status(500).json({ error: error.message });
+            console.error('Error adding to wishlist:', error);
+            res.status(500).json({ error: 'Failed to add to wishlist' });
         }
     });
 
@@ -2445,7 +2464,8 @@ async function init() {
      *         name: userId
      *         required: true
      *         schema:
-     *           type: integer
+     *           type: string
+     *           description: User hash ID
      *     responses:
      *       200:
      *         description: List of wishlist products
@@ -2460,10 +2480,15 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getWishlist(req.params.userId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
+        async (req, res) => {
+            try {
+                const { userId } = req.params;
+                const wishlist = await getWishlist(userId);
+                res.json(wishlist);
+            } catch (error) {
+                console.error('Error getting wishlist:', error);
+                res.status(500).json({ error: 'Failed to get wishlist' });
+            }
         }
     );
 
@@ -4038,14 +4063,13 @@ function getProductReviews(product_id, { page = 1, limit = 10 } = {}) {
     );
 }
 
-function addToWishlist(wishlistData) {
-    const { user_id, product_id } = wishlistData;
+function addToWishlist(userId, productId) {
     const query = `
         INSERT INTO wishlist (user_id, product_id)
         VALUES ($1, $2)
-        RETURNING *
+        RETURNING id
     `;
-    return pgPool.query(query, [user_id, product_id]);
+    return pgPool.query(query, [userId, productId]);
 }
 
 function getWishlist(user_id) {
