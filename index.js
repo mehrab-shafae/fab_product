@@ -170,48 +170,148 @@ const swaggerOptions = {
                 Product: {
                     type: 'object',
                     properties: {
-                        id: { type: 'integer' },
-                        name: { type: 'string' },
-                        description: { type: 'string' },
-                        price: { type: 'number', format: 'float' },
-                        category_id: { type: 'integer' },
-                        metadata: { type: 'object' },
-                        created_at: { type: 'string', format: 'date-time' },
-                        updated_at: { type: 'string', format: 'date-time' },
+                        id: {
+                            type: 'integer',
+                            description: 'The product ID'
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'The product name'
+                        },
+                        description: {
+                            type: 'string',
+                            description: 'The product description'
+                        },
+                        price: {
+                            type: 'number',
+                            description: 'The product price'
+                        },
+                        category_id: {
+                            type: 'integer',
+                            description: 'The category ID'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        },
+                        updated_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Last update timestamp'
+                        }
                     },
+                    required: ['name', 'price']
                 },
                 Category: {
                     type: 'object',
                     properties: {
-                        id: { type: 'integer' },
-                        name: { type: 'string' },
-                        parent_id: { type: 'integer', nullable: true },
-                        created_at: { type: 'string', format: 'date-time' },
+                        id: {
+                            type: 'integer',
+                            description: 'The category ID'
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'The category name'
+                        },
+                        parent_id: {
+                            type: 'integer',
+                            description: 'The parent category ID'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        },
+                        updated_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Last update timestamp'
+                        }
                     },
+                    required: ['name']
+                },
+                Review: {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'integer',
+                            description: 'The review ID'
+                        },
+                        product_id: {
+                            type: 'integer',
+                            description: 'The product ID'
+                        },
+                        user_id: {
+                            type: 'integer',
+                            description: 'The user ID'
+                        },
+                        rating: {
+                            type: 'integer',
+                            minimum: 1,
+                            maximum: 5,
+                            description: 'The review rating (1-5)'
+                        },
+                        review_text: {
+                            type: 'string',
+                            description: 'The review text'
+                        },
+                        is_verified: {
+                            type: 'boolean',
+                            description: 'Whether the review is from a verified purchase'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        }
+                    },
+                    required: ['product_id', 'user_id', 'rating']
                 },
                 Comment: {
                     type: 'object',
                     properties: {
-                        id: { type: 'integer' },
-                        product_id: { type: 'integer' },
-                        user_id: { type: 'integer' },
-                        comment: { type: 'string' },
-                        created_at: { type: 'string', format: 'date-time' },
+                        id: {
+                            type: 'integer',
+                            description: 'The comment ID'
+                        },
+                        product_id: {
+                            type: 'integer',
+                            description: 'The product ID'
+                        },
+                        user_id: {
+                            type: 'integer',
+                            description: 'The user ID'
+                        },
+                        comment: {
+                            type: 'string',
+                            description: 'The comment text'
+                        },
+                        created_at: {
+                            type: 'string',
+                            format: 'date-time',
+                            description: 'Creation timestamp'
+                        }
                     },
+                    required: ['product_id', 'user_id', 'comment']
                 },
-                Tag: {
+                Error: {
                     type: 'object',
                     properties: {
-                        id: { type: 'integer' },
-                        product_id: { type: 'integer' },
-                        tag_name: { type: 'string' },
-                        created_at: { type: 'string', format: 'date-time' },
-                    },
-                },
-            },
-        },
+                        error: {
+                            type: 'string',
+                            description: 'Error message'
+                        },
+                        message: {
+                            type: 'string',
+                            description: 'Detailed error message (only in development)'
+                        }
+                    }
+                }
+            }
+        }
     },
-    apis: ['./index.js'],
+    apis: ['./index.js']
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
@@ -596,7 +696,7 @@ async function init() {
      * @swagger
      * /jobs/{jobId}/status:
      *   get:
-     *     summary: Get job status
+     *     summary: Get the status of a background job
      *     tags: [Jobs]
      *     parameters:
      *       - in: path
@@ -604,6 +704,31 @@ async function init() {
      *         required: true
      *         schema:
      *           type: string
+     *         description: The ID of the job to check
+     *     responses:
+     *       200:
+     *         description: Job status information
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 status:
+     *                   type: string
+     *                   enum: [completed, failed, in_progress, queued]
+     *                 progress:
+     *                   type: number
+     *                   description: Progress percentage (0-100)
+     *                 result:
+     *                   type: object
+     *                   description: Job result data (if completed)
+     *                 error:
+     *                   type: string
+     *                   description: Error message (if failed)
+     *       404:
+     *         description: Job not found
+     *       500:
+     *         description: Server error
      */
     app.get('/jobs/:jobId/status', async function (req, res) {
         try {
@@ -731,51 +856,65 @@ async function init() {
      * @swagger
      * /products:
      *   get:
-     *     summary: Search products
+     *     summary: Get a paginated list of products
      *     tags: [Products]
      *     parameters:
      *       - in: query
-     *         name: name
-     *         schema:
-     *           type: string
-     *       - in: query
-     *         name: category_id
+     *         name: page
      *         schema:
      *           type: integer
+     *           default: 1
+     *         description: Page number
      *       - in: query
-     *         name: min_price
+     *         name: limit
      *         schema:
-     *           type: number
-     *       - in: query
-     *         name: max_price
-     *         schema:
-     *           type: number
+     *           type: integer
+     *           default: 10
+     *         description: Number of items per page
      *     responses:
      *       200:
-     *         description: List of products
+     *         description: Paginated list of products
      *         content:
      *           application/json:
      *             schema:
-     *               type: array
-     *               items:
-     *                 $ref: '#/components/schemas/Product'
+     *               type: object
+     *               properties:
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/Product'
+     *                 pagination:
+     *                   type: object
+     *                   properties:
+     *                     page:
+     *                       type: integer
+     *                     limit:
+     *                       type: integer
+     *                     total:
+     *                       type: integer
+     *                     pages:
+     *                       type: integer
      *       500:
      *         description: Server error
      */
-    app.get(
-        '/products',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-        }),
-        function (req, res) {
-            searchProducts(req.query)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
+    app.get('/products', paginateResults, async function(req, res) {
+        try {
+            const searchParams = {
+                page: req.pagination.page,
+                pageSize: req.pagination.limit,
+                ...req.query // This allows passing other search parameters like name, category_id, etc.
+            };
+            
+            const result = await searchProducts(searchParams);
+            
+            res.json({
+                data: result.items,
+                pagination: result.pagination
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-    );
+    });
 
     /**
      * @swagger
@@ -1139,66 +1278,88 @@ async function init() {
      * @swagger
      * /products/search/advanced:
      *   get:
-     *     summary: Advanced product search using Elasticsearch
-     *     tags: [Search]
+     *     summary: Advanced product search with complex filters
+     *     tags: [Products]
      *     parameters:
      *       - in: query
      *         name: query
      *         schema:
      *           type: string
+     *         description: Full-text search query
      *       - in: query
-     *         name: category_id
+     *         name: filters
      *         schema:
-     *           type: integer
+     *           type: object
+     *           properties:
+     *             categories:
+     *               type: array
+     *               items:
+     *                 type: integer
+     *             price_range:
+     *               type: object
+     *               properties:
+     *                 min:
+     *                   type: number
+     *                 max:
+     *                   type: number
+     *             attributes:
+     *               type: object
+     *               additionalProperties:
+     *                 type: string
+     *             tags:
+     *               type: array
+     *               items:
+     *                 type: string
      *       - in: query
-     *         name: min_price
+     *         name: sort
      *         schema:
-     *           type: number
-     *       - in: query
-     *         name: max_price
-     *         schema:
-     *           type: number
-     *       - in: query
-     *         name: tags
-     *         schema:
-     *           type: array
-     *           items:
-     *             type: string
-     *       - in: query
-     *         name: sort_by
-     *         schema:
-     *           type: string
-     *       - in: query
-     *         name: sort_order
-     *         schema:
-     *           type: string
-     *           enum: [asc, desc]
-     *       - in: query
-     *         name: page
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: size
-     *         schema:
-     *           type: integer
+     *           type: object
+     *           properties:
+     *             field:
+     *               type: string
+     *               enum: [price, created_at, name, rating]
+     *             order:
+     *               type: string
+     *               enum: [asc, desc]
      *     responses:
      *       200:
-     *         description: Search results
+     *         description: Advanced search results
      *         content:
      *           application/json:
      *             schema:
      *               type: object
      *               properties:
-     *                 total:
-     *                   type: integer
-     *                 hits:
+     *                 data:
      *                   type: array
      *                   items:
      *                     $ref: '#/components/schemas/Product'
-     *                 page:
+     *                 total:
      *                   type: integer
-     *                 size:
-     *                   type: integer
+     *                 facets:
+     *                   type: object
+     *                   properties:
+     *                     categories:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           id:
+     *                             type: integer
+     *                           name:
+     *                             type: string
+     *                           count:
+     *                             type: integer
+     *                     price_ranges:
+     *                       type: array
+     *                       items:
+     *                         type: object
+     *                         properties:
+     *                           min:
+     *                             type: number
+     *                           max:
+     *                             type: number
+     *                           count:
+     *                             type: integer
      *       500:
      *         description: Server error
      */
@@ -1212,6 +1373,128 @@ async function init() {
       }
   });
   */
+
+      /**
+     * @swagger
+     * /products/search:
+     *   get:
+     *     summary: Search products with filters
+     *     tags: [Products]
+     *     parameters:
+     *       - in: query
+     *         name: name
+     *         schema:
+     *           type: string
+     *         description: Product name to search for
+     *       - in: query
+     *         name: category_id
+     *         schema:
+     *           type: integer
+     *         description: Filter by category ID
+     *       - in: query
+     *         name: min_price
+     *         schema:
+     *           type: number
+     *         description: Minimum price filter
+     *       - in: query
+     *         name: max_price
+     *         schema:
+     *           type: number
+     *         description: Maximum price filter
+     *       - in: query
+     *         name: page
+     *         schema:
+     *           type: integer
+     *           default: 1
+     *         description: Page number
+     *       - in: query
+     *         name: limit
+     *         schema:
+     *           type: integer
+     *           default: 10
+     *         description: Number of items per page
+     *     responses:
+     *       200:
+     *         description: Search results
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 data:
+     *                   type: array
+     *                   items:
+     *                     $ref: '#/components/schemas/Product'
+     *                 pagination:
+     *                   type: object
+     *                   properties:
+     *                     page:
+     *                       type: integer
+     *                     limit:
+     *                       type: integer
+     *                     total:
+     *                       type: integer
+     *                     pages:
+     *                       type: integer
+     *       500:
+     *         description: Server error
+     */
+    app.get('/products/search', paginateResults, async function(req, res) {
+        try {
+            const { page, limit, offset } = req.pagination;
+            const { name, category_id, min_price, max_price } = req.query;
+            
+            let query = 'SELECT * FROM products WHERE deleted_at IS NULL';
+            const params = [];
+            let paramIndex = 1;
+
+            if (name) {
+                query += ` AND name ILIKE $${paramIndex}`;
+                params.push(`%${name}%`);
+                paramIndex++;
+            }
+
+            if (category_id) {
+                query += ` AND category_id = $${paramIndex}`;
+                params.push(category_id);
+                paramIndex++;
+            }
+
+            if (min_price) {
+                query += ` AND price >= $${paramIndex}`;
+                params.push(min_price);
+                paramIndex++;
+            }
+
+            if (max_price) {
+                query += ` AND price <= $${paramIndex}`;
+                params.push(max_price);
+                paramIndex++;
+            }
+
+            query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+            params.push(limit, offset);
+
+            const result = await pgPool.query(query, params);
+            const countResult = await pgPool.query(
+                query.replace('SELECT *', 'SELECT COUNT(*)').split('ORDER BY')[0],
+                params.slice(0, -2)
+            );
+            const total = parseInt(countResult.rows[0].count);
+            
+            res.json({
+                data: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
     /**
      * @swagger
@@ -1874,20 +2157,25 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get(
-        '/products/:productId/reviews',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-        }),
-        function (req, res) {
-            getProductReviews(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
+    app.get('/products/:productId/reviews', paginateResults, async function(req, res) {
+        try {
+            const { page, limit } = req.pagination;
+            const result = await getProductReviews(req.params.productId, { page, limit });
+            const total = parseInt(result.rows[0]?.total_count || 0);
+            
+            res.json({
+                data: result.rows,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    pages: Math.ceil(total / limit)
+                }
+            });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
         }
-    );
+    });
 
     /**
      * @swagger
@@ -2254,7 +2542,7 @@ async function init() {
      * @swagger
      * /products/{productId}/price-history:
      *   post:
-     *     summary: Add a new price history entry
+     *     summary: Add a price history entry for a product
      *     tags: [Products]
      *     parameters:
      *       - in: path
@@ -2262,6 +2550,7 @@ async function init() {
      *         required: true
      *         schema:
      *           type: integer
+     *         description: Product ID
      *     requestBody:
      *       required: true
      *       content:
@@ -2270,26 +2559,37 @@ async function init() {
      *             type: object
      *             required:
      *               - price
-     *               - change_reason
      *             properties:
-     *               variant_id:
-     *                 type: integer
      *               price:
      *                 type: number
-     *               change_reason:
-     *                 type: string
-     *               effective_date:
-     *                 type: string
-     *                 format: date-time
-     *               discount_percentage:
-     *                 type: number
+     *                 description: The new price
+     *               variant_id:
+     *                 type: integer
+     *                 description: Optional variant ID if price is for a specific variant
      *               currency:
      *                 type: string
-     *               source:
+     *                 default: USD
+     *                 description: Currency code
+     *               reason:
      *                 type: string
+     *                 description: Reason for price change
      *     responses:
      *       200:
      *         description: Price history entry added successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               type: object
+     *               properties:
+     *                 id:
+     *                   type: integer
+     *                 product_id:
+     *                   type: integer
+     *                 price:
+     *                   type: number
+     *                 created_at:
+     *                   type: string
+     *                   format: date-time
      *       500:
      *         description: Server error
      */
@@ -2475,30 +2775,7 @@ async function init() {
         }
     );
 
-    // Update list endpoints with pagination
-    app.get('/products', paginateResults, async function(req, res) {
-        try {
-            const { page, limit, offset } = req.pagination;
-            const result = await pgPool.query(
-                'SELECT * FROM products WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT $1 OFFSET $2',
-                [limit, offset]
-            );
-            const countResult = await pgPool.query('SELECT COUNT(*) FROM products WHERE deleted_at IS NULL');
-            const total = parseInt(countResult.rows[0].count);
-            
-            res.json({
-                data: result.rows,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    
 
     app.get('/categories', paginateResults, async function(req, res) {
         try {
@@ -2524,32 +2801,6 @@ async function init() {
         }
     });
 
-    app.get('/products/:productId/reviews', paginateResults, async function(req, res) {
-        try {
-            const { page, limit, offset } = req.pagination;
-            const result = await pgPool.query(
-                'SELECT * FROM product_reviews WHERE product_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3',
-                [req.params.productId, limit, offset]
-            );
-            const countResult = await pgPool.query(
-                'SELECT COUNT(*) FROM product_reviews WHERE product_id = $1 AND deleted_at IS NULL',
-                [req.params.productId]
-            );
-            const total = parseInt(countResult.rows[0].count);
-            
-            res.json({
-                data: result.rows,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    pages: Math.ceil(total / limit)
-                }
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
 
     // Update error handling in routes
     app.use((err, req, res, next) => {
@@ -3473,8 +3724,16 @@ function addProductReview(reviewData) {
     return pgPool.query(query, [product_id, user_id, rating, review_text, is_verified]);
 }
 
-function getProductReviews(product_id) {
-    return pgPool.query('SELECT * FROM product_reviews WHERE product_id = $1 ORDER BY created_at DESC', [product_id]);
+function getProductReviews(product_id, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
+    return pgPool.query(
+        `SELECT r.*, COUNT(*) OVER() as total_count 
+         FROM product_reviews r 
+         WHERE r.product_id = $1 AND r.deleted_at IS NULL 
+         ORDER BY r.created_at DESC 
+         LIMIT $2 OFFSET $3`,
+        [product_id, limit, offset]
+    );
 }
 
 function addToWishlist(wishlistData) {
