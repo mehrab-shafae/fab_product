@@ -37,6 +37,23 @@ components:
           format: date-time
           description: Last update timestamp
 
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The category ID
+        name:
+          type: string
+          description: The category name
+        parent_id:
+          type: integer
+          description: The parent category ID
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+
     Review:
       type: object
       properties:
@@ -686,4 +703,391 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error' 
+                $ref: '#/components/schemas/Error'
+
+  /categories:
+    post:
+      summary: Create a new category
+      tags: [Categories]
+      description: |
+        Create a new category in the system
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Category name
+                parent_id:
+                  type: integer
+                  description: Parent category ID
+      responses:
+        '200':
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/tree:
+    get:
+      summary: Get category hierarchy
+      tags: [Categories]
+      description: |
+        Get the complete category tree structure
+      responses:
+        '200':
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/comments:
+    post:
+      summary: Add a comment to a product
+      tags: [Comments]
+      description: |
+        Add a new comment to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - comment
+              properties:
+                user_id:
+                  type: string
+                  description: User hash ID
+                comment:
+                  type: string
+                  description: Comment text
+      responses:
+        '200':
+          description: Comment added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get product comments
+      tags: [Comments]
+      description: |
+        Get all comments for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{productId}/chats:
+    post:
+      summary: Create a new chat
+      tags: [Chats]
+      description: |
+        Create a new chat for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+                - seller_id
+              properties:
+                user_id:
+                  type: string
+                  description: User hash ID
+                seller_id:
+                  type: string
+                  description: Seller hash ID
+      responses:
+        '200':
+          description: Chat created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chat'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}/chats:
+    get:
+      summary: Get user chats
+      tags: [Chats]
+      description: |
+        Get all chats for a user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User hash ID
+      responses:
+        '200':
+          description: List of chats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Chat'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chats/{chatId}/messages:
+    get:
+      summary: Get chat messages
+      tags: [Chats]
+      description: |
+        Get all messages in a chat
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+          description: Chat ID
+      responses:
+        '200':
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ChatMessage'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /chats/{chatId}/read:
+    post:
+      summary: Mark messages as read
+      tags: [Chats]
+      description: |
+        Mark all messages in a chat as read
+      parameters:
+        - in: path
+          name: chatId
+          required: true
+          schema:
+            type: integer
+          description: Chat ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - user_id
+              properties:
+                user_id:
+                  type: string
+                  description: User hash ID
+      responses:
+        '200':
+          description: Messages marked as read
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}/wishlist:
+    post:
+      summary: Add to wishlist
+      tags: [Users]
+      description: |
+        Add a product to user's wishlist
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User hash ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+              properties:
+                product_id:
+                  type: integer
+                  description: Product ID
+      responses:
+        '200':
+          description: Product added to wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wishlist'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    get:
+      summary: Get wishlist
+      tags: [Users]
+      description: |
+        Get user's wishlist
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User hash ID
+      responses:
+        '200':
+          description: List of wishlist items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Wishlist'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /health:
+    get:
+      summary: Check system health
+      tags: [System]
+      description: |
+        Check the health status of the system and its dependencies
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: System status
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Current timestamp
+                  services:
+                    type: object
+                    properties:
+                      postgres:
+                        type: string
+                        description: PostgreSQL connection status
+                      redis:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            description: Redis connection status
+                          lastError:
+                            type: string
+                            description: Last Redis error
+                      mongo:
+                        type: string
+                        description: MongoDB connection status
+                  cache:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Cache status
+                      warming:
+                        type: object
+                        properties:
+                          lastRun:
+                            type: string
+                            format: date-time
+                            description: Last cache warming run
+                          status:
+                            type: string
+                            description: Cache warming status 

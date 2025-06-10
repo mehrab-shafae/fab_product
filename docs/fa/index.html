@@ -83,14 +83,17 @@
             <a class="nav-link active" href="#products">محصولات</a>
             <a class="nav-link" href="#categories">دسته‌بندی‌ها</a>
             <a class="nav-link" href="#comments">نظرات</a>
+            <a class="nav-link" href="#chats">گفتگوها</a>
+            <a class="nav-link" href="#wishlist">لیست علاقه‌مندی‌ها</a>
             <a class="nav-link" href="#analytics">تحلیل‌ها</a>
             <a class="nav-link" href="#search">جستجو</a>
+            <a class="nav-link" href="#system">سیستم</a>
         </nav>
     </div>
 
     <div class="main-content">
         <h1 class="mb-4">مستندات API مدیریت محصولات</h1>
-        <p class="lead mb-5">این مستندات شامل تمامی API‌های موجود برای مدیریت محصولات، دسته‌بندی‌ها، نظرات و تحلیل‌ها می‌باشد.</p>
+        <p class="lead mb-5">این مستندات شامل تمامی API‌های موجود برای مدیریت محصولات، دسته‌بندی‌ها، نظرات، گفتگوها و تحلیل‌ها می‌باشد.</p>
 
         <section id="products" class="mb-5">
             <h2 class="mb-4">محصولات</h2>
@@ -107,9 +110,6 @@
                 <ul>
                     <li><code>page</code>: شماره صفحه (پیش‌فرض: 1)</li>
                     <li><code>limit</code>: تعداد آیتم در هر صفحه (پیش‌فرض: 10)</li>
-                    <li><code>category_id</code>: فیلتر بر اساس دسته‌بندی</li>
-                    <li><code>min_price</code>: حداقل قیمت</li>
-                    <li><code>max_price</code>: حداکثر قیمت</li>
                 </ul>
             </div>
 
@@ -133,11 +133,49 @@
     }
 }</pre>
             </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method post me-2">POST</span>
+                    <h5 class="mb-0">به‌روزرسانی گروهی محصولات</h5>
+                </div>
+                <p class="text-muted">به‌روزرسانی همزمان چندین محصول</p>
+                <h6>آدرس:</h6>
+                <code>/products/bulk-update</code>
+                <h6 class="mt-3">بدنه درخواست:</h6>
+                <pre>
+{
+    "type": "update",
+    "data": [
+        // آرایه‌ای از محصولات برای به‌روزرسانی
+    ],
+    "options": {
+        "batchSize": 1000,
+        "concurrency": 5
+    }
+}</pre>
+            </div>
         </section>
 
         <section id="categories" class="mb-5">
             <h2 class="mb-4">دسته‌بندی‌ها</h2>
             
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method post me-2">POST</span>
+                    <h5 class="mb-0">ایجاد دسته‌بندی جدید</h5>
+                </div>
+                <p class="text-muted">ایجاد یک دسته‌بندی جدید در سیستم</p>
+                <h6>آدرس:</h6>
+                <code>/categories</code>
+                <h6 class="mt-3">بدنه درخواست:</h6>
+                <pre>
+{
+    "name": "نام دسته‌بندی",
+    "parent_id": 1 // اختیاری
+}</pre>
+            </div>
+
             <div class="endpoint">
                 <div class="d-flex align-items-center mb-3">
                     <span class="method get me-2">GET</span>
@@ -159,14 +197,107 @@
                 </div>
                 <p class="text-muted">ثبت نظر جدید برای یک محصول</p>
                 <h6>آدرس:</h6>
-                <code>/products/{product_id}/comments</code>
+                <code>/products/{productId}/comments</code>
                 <h6 class="mt-3">بدنه درخواست:</h6>
                 <pre>
 {
     "user_id": "شناسه کاربر",
-    "comment": "متن نظر",
-    "rating": 5
+    "comment": "متن نظر"
 }</pre>
+            </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method get me-2">GET</span>
+                    <h5 class="mb-0">دریافت نظرات محصول</h5>
+                </div>
+                <p class="text-muted">دریافت لیست نظرات یک محصول</p>
+                <h6>آدرس:</h6>
+                <code>/products/{productId}/comments</code>
+            </div>
+        </section>
+
+        <section id="chats" class="mb-5">
+            <h2 class="mb-4">گفتگوها</h2>
+            
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method post me-2">POST</span>
+                    <h5 class="mb-0">ایجاد گفتگوی جدید</h5>
+                </div>
+                <p class="text-muted">ایجاد یک گفتگوی جدید برای یک محصول</p>
+                <h6>آدرس:</h6>
+                <code>/products/{productId}/chats</code>
+                <h6 class="mt-3">بدنه درخواست:</h6>
+                <pre>
+{
+    "user_id": "شناسه کاربر",
+    "seller_id": "شناسه فروشنده"
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method get me-2">GET</span>
+                    <h5 class="mb-0">دریافت گفتگوهای کاربر</h5>
+                </div>
+                <p class="text-muted">دریافت لیست گفتگوهای یک کاربر</p>
+                <h6>آدرس:</h6>
+                <code>/users/{userId}/chats</code>
+            </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method get me-2">GET</span>
+                    <h5 class="mb-0">دریافت پیام‌های گفتگو</h5>
+                </div>
+                <p class="text-muted">دریافت لیست پیام‌های یک گفتگو</p>
+                <h6>آدرس:</h6>
+                <code>/chats/{chatId}/messages</code>
+            </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method post me-2">POST</span>
+                    <h5 class="mb-0">علامت‌گذاری پیام‌ها به عنوان خوانده شده</h5>
+                </div>
+                <p class="text-muted">علامت‌گذاری تمام پیام‌های یک گفتگو به عنوان خوانده شده</p>
+                <h6>آدرس:</h6>
+                <code>/chats/{chatId}/read</code>
+                <h6 class="mt-3">بدنه درخواست:</h6>
+                <pre>
+{
+    "user_id": "شناسه کاربر"
+}</pre>
+            </div>
+        </section>
+
+        <section id="wishlist" class="mb-5">
+            <h2 class="mb-4">لیست علاقه‌مندی‌ها</h2>
+            
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method post me-2">POST</span>
+                    <h5 class="mb-0">افزودن به لیست علاقه‌مندی‌ها</h5>
+                </div>
+                <p class="text-muted">افزودن یک محصول به لیست علاقه‌مندی‌های کاربر</p>
+                <h6>آدرس:</h6>
+                <code>/users/{userId}/wishlist</code>
+                <h6 class="mt-3">بدنه درخواست:</h6>
+                <pre>
+{
+    "product_id": 1
+}</pre>
+            </div>
+
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method get me-2">GET</span>
+                    <h5 class="mb-0">دریافت لیست علاقه‌مندی‌ها</h5>
+                </div>
+                <p class="text-muted">دریافت لیست علاقه‌مندی‌های کاربر</p>
+                <h6>آدرس:</h6>
+                <code>/users/{userId}/wishlist</code>
             </div>
         </section>
 
@@ -180,7 +311,7 @@
                 </div>
                 <p class="text-muted">دریافت اطلاعات تحلیلی یک محصول</p>
                 <h6>آدرس:</h6>
-                <code>/products/{product_id}/analytics</code>
+                <code>/products/{productId}/analytics</code>
             </div>
         </section>
 
@@ -194,14 +325,34 @@
                 </div>
                 <p class="text-muted">جستجوی محصولات با قابلیت‌های پیشرفته</p>
                 <h6>آدرس:</h6>
-                <code>/products/search</code>
+                <code>/products/search/advanced</code>
                 <h6 class="mt-3">پارامترهای جستجو:</h6>
                 <ul>
-                    <li><code>q</code>: عبارت جستجو</li>
-                    <li><code>category</code>: فیلتر بر اساس دسته‌بندی</li>
-                    <li><code>price_range</code>: محدوده قیمت</li>
+                    <li><code>query</code>: عبارت جستجو</li>
+                    <li><code>filters</code>: فیلترهای پیشرفته شامل:
+                        <ul>
+                            <li>دسته‌بندی‌ها</li>
+                            <li>محدوده قیمت</li>
+                            <li>ویژگی‌ها</li>
+                            <li>برچسب‌ها</li>
+                        </ul>
+                    </li>
                     <li><code>sort</code>: مرتب‌سازی نتایج</li>
                 </ul>
+            </div>
+        </section>
+
+        <section id="system" class="mb-5">
+            <h2 class="mb-4">سیستم</h2>
+            
+            <div class="endpoint">
+                <div class="d-flex align-items-center mb-3">
+                    <span class="method get me-2">GET</span>
+                    <h5 class="mb-0">وضعیت سیستم</h5>
+                </div>
+                <p class="text-muted">بررسی وضعیت سیستم و سرویس‌های وابسته</p>
+                <h6>آدرس:</h6>
+                <code>/health</code>
             </div>
         </section>
     </div>
