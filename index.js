@@ -36,7 +36,6 @@ const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 let redisClient = null;
 let redisConnected = false;
 
-// Cache Configuration
 const CACHE_VERSION = 'v1';
 const CACHE_PATTERNS = {
     PRODUCT: {
@@ -64,7 +63,6 @@ const CACHE_PATTERNS = {
     },
 };
 
-// Configure logger
 const { combine, timestamp, printf, colorize } = format;
 
 const logger = createLogger({
@@ -123,7 +121,6 @@ const logger = createLogger({
     ],
 });
 
-// Debug mode configuration
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 logger.debug = function (message, metadata = {}) {
     if (DEBUG_MODE) {
@@ -146,7 +143,7 @@ async function initializeRedis() {
                 url: REDIS_URI,
                 socket: {
                     reconnectStrategy: retries => {
-                        if (retries > 10) {
+                        if (retries > 3) {
                             logger.error('Redis max retries reached');
                             return new Error('Redis max retries reached');
                         }
@@ -222,16 +219,15 @@ const CACHE_PREFIXES = {
 };
 
 const CACHE_TTL = {
-    PRODUCT: 3600, // 1 hour
-    CATEGORY: 7200, // 2 hours
-    USER: 1800, // 30 minutes
-    CHAT: 300, // 5 minutes
-    TAG: 3600, // 1 hour
-    COMMENT: 1800, // 30 minutes
-    ANALYTICS: 3600, // 1 hour
+    PRODUCT: 3600,
+    CATEGORY: 7200,
+    USER: 1800,
+    CHAT: 300,
+    TAG: 3600,
+    COMMENT: 1800,
+    ANALYTICS: 3600,
 };
 
-// Swagger configuration
 const swaggerOptions = {
     definition: {
         openapi: '3.0.0',
@@ -464,7 +460,7 @@ const swaggerOptions = {
             },
         },
     },
-    apis: [join(__dirname, 'index.js')], // Use absolute path with join
+    apis: [join(__dirname, 'index.js')],
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
@@ -476,11 +472,10 @@ const pgPool = new Pool({
 const mongoClient = new MongoClient(MONGO_URI);
 // ======================================================================
 
-const CACHE_COMPRESSION_THRESHOLD = 1024; // 1KB
+const CACHE_COMPRESSION_THRESHOLD = 1024;
 const BATCH_SIZE = 1000;
 const MAX_CONCURRENT_JOBS = 5;
 
-// Job queues
 const productUpdateQueue = new Bull('product-updates', REDIS_URI);
 const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
 const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
@@ -502,27 +497,24 @@ async function clearCorruptedCache() {
     }
 }
 
-// Enhanced cache middleware with compression and multi-level caching
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     const {
         compress = true,
         version = '1',
         maxRetries = 2,
         retryDelay = 100,
-        compressionThreshold = 1024, // 1KB
+        compressionThreshold = 1024,
         cacheKeyPrefix = 'cache',
-        maxCacheSize = 10 * 1024 * 1024, // 10MB
+        maxCacheSize = 10 * 1024 * 1024,
         staleWhileRevalidate = false,
-        staleTTL = 60, // 1 minute
+        staleTTL = 60,
     } = options;
 
     return async function (req, res, next) {
-        // Skip caching for non-GET requests
         if (req.method !== 'GET') {
             return next();
         }
 
-        // If Redis is not connected, proceed without caching
         if (!redisConnected) {
             logger.warn('Redis not connected, skipping cache', {
                 path: req.originalUrl,
@@ -544,7 +536,6 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 const cachedData = await redisClient.get(key);
                 if (!cachedData) return null;
 
-                // Get metadata
                 const metadata = await redisClient.hGetAll(`${key}:meta`);
 
                 let data;
@@ -564,7 +555,6 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                     },
                 };
 
-                // If data is stale and staleWhileRevalidate is enabled, trigger background refresh
                 if (result.metadata.isStale && staleWhileRevalidate) {
                     setInCache(result.data).catch(error => {
                         logger.error('Background cache refresh error', {
@@ -596,7 +586,6 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 let finalData = dataStr;
                 let isCompressed = false;
 
-                // Check if data size exceeds maxCacheSize
                 if (Buffer.byteLength(dataStr) > maxCacheSize) {
                     logger.warn('Data too large for caching', {
                         key,
@@ -613,10 +602,8 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 
                 const multi = redisClient.multi();
 
-                // Set main data
                 multi.setEx(key, ttl, finalData);
 
-                // Set metadata as string values
                 multi.hSet(`${key}:meta`, {
                     created: Date.now().toString(),
                     size: finalData.length.toString(),
@@ -640,11 +627,9 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
             }
         };
 
-        // Try to get from cache with retries
         while (retryCount <= maxRetries) {
             const cachedResult = await getFromCache();
             if (cachedResult) {
-                // If data is stale but staleWhileRevalidate is enabled, return stale data
                 if (cachedResult.metadata.isStale && staleWhileRevalidate) {
                     logger.debug('Returning stale data while revalidating', {
                         key,
@@ -662,11 +647,9 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
             }
         }
 
-        // Cache miss - proceed with original handler
         res.sendResponse = res.json;
         res.json = async function (body) {
             try {
-                // Store in cache asynchronously without waiting
                 setInCache(body).catch(error => {
                     logger.error('Async cache storage error', {
                         error: error.message,
@@ -685,7 +668,6 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     };
 }
 
-// Enhanced compression utilities with better error handling
 async function compressData(data) {
     return new Promise((resolve, reject) => {
         if (!data || typeof data !== 'string') {
@@ -712,7 +694,7 @@ async function compressData(data) {
                         error: err.message,
                         originalSize: buffer.length,
                     });
-                    resolve(data); // Fallback to uncompressed data
+                    resolve(data);
                 } else {
                     resolve(result.toString('base64'));
                 }
@@ -729,7 +711,6 @@ async function decompressData(data) {
                 return;
             }
 
-            // Check if the data starts with the gzip magic number (0x1f8b)
             const isCompressed = data.startsWith('H4sI');
             if (!isCompressed) {
                 resolve(data);
@@ -794,7 +775,6 @@ async function getCachedData(key, fetchData, ttl) {
     }
 }
 
-// Add input validation middleware
 function validateProductId(req, res, next) {
     const productId = req.params.id;
     if (!productId || isNaN(parseInt(productId))) {
@@ -831,14 +811,13 @@ async function invalidateCachePattern(pattern, options = {}) {
                 return;
             }
 
-            // Process keys in batches
             for (let i = 0; i < keys.length; i += batchSize) {
                 const batch = keys.slice(i, i + batchSize);
                 const multi = redisClient.multi();
 
                 batch.forEach(key => {
                     multi.del(key);
-                    // Also delete associated metadata
+
                     multi.del(`${key}:meta`);
                 });
 
@@ -904,7 +883,6 @@ async function invalidateCachePatterns(patterns, options = {}) {
     }
 }
 
-// Enhanced cache warming with background processing
 async function warmCache() {
     if (!redisConnected || !redisClient.isOpen) {
         logger.warn('Redis not connected, skipping cache warm-up');
@@ -936,10 +914,8 @@ async function warmCache() {
         try {
             logger.debug(`Warming up ${task.name} cache`);
 
-            // Invalidate existing cache first
             await invalidateCachePattern(task.pattern);
 
-            // Fetch and cache new data
             const data = await task.fetchData();
             if (!data || !Array.isArray(data)) {
                 logger.warn(`No data returned for ${task.name}, skipping cache warm-up`);
@@ -951,7 +927,6 @@ async function warmCache() {
 
             await redisClient.setEx(key, ttl, JSON.stringify(data));
 
-            // Set metadata
             await redisClient.hSet(`${key}:meta`, {
                 created: Date.now().toString(),
                 size: JSON.stringify(data).length.toString(),
@@ -968,14 +943,12 @@ async function warmCache() {
                 error: error.message,
                 stack: error.stack,
             });
-            // Continue with other tasks even if one fails
         }
     }
 
     logger.info('Cache warm-up completed');
 }
 
-// Process cache warming jobs with improved error handling
 cacheWarmingQueue.process('warm-products', async job => {
     const { limit } = job.data;
     const client = await pgPool.connect();
@@ -990,11 +963,9 @@ cacheWarmingQueue.process('warm-products', async job => {
             if (data?.rows?.[0]) {
                 const dataToCache = JSON.stringify(data.rows[0]);
 
-                // Use multi instead of pipeline
                 const multi = redisClient.multi();
                 multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
 
-                // Add metadata
                 multi.hSet(`${key}:meta`, {
                     created: Date.now(),
                     size: dataToCache.length,
@@ -1045,7 +1016,6 @@ cacheWarmingQueue.process('preload-related', async job => {
     }
 });
 
-// Bulk operation processing
 async function processBulkProductUpdate(products) {
     const chunks = [];
     for (let i = 0; i < products.length; i += BATCH_SIZE) {
@@ -1073,7 +1043,6 @@ async function processBulkProductUpdate(products) {
     return results;
 }
 
-// Process bulk update jobs
 bulkOperationQueue.process('update-products', async job => {
     const { products } = job.data;
     const client = await pgPool.connect();
@@ -1093,7 +1062,6 @@ bulkOperationQueue.process('update-products', async job => {
 
         await client.query('COMMIT');
 
-        // Invalidate related caches
         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
 
         return { success: true, count: products.length };
@@ -1114,26 +1082,23 @@ async function init() {
 
     await initializeRedis();
 
-    // Apply security middleware
-    app.use(helmet()); // Set security HTTP headers
-    app.use(xss()); // Sanitize data
-    app.use(hpp()); // Prevent HTTP Parameter Pollution
-    app.use(mongoSanitize()); // Sanitize MongoDB queries
+    app.use(helmet());
+    app.use(xss());
+    app.use(hpp());
+    app.use(mongoSanitize());
     app.use(cors());
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
     app.use(limiter);
     app.use(speedLimiter);
-    // Apply logging middleware
+
     app.use(requestLogger);
     app.use(errorLogger);
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocs));
 
-    // Add health check endpoint
     app.get('/health', async (req, res) => {
         try {
-            // Check if products table exists and is ready
             const result = await pgPool.query(`
                 SELECT EXISTS (
                     SELECT FROM information_schema.tables 
@@ -1145,7 +1110,6 @@ async function init() {
                 return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
             }
 
-            // Check if required indexes exist
             const indexResult = await pgPool.query(`
                 SELECT EXISTS (
                     SELECT 1
@@ -1167,15 +1131,14 @@ async function init() {
     });
 
     try {
-        // Initialize database schema with version control
         await createDatabaseSchema();
 
-        if (false) optimizeSystemForService(); // TODO("Test on docker")
-        // Setup other components
+        if (false) optimizeSystemForService();
+
         await setupMongoCollections();
         await createMaterializedViews();
         await createOptimizedIndexes();
-        // Create unique indexes for materialized views
+
         await createMaterializedViewIndexes();
         await refreshMaterializedViews();
         scheduleMaterializedViewRefresh();
@@ -1291,7 +1254,7 @@ async function init() {
     app.post('/products', async function (req, res) {
         try {
             const result = await createProduct(req.body);
-            // Invalidate relevant caches
+
             await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
             res.json(result.rows[0]);
         } catch (error) {
@@ -1393,7 +1356,7 @@ async function init() {
             const searchParams = {
                 page: req.pagination.page,
                 pageSize: req.pagination.limit,
-                ...req.query, // This allows passing other search parameters like name, category_id, etc.
+                ...req.query,
             };
 
             const result = await searchProducts(searchParams);
@@ -1496,7 +1459,7 @@ async function init() {
     app.post('/categories', async function (req, res) {
         try {
             const result = await createCategory(req.body);
-            // Invalidate relevant caches
+
             await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
             res.json(result.rows[0]);
         } catch (error) {
@@ -2636,7 +2599,7 @@ async function init() {
                 product_id: req.params.productId,
             };
             const result = await addProductReview(reviewData);
-            // Invalidate relevant caches
+
             await Promise.all([
                 invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`),
                 invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
@@ -3136,7 +3099,7 @@ async function init() {
                 product_id: req.params.productId,
             };
             const result = await addPriceHistory(priceData);
-            // Invalidate relevant caches
+
             await Promise.all([
                 invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`),
                 invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
@@ -3334,7 +3297,6 @@ async function init() {
         }
     });
 
-    // Update error handling in routes
     app.use((err, req, res, next) => {
         logger.error('Unhandled error', {
             error: err.message,
@@ -3352,7 +3314,6 @@ async function init() {
     });
 }
 
-// Add schema version tracking table
 async function createSchemaVersionTable() {
     const query = `
         CREATE TABLE IF NOT EXISTS schema_versions (
@@ -3382,12 +3343,10 @@ async function applySchemaMigration(version, name, queries) {
         });
         await client.query('BEGIN');
 
-        // Check if migration already applied
         const checkQuery = 'SELECT version FROM schema_versions WHERE version = $1';
         const checkResult = await client.query(checkQuery, [version]);
 
         if (checkResult.rows.length === 0) {
-            // Apply each query in the migration
             for (const query of queries) {
                 logger.debug(`Executing migration query`, {
                     version,
@@ -3397,7 +3356,6 @@ async function applySchemaMigration(version, name, queries) {
                 await client.query(query);
             }
 
-            // Record migration
             const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
             await client.query(insertQuery, [version, name]);
             logger.info(`Successfully applied migration ${version}: ${name}`, {
@@ -3432,7 +3390,6 @@ async function createDatabaseSchema() {
     try {
         logger.info('Starting database schema creation');
 
-        // Create schema version table first
         await createSchemaVersionTable();
         logger.debug('Schema version table created successfully');
 
@@ -3500,13 +3457,11 @@ async function setupMongoCollections() {
 
         for (const collection of schemaConfig.mongoCollections) {
             try {
-                // Create collection if it doesn't exist
                 await db.createCollection(collection.name);
                 logger.info(`Created MongoDB collection: ${collection.name}`, {
                     collectionName: collection.name,
                 });
 
-                // Create indexes if defined
                 if (collection.indexes) {
                     for (const index of collection.indexes) {
                         await db.collection(collection.name).createIndex(index.key);
@@ -3518,7 +3473,6 @@ async function setupMongoCollections() {
                 }
             } catch (error) {
                 if (error.code === 48) {
-                    // Collection already exists
                     logger.debug(`Collection already exists: ${collection.name}`);
                     continue;
                 }
@@ -3544,17 +3498,14 @@ async function setupMongoCollections() {
 function createProduct(productData) {
     const { name, description, price, category_id, metadata } = productData;
 
-    // Validate required fields
     if (!name || !price) {
         throw new Error('Name and price are required fields');
     }
 
-    // Validate price is a positive number
     if (typeof price !== 'number' || price <= 0) {
         throw new Error('Price must be a positive number');
     }
 
-    // Validate category_id if provided
     if (category_id !== undefined && category_id !== null) {
         if (!Number.isInteger(Number(category_id)) || Number(category_id) <= 0) {
             throw new Error('Category ID must be a positive integer');
@@ -3573,13 +3524,11 @@ function getProductById(id) {
     return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
 }
 
-// Query optimization constants
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_SORT_FIELD = 'created_at';
 const DEFAULT_SORT_ORDER = 'DESC';
 
-// Enhanced search function with pagination and optimization
 async function searchProducts(searchParams) {
     const {
         page = 1,
@@ -3594,11 +3543,9 @@ async function searchProducts(searchParams) {
         attributes,
     } = searchParams;
 
-    // Validate and sanitize inputs
     const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
     const offset = (page - 1) * validatedPageSize;
 
-    // Build the base query with proper indexing hints
     let query = `
         SELECT p.*, 
                COUNT(*) OVER() as total_count,
@@ -3617,7 +3564,6 @@ async function searchProducts(searchParams) {
     const queryParams = [];
     let paramIndex = 1;
 
-    // Add search conditions with proper indexing
     if (name) {
         query += ` AND p.name ILIKE $${paramIndex}`;
         queryParams.push(`%${name}%`);
@@ -3665,7 +3611,6 @@ async function searchProducts(searchParams) {
         query += ` AND (${attributeConditions.join(' OR ')})`;
     }
 
-    // Add grouping and sorting with proper indexing
     query += `
         GROUP BY p.id
         ORDER BY p.${sortField} ${sortOrder}
@@ -3673,7 +3618,6 @@ async function searchProducts(searchParams) {
     `;
     queryParams.push(validatedPageSize, offset);
 
-    // Execute query with proper indexing hints
     const result = await pgPool.query(query, queryParams);
 
     return {
@@ -3687,7 +3631,6 @@ async function searchProducts(searchParams) {
     };
 }
 
-// Create optimized indexes
 async function createOptimizedIndexes() {
     const client = await pgPool.connect();
     try {
@@ -3726,7 +3669,6 @@ async function createOptimizedIndexes() {
     }
 }
 
-// Create materialized views for complex queries
 async function createMaterializedViews() {
     const client = await pgPool.connect();
     try {
@@ -3751,7 +3693,6 @@ async function createMaterializedViews() {
     }
 }
 
-// Function to refresh materialized views
 async function refreshMaterializedViews() {
     const client = await pgPool.connect();
     try {
@@ -4295,7 +4236,6 @@ function getProductPriceTrends(product_id, variant_id, period = '30 days') {
     const [_, amount, unit] = periodMatch;
     const interval = `${amount} ${unit}`;
 
-    // Convert variant_id to number if it's not null or undefined
     const variantId = variant_id && variant_id !== 'null' ? parseInt(variant_id, 10) : null;
     if (variant_id && variant_id !== 'null' && isNaN(variantId)) {
         throw new Error('Invalid variant_id format');
@@ -4481,7 +4421,6 @@ class EnhancedNeuralNetwork {
     }
 }
 
-// Bulk operation constants
 const BULK_OPERATION_TYPES = {
     UPDATE: 'update',
     INSERT: 'insert',
@@ -4491,7 +4430,6 @@ const BULK_OPERATION_TYPES = {
     ATTRIBUTE_UPDATE: 'attribute_update',
 };
 
-// Enhanced bulk operations
 async function processBulkOperation(type, data, options = {}) {
     const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
 
@@ -4503,7 +4441,6 @@ async function processBulkOperation(type, data, options = {}) {
         retryAttempts,
     });
 
-    // Split data into batches
     const batches = [];
     for (let i = 0; i < data.length; i += batchSize) {
         batches.push(data.slice(i, i + batchSize));
@@ -4515,12 +4452,10 @@ async function processBulkOperation(type, data, options = {}) {
         batchSize,
     });
 
-    // Process batches with concurrency control
     const results = [];
     const activeJobs = new Set();
 
     for (const batch of batches) {
-        // Wait if we've reached max concurrency
         while (activeJobs.size >= concurrency) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
@@ -4583,7 +4518,6 @@ async function processBulkOperation(type, data, options = {}) {
     return results;
 }
 
-// Process different types of bulk operations
 bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
     const { batch, options } = job.data;
     const client = await pgPool.connect();
@@ -4621,7 +4555,6 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
         await client.query('BEGIN');
 
         for (const update of batch) {
-            // Update current price
             await client.query(
                 `UPDATE products 
                  SET price = $1, updated_at = NOW()
@@ -4629,7 +4562,6 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
                 [update.price, update.product_id]
             );
 
-            // Add to price history
             await client.query(
                 `INSERT INTO price_history 
                  (product_id, variant_id, price, change_type, created_at)
@@ -4682,25 +4614,20 @@ bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
     }
 });
 
-// Create unique indexes for materialized views
 async function createMaterializedViewIndexes() {
     const client = await pgPool.connect();
     try {
         await client.query('BEGIN');
 
-        // Create unique index for product analytics
         await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_analytics_id ON mv_product_analytics(id)');
         console.log('Created unique index for mv_product_analytics');
 
-        // Create unique index for category analytics
         await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)');
         console.log('Created unique index for mv_category_analytics');
 
-        // Create unique index for product price trends
         await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_price_trends_id ON mv_product_price_trends(id)');
         console.log('Created unique index for mv_product_price_trends');
 
-        // Create unique index for product inventory status
         await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_inventory_status_id ON mv_product_inventory_status(id)');
         console.log('Created unique index for mv_product_inventory_status');
 
@@ -4741,7 +4668,6 @@ process.on('SIGINT', free);
 process.on('SIGTERM', free);
 process.on('SIGQUIT', free);
 
-// Pagination middleware
 function paginateResults(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -4755,7 +4681,6 @@ function paginateResults(req, res, next) {
     next();
 }
 
-// Logging middleware
 function requestLogger(req, res, next) {
     const start = Date.now();
     const requestId = Math.random().toString(36).substring(7);
@@ -4768,7 +4693,6 @@ function requestLogger(req, res, next) {
         userAgent: req.get('user-agent'),
     });
 
-    // Log request body for non-GET requests
     if (req.method !== 'GET' && req.body) {
         logger.debug('Request body', {
             requestId,
@@ -4776,7 +4700,6 @@ function requestLogger(req, res, next) {
         });
     }
 
-    // Capture response
     const originalSend = res.send;
     res.send = function (body) {
         const responseTime = Date.now() - start;
@@ -4790,7 +4713,6 @@ function requestLogger(req, res, next) {
             responseTime: `${responseTime}ms`,
         });
 
-        // Log response body for errors
         if (statusCode >= 400) {
             logger.error('Error response', {
                 requestId,
@@ -4805,7 +4727,6 @@ function requestLogger(req, res, next) {
     next();
 }
 
-// Error logging middleware
 function errorLogger(err, req, res, next) {
     const requestId = req.requestId || Math.random().toString(36).substring(7);
 
@@ -4819,7 +4740,6 @@ function errorLogger(err, req, res, next) {
         userAgent: req.get('user-agent'),
     });
 
-    // Log request body for non-GET requests
     if (req.method !== 'GET' && req.body) {
         logger.debug('Request body at error', {
             requestId,
