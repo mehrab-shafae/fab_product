@@ -11,6 +11,8 @@ NC='\033[0m'
 API_BASE_URL="http://localhost:3000"
 LOG_FILE="api_test_$(date +%Y%m%d_%H%M%S).log"
 STATE_FILE="test_state.json"
+MAX_RETRIES=3
+RETRY_DELAY=2
 
 # Initialize state file
 echo "{}" >"$STATE_FILE"
@@ -45,6 +47,17 @@ cleanup() {
 
 trap cleanup EXIT
 
+# Check Redis connection
+check_redis_connection() {
+    local response
+    response=$(curl -s "$API_BASE_URL/health")
+    if echo "$response" | jq -e '.redis_connected' >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Test execution function with improved error handling and response validation
 test_endpoint() {
     local test_name=$1
@@ -55,6 +68,8 @@ test_endpoint() {
     local state_key=$6
     local jq_filter=$7
     local description=$8
+    local requires_cache=${9:-false}
+    local retry_count=0
 
     log "\n=== Testing $test_name ===" "$BLUE"
     log "Description: $description" "$YELLOW"
@@ -64,52 +79,74 @@ test_endpoint() {
         log "Request Data: $data" "$YELLOW"
     fi
 
-    local response
-    local status_code
-    local response_body
-
-    # Execute the request
-    if [ "$method" = "GET" ]; then
-        response=$(curl -s -w "\n%{http_code}" "$API_BASE_URL$endpoint")
-    else
-        response=$(curl -s -X "$method" \
-            -H "Content-Type: application/json" \
-            -d "$data" \
-            -w "\n%{http_code}" \
-            "$API_BASE_URL$endpoint")
+    # Check Redis connection for cache-dependent tests
+    if [ "$requires_cache" = "true" ]; then
+        if ! check_redis_connection; then
+            log "⚠️ Redis not connected, test may be affected" "$YELLOW"
+        fi
     fi
 
-    status_code=$(echo "$response" | tail -n1)
-    response_body=$(echo "$response" | sed '$d')
+    while [ $retry_count -lt $MAX_RETRIES ]; do
+        local response
+        local status_code
+        local response_body
 
-    log "Status Code: $status_code" "$YELLOW"
-    log "Response: $response_body" "$YELLOW"
-
-    # Validate status code
-    if [[ $status_code -ne $expected_status ]]; then
-        log "✗ Test failed: Expected status $expected_status, got $status_code" "$RED"
-        # return 1
-    fi
-
-    # Validate and save state if needed
-    if [ ! -z "$state_key" ] && [ ! -z "$jq_filter" ]; then
-        local extracted_value
-        if ! extracted_value=$(echo "$response_body" | jq -r "$jq_filter" 2>/dev/null); then
-            log "✗ Test failed: Invalid JSON response or jq filter" "$RED"
-            # return 1
+        # Execute the request
+        if [ "$method" = "GET" ]; then
+            response=$(curl -s -w "\n%{http_code}" "$API_BASE_URL$endpoint")
+        else
+            response=$(curl -s -X "$method" \
+                -H "Content-Type: application/json" \
+                -d "$data" \
+                -w "\n%{http_code}" \
+                "$API_BASE_URL$endpoint")
         fi
 
-        if [ -z "$extracted_value" ]; then
-            log "✗ Test failed: Could not extract value using jq filter" "$RED"
-            # return 1
+        status_code=$(echo "$response" | tail -n1)
+        response_body=$(echo "$response" | sed '$d')
+
+        log "Status Code: $status_code" "$YELLOW"
+        log "Response: $response_body" "$YELLOW"
+
+        # Check for Redis-related errors
+        if echo "$response_body" | grep -q "The client is closed"; then
+            if [ $retry_count -lt $((MAX_RETRIES-1)) ]; then
+                log "⚠️ Redis error detected, retrying in $RETRY_DELAY seconds..." "$YELLOW"
+                sleep $RETRY_DELAY
+                retry_count=$((retry_count + 1))
+                continue
+            fi
         fi
 
-        save_state "$state_key" "$extracted_value"
-        log "✓ State saved: $state_key = $extracted_value" "$GREEN"
-    fi
+        # Validate status code
+        if [[ $status_code -ne $expected_status ]]; then
+            log "✗ Test failed: Expected status $expected_status, got $status_code" "$RED"
+            return 1
+        fi
 
-    log "✓ Test passed" "$GREEN"
-    return 0
+        # Validate and save state if needed
+        if [ ! -z "$state_key" ] && [ ! -z "$jq_filter" ]; then
+            local extracted_value
+            if ! extracted_value=$(echo "$response_body" | jq -r "$jq_filter" 2>/dev/null); then
+                log "✗ Test failed: Invalid JSON response or jq filter" "$RED"
+                return 1
+            fi
+
+            if [ -z "$extracted_value" ]; then
+                log "✗ Test failed: Could not extract value using jq filter" "$RED"
+                return 1
+            fi
+
+            save_state "$state_key" "$extracted_value"
+            log "✓ State saved: $state_key = $extracted_value" "$GREEN"
+        fi
+
+        log "✓ Test passed" "$GREEN"
+        return 0
+    done
+
+    log "✗ Test failed after $MAX_RETRIES retries" "$RED"
+    return 1
 }
 
 # Test suite execution
@@ -117,6 +154,11 @@ run_test_suite() {
     log "Starting API Test Suite" "$BLUE"
     log "API Base URL: $API_BASE_URL" "$YELLOW"
     log "Log file: $LOG_FILE" "$YELLOW"
+
+    # Check Redis connection at start
+    if ! check_redis_connection; then
+        log "⚠️ Warning: Redis is not connected. Cache-dependent tests may be affected." "$YELLOW"
+    fi
 
     # 1. System Health Check
     test_endpoint "System Health" "GET" "/health" "" 200 "" "" "Check system health status"
@@ -148,7 +190,7 @@ run_test_suite() {
     # Get category tree
     test_endpoint "Get Category Tree" "GET" "/categories/tree" \
         "" 200 "" "" \
-        "Retrieve complete category hierarchy"
+        "Retrieve complete category hierarchy" true
     [ $? -ne 0 ] && return 1
 
     # 4. Product Management

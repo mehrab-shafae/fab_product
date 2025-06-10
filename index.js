@@ -101,8 +101,12 @@ logger.debug = function(message, metadata = {}) {
 async function initializeRedis() {
     const ONE_HOUR = 60 * 60 * 1000;
     let retryTimer = null;
+    let isReconnecting = false;
 
     const connectToRedis = async () => {
+        if (isReconnecting) return false;
+        isReconnecting = true;
+
         try {
             logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
             redisClient = createClient({
@@ -144,6 +148,7 @@ async function initializeRedis() {
             });
 
             await redisClient.connect();
+            isReconnecting = false;
             return true;
         } catch (error) {
             logger.error('Failed to connect to Redis', { error: error.message });
@@ -151,6 +156,7 @@ async function initializeRedis() {
             if (!retryTimer) {
                 retryTimer = setInterval(connectToRedis, ONE_HOUR);
             }
+            isReconnecting = false;
             return false;
         }
     };
@@ -477,8 +483,17 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     } = options;
 
     return async function (req, res, next) {
-        // Skip caching for non-GET requests or when Redis is not available
-        if (req.method !== 'GET' || !redisConnected) {
+        // Skip caching for non-GET requests
+        if (req.method !== 'GET') {
+            return next();
+        }
+
+        // If Redis is not connected, proceed without caching
+        if (!redisConnected) {
+            logger.warn('Redis not connected, skipping cache', {
+                path: req.originalUrl,
+                method: req.method
+            });
             return next();
         }
 
@@ -487,6 +502,11 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 
         const getFromCache = async () => {
             try {
+                if (!redisClient.isOpen) {
+                    logger.warn('Redis client is closed, skipping cache', { key });
+                    return null;
+                }
+
                 const cachedData = await redisClient.get(key);
                 if (!cachedData) return null;
 
@@ -534,6 +554,11 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 
         const setInCache = async (data) => {
             try {
+                if (!redisClient.isOpen) {
+                    logger.warn('Redis client is closed, skipping cache set', { key });
+                    return;
+                }
+
                 const dataStr = JSON.stringify(data);
                 let finalData = dataStr;
                 let isCompressed = false;
@@ -739,37 +764,26 @@ function validateProductId(req, res, next) {
 
 // Update invalidateCachePattern function
 async function invalidateCachePattern(pattern) {
+    if (!redisConnected || !redisClient.isOpen) {
+        logger.warn('Redis not connected, skipping cache invalidation', { pattern });
+        return;
+    }
+
     try {
-        if (!pattern || typeof pattern !== 'string') {
-            logger.warn('Invalid cache pattern provided', { pattern });
-            return;
-        }
-
         const keys = await redisClient.keys(pattern);
-        if (!keys || !Array.isArray(keys) || keys.length === 0) {
-            logger.debug('No cache keys found for pattern', { pattern });
-            return;
+        if (keys.length > 0) {
+            await redisClient.del(keys);
+            logger.info('Cache invalidated successfully', {
+                pattern,
+                keysCount: keys.length
+            });
         }
-
-        const pipeline = redisClient.pipeline();
-        keys.forEach(key => {
-            pipeline.del(key);
-            pipeline.del(`${key}:meta`);
-        });
-
-        await pipeline.exec();
-        
-        logger.info('Cache invalidation successful', {
-            pattern,
-            keysCount: keys.length
-        });
     } catch (error) {
-        logger.error('Cache invalidation error', {
+        // Log error but don't throw - cache invalidation should not break the application
+        logger.warn('Cache invalidation skipped', {
             error: error.message,
-            pattern,
-            stack: error.stack
+            pattern
         });
-        throw error;
     }
 }
 
@@ -3397,12 +3411,30 @@ async function setupMongoCollections() {
 
 function createProduct(productData) {
     const { name, description, price, category_id, metadata } = productData;
+    
+    // Validate required fields
+    if (!name || !price) {
+        throw new Error('Name and price are required fields');
+    }
+
+    // Validate price is a positive number
+    if (typeof price !== 'number' || price <= 0) {
+        throw new Error('Price must be a positive number');
+    }
+
+    // Validate category_id if provided
+    if (category_id !== undefined && category_id !== null) {
+        if (!Number.isInteger(Number(category_id)) || Number(category_id) <= 0) {
+            throw new Error('Category ID must be a positive integer');
+        }
+    }
+
     const query = `
         INSERT INTO products (name, description, price, category_id, metadata)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
     `;
-    return pgPool.query(query, [name, description, price, category_id, metadata]);
+    return pgPool.query(query, [name, description, price, category_id || null, metadata]);
 }
 
 function getProductById(id) {
