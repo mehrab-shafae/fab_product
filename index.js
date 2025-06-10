@@ -30,7 +30,8 @@ const __dirname = dirname(__filename);
 const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'config', 'database-schema.json'), 'utf8'));
 // ======================================================================
 const PORT = process.env.PORT || 3000;
-const POSTGRES_URI = process.env.POSTGRES_URI || 'postgresql://postgres:postgres@localhost:5432/product_db';
+const POSTGRES_URI = process.env.POSTGRES_URI || 
+    `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
