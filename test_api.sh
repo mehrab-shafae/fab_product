@@ -122,7 +122,33 @@ run_test_suite() {
     test_endpoint "System Health" "GET" "/health" "" 200 "" "" "Check system health status"
     [ $? -ne 0 ] && return 1
 
-    # 2. Category Management
+    # 2. User Management (Moved to the beginning)
+    test_endpoint "Create First User" "POST" "/users" \
+        "{
+            \"username\": \"testuser1\",
+            \"email\": \"testuser1@example.com\",
+            \"password\": \"Test123!\",
+            \"role\": \"user\"
+        }" \
+        200 "first_user_id" ".id" \
+        "Create first test user"
+    [ $? -ne 0 ] && return 1
+
+    test_endpoint "Create Second User" "POST" "/users" \
+        "{
+            \"username\": \"testuser2\",
+            \"email\": \"testuser2@example.com\",
+            \"password\": \"Test123!\",
+            \"role\": \"seller\"
+        }" \
+        200 "second_user_id" ".id" \
+        "Create second test user (seller)"
+    [ $? -ne 0 ] && return 1
+
+    FIRST_USER_ID=$(get_state "first_user_id")
+    SECOND_USER_ID=$(get_state "second_user_id")
+
+    # 3. Category Management
     # Create parent category
     test_endpoint "Create Parent Category" "POST" "/categories" \
         '{"name": "Electronics", "parent_id": null}' \
@@ -145,7 +171,7 @@ run_test_suite() {
         "Retrieve complete category hierarchy"
     [ $? -ne 0 ] && return 1
 
-    # 3. Product Management
+    # 4. Product Management
     # Create first product
     test_endpoint "Create First Product" "POST" "/products" \
         "{
@@ -184,7 +210,7 @@ run_test_suite() {
 
     SECOND_PRODUCT_ID=$(get_state "second_product_id")
 
-    # 4. Product Attributes
+    # 5. Product Attributes
     # Create attributes
     test_endpoint "Create Processor Attribute" "POST" "/attributes" \
         '{"name": "Processor", "type": "string"}' \
@@ -214,7 +240,7 @@ run_test_suite() {
         "Add screen size attribute to first product"
     [ $? -ne 0 ] && return 1
 
-    # 5. Product Variants
+    # 6. Product Variants
     test_endpoint "Create Product Variant" "POST" "/products/$FIRST_PRODUCT_ID/variants" \
         "{
             \"sku\": \"IP13-256-BLK\",
@@ -232,7 +258,7 @@ run_test_suite() {
 
     VARIANT_ID=$(get_state "variant_id")
 
-    # 6. Product Images
+    # 7. Product Images
     test_endpoint "Add Primary Product Image" "POST" "/products/$FIRST_PRODUCT_ID/images" \
         "{
             \"image_url\": \"https://example.com/iphone13-main.jpg\",
@@ -243,7 +269,7 @@ run_test_suite() {
         "Add primary image to first product"
     [ $? -ne 0 ] && return 1
 
-    # 7. Price and Inventory Management
+    # 8. Price and Inventory Management
     test_endpoint "Add Price History" "POST" "/products/$FIRST_PRODUCT_ID/price-history" \
         "{
             \"variant_id\": $VARIANT_ID,
@@ -265,7 +291,7 @@ run_test_suite() {
         "Update inventory for product variant"
     [ $? -ne 0 ] && return 1
 
-    # 8. Product Relationships
+    # 9. Product Relationships
     test_endpoint "Add Product Relationship" "POST" "/products/$FIRST_PRODUCT_ID/relationships" \
         "{
             \"related_product_id\": $SECOND_PRODUCT_ID,
@@ -275,57 +301,57 @@ run_test_suite() {
         "Add relationship between products"
     [ $? -ne 0 ] && return 1
 
-    # 9. Product Reviews and Comments
+    # 10. Product Reviews and Comments
     test_endpoint "Add Product Review" "POST" "/products/$FIRST_PRODUCT_ID/reviews" \
-        '{
-            "user_id": 1,
-            "rating": 5,
-            "review_text": "Excellent product with amazing features!",
-            "is_verified": true
-        }' \
+        "{
+            \"user_id\": $FIRST_USER_ID,
+            \"rating\": 5,
+            \"review_text\": \"Excellent product with amazing features!\",
+            \"is_verified\": true
+        }" \
         200 "review_id" ".id" \
         "Add review to first product"
     [ $? -ne 0 ] && return 1
 
     test_endpoint "Add Product Comment" "POST" "/products/$FIRST_PRODUCT_ID/comments" \
-        '{
-            "user_id": 1,
-            "comment": "When will the new color variants be available?"
-        }' \
+        "{
+            \"user_id\": $FIRST_USER_ID,
+            \"comment\": \"When will the new color variants be available?\"
+        }" \
         200 "comment_id" ".id" \
         "Add comment to first product"
     [ $? -ne 0 ] && return 1
 
-    # 10. Product Tags
+    # 11. Product Tags
     test_endpoint "Add Product Tag" "POST" "/products/$FIRST_PRODUCT_ID/tags" \
-        '{"tag_name": "flagship"}' \
+        "{\"tag_name\": \"flagship\"}" \
         200 "tag_id" ".id" \
         "Add tag to first product"
     [ $? -ne 0 ] && return 1
 
-    # 11. Product Versions
+    # 12. Product Versions
     test_endpoint "Create Product Version" "POST" "/products/$FIRST_PRODUCT_ID/versions" \
-        '{
-            "version_number": 2,
-            "changes": {
-                "price": "Updated to 1049.99",
-                "description": "Updated with new features",
-                "metadata": {
-                    "added_colors": ["Starlight", "Pink"]
+        "{
+            \"version_number\": 2,
+            \"changes\": {
+                \"price\": \"Updated to 1049.99\",
+                \"description\": \"Updated with new features\",
+                \"metadata\": {
+                    \"added_colors\": [\"Starlight\", \"Pink\"]
                 }
             },
-            "created_by": 1
-        }' \
+            \"created_by\": $FIRST_USER_ID
+        }" \
         200 "version_id" ".id" \
         "Create new version of first product"
     [ $? -ne 0 ] && return 1
 
-    # 12. Chat System
+    # 13. Chat System
     test_endpoint "Create Product Chat" "POST" "/products/$FIRST_PRODUCT_ID/chats" \
-        '{
-            "user_id": 1,
-            "seller_id": 2
-        }' \
+        "{
+            \"user_id\": $FIRST_USER_ID,
+            \"seller_id\": $SECOND_USER_ID
+        }" \
         200 "chat_id" ".id" \
         "Create chat for first product"
     [ $? -ne 0 ] && return 1
@@ -333,22 +359,22 @@ run_test_suite() {
     CHAT_ID=$(get_state "chat_id")
 
     test_endpoint "Add Chat Message" "POST" "/chats/$CHAT_ID/messages" \
-        '{
-            "sender_id": 1,
-            "message": "Is this product available in other colors?"
-        }' \
+        "{
+            \"sender_id\": $FIRST_USER_ID,
+            \"message\": \"Is this product available in other colors?\"
+        }" \
         200 "message_id" ".id" \
         "Add message to product chat"
     [ $? -ne 0 ] && return 1
 
-    # 13. Wishlist
-    test_endpoint "Add to Wishlist" "POST" "/users/1/wishlist" \
+    # 14. Wishlist
+    test_endpoint "Add to Wishlist" "POST" "/users/$FIRST_USER_ID/wishlist" \
         "{\"product_id\": $FIRST_PRODUCT_ID}" \
         200 "wishlist_id" ".id" \
         "Add first product to user wishlist"
     [ $? -ne 0 ] && return 1
 
-    # 14. Get Operations (Testing cached responses)
+    # 15. Get Operations (Testing cached responses)
     log "\n=== Testing GET Operations ===" "$BLUE"
 
     test_endpoint "Get Product by ID" "GET" "/products/$FIRST_PRODUCT_ID" \
@@ -386,7 +412,7 @@ run_test_suite() {
         "Retrieve product versions"
     [ $? -ne 0 ] && return 1
 
-    test_endpoint "Get User Wishlist" "GET" "/users/1/wishlist" \
+    test_endpoint "Get User Wishlist" "GET" "/users/$FIRST_USER_ID/wishlist" \
         "" 200 "" "" \
         "Retrieve user wishlist"
     [ $? -ne 0 ] && return 1

@@ -5,6 +5,7 @@
             "name": "Initial schema",
             "queries": [
                 "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+                "CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username VARCHAR(100) UNIQUE NOT NULL, email VARCHAR(255) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(50) DEFAULT 'user', status VARCHAR(20) DEFAULT 'active', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, price DECIMAL(10,2), category_id INTEGER REFERENCES categories(id), metadata JSONB, status VARCHAR(20) DEFAULT 'active', featured BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_attributes (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, description TEXT, data_type VARCHAR(50) NOT NULL, is_required BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -137,6 +138,22 @@
             "name": "mv_product_inventory_status",
             "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_inventory_status AS SELECT DISTINCT ON (p.id, pv.id) p.id, p.name, pv.id as variant_id, pv.sku, pi.quantity, pi.reserved_quantity, (pi.quantity - pi.reserved_quantity) as available_quantity FROM products p JOIN product_variants pv ON p.id = pv.product_id JOIN product_inventory pi ON pv.id = pi.variant_id ORDER BY p.id, pv.id",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_product_inventory_status"
+        }
+    ],
+    "mongoCollections": [
+        {
+            "name": "product_documents",
+            "indexes": [
+                { "key": { "name": "text", "description": "text" } },
+                { "key": { "category_id": 1 } }
+            ]
+        },
+        {
+            "name": "product_analytics",
+            "indexes": [
+                { "key": { "product_id": 1 } },
+                { "key": { "created_at": -1 } }
+            ]
         }
     ]
 }
