@@ -45,18 +45,18 @@ const CACHE_PATTERNS = {
         INVENTORY: 'api:products:${id}:inventory:*',
         ATTRIBUTES: 'api:products:${id}:attributes:*',
         RELATIONSHIPS: 'api:products:${id}:relationships:*',
-        VERSIONS: 'api:products:${id}:versions:*'
+        VERSIONS: 'api:products:${id}:versions:*',
     },
     CATEGORY: {
         TREE: 'api:categories:tree:*',
-        DETAILS: 'api:categories:${id}:*'
+        DETAILS: 'api:categories:${id}:*',
     },
     USER: {
-        WISHLIST: 'api:users:${id}:wishlist:*'
+        WISHLIST: 'api:users:${id}:wishlist:*',
     },
     CHAT: {
-        MESSAGES: 'api:chats:${id}:messages:*'
-    }
+        MESSAGES: 'api:chats:${id}:messages:*',
+    },
 };
 
 // Configure logger
@@ -86,10 +86,10 @@ const logger = createLogger({
                     }
                     return msg;
                 })
-            )
+            ),
         }),
-        new transports.File({ 
-            filename: 'error.log', 
+        new transports.File({
+            filename: 'error.log',
             level: 'error',
             format: combine(
                 timestamp(),
@@ -100,9 +100,9 @@ const logger = createLogger({
                     }
                     return msg;
                 })
-            )
+            ),
         }),
-        new transports.File({ 
+        new transports.File({
             filename: 'combined.log',
             format: combine(
                 timestamp(),
@@ -113,14 +113,14 @@ const logger = createLogger({
                     }
                     return msg;
                 })
-            )
-        })
-    ]
+            ),
+        }),
+    ],
 });
 
 // Debug mode configuration
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
-logger.debug = function(message, metadata = {}) {
+logger.debug = function (message, metadata = {}) {
     if (DEBUG_MODE) {
         this.info(message, { ...metadata, debug: true });
     }
@@ -140,17 +140,17 @@ async function initializeRedis() {
             redisClient = createClient({
                 url: REDIS_URI,
                 socket: {
-                    reconnectStrategy: (retries) => {
+                    reconnectStrategy: retries => {
                         if (retries > 10) {
                             logger.error('Redis max retries reached');
                             return new Error('Redis max retries reached');
                         }
                         return Math.min(retries * 100, 3000);
-                    }
-                }
+                    },
+                },
             });
 
-            redisClient.on('error', (err) => {
+            redisClient.on('error', err => {
                 logger.error('Redis connection error', { error: err.message });
                 redisConnected = false;
                 if (!retryTimer) {
@@ -217,13 +217,13 @@ const CACHE_PREFIXES = {
 };
 
 const CACHE_TTL = {
-    PRODUCT: 3600,    // 1 hour
-    CATEGORY: 7200,   // 2 hours
-    USER: 1800,       // 30 minutes
-    CHAT: 300,        // 5 minutes
-    TAG: 3600,        // 1 hour
-    COMMENT: 1800,    // 30 minutes
-    ANALYTICS: 3600   // 1 hour
+    PRODUCT: 3600, // 1 hour
+    CATEGORY: 7200, // 2 hours
+    USER: 1800, // 30 minutes
+    CHAT: 300, // 5 minutes
+    TAG: 3600, // 1 hour
+    COMMENT: 1800, // 30 minutes
+    ANALYTICS: 3600, // 1 hour
 };
 
 // Swagger configuration
@@ -233,7 +233,7 @@ const swaggerOptions = {
         info: {
             title: 'Product Microservice API',
             version: '1.0.0',
-            description: 'API for managing products and related features'
+            description: 'API for managing products and related features',
         },
         servers: [
             {
@@ -248,218 +248,218 @@ const swaggerOptions = {
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The product ID'
+                            description: 'The product ID',
                         },
                         name: {
                             type: 'string',
-                            description: 'The product name'
+                            description: 'The product name',
                         },
                         description: {
                             type: 'string',
-                            description: 'The product description'
+                            description: 'The product description',
                         },
                         price: {
                             type: 'number',
                             format: 'float',
-                            description: 'The product price'
+                            description: 'The product price',
                         },
                         category_id: {
                             type: 'integer',
-                            description: 'The category ID'
+                            description: 'The category ID',
                         },
                         metadata: {
                             type: 'object',
-                            description: 'Additional product metadata'
+                            description: 'Additional product metadata',
                         },
                         status: {
                             type: 'string',
                             enum: ['active', 'inactive', 'draft'],
-                            description: 'The product status'
+                            description: 'The product status',
                         },
                         featured: {
                             type: 'boolean',
-                            description: 'Whether the product is featured'
+                            description: 'Whether the product is featured',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
+                            description: 'Creation timestamp',
                         },
                         updated_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Last update timestamp'
-                        }
+                            description: 'Last update timestamp',
+                        },
                     },
-                    required: ['name', 'price', 'category_id']
+                    required: ['name', 'price', 'category_id'],
                 },
                 Review: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The review ID'
+                            description: 'The review ID',
                         },
                         product_id: {
                             type: 'integer',
-                            description: 'The product ID'
+                            description: 'The product ID',
                         },
                         user_id: {
                             type: 'string',
-                            description: 'The user hash ID'
+                            description: 'The user hash ID',
                         },
                         rating: {
                             type: 'integer',
                             minimum: 1,
                             maximum: 5,
-                            description: 'The review rating (1-5)'
+                            description: 'The review rating (1-5)',
                         },
                         review_text: {
                             type: 'string',
-                            description: 'The review text'
+                            description: 'The review text',
                         },
                         is_verified: {
                             type: 'boolean',
-                            description: 'Whether the review is from a verified purchase'
+                            description: 'Whether the review is from a verified purchase',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
-                        }
+                            description: 'Creation timestamp',
+                        },
                     },
-                    required: ['product_id', 'user_id', 'rating']
+                    required: ['product_id', 'user_id', 'rating'],
                 },
                 Comment: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The comment ID'
+                            description: 'The comment ID',
                         },
                         product_id: {
                             type: 'integer',
-                            description: 'The product ID'
+                            description: 'The product ID',
                         },
                         user_id: {
                             type: 'string',
-                            description: 'The user hash ID'
+                            description: 'The user hash ID',
                         },
                         comment: {
                             type: 'string',
-                            description: 'The comment text'
+                            description: 'The comment text',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
-                        }
+                            description: 'Creation timestamp',
+                        },
                     },
-                    required: ['product_id', 'user_id', 'comment']
+                    required: ['product_id', 'user_id', 'comment'],
                 },
                 Chat: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The chat ID'
+                            description: 'The chat ID',
                         },
                         product_id: {
                             type: 'integer',
-                            description: 'The product ID'
+                            description: 'The product ID',
                         },
                         user_id: {
                             type: 'string',
-                            description: 'The user hash ID'
+                            description: 'The user hash ID',
                         },
                         seller_id: {
                             type: 'string',
-                            description: 'The seller hash ID'
+                            description: 'The seller hash ID',
                         },
                         status: {
                             type: 'string',
                             enum: ['active', 'closed'],
-                            description: 'The chat status'
+                            description: 'The chat status',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
-                        }
+                            description: 'Creation timestamp',
+                        },
                     },
-                    required: ['product_id', 'user_id', 'seller_id']
+                    required: ['product_id', 'user_id', 'seller_id'],
                 },
                 ChatMessage: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The message ID'
+                            description: 'The message ID',
                         },
                         chat_id: {
                             type: 'integer',
-                            description: 'The chat ID'
+                            description: 'The chat ID',
                         },
                         sender_id: {
                             type: 'string',
-                            description: 'The sender hash ID'
+                            description: 'The sender hash ID',
                         },
                         message: {
                             type: 'string',
-                            description: 'The message text'
+                            description: 'The message text',
                         },
                         is_read: {
                             type: 'boolean',
-                            description: 'Whether the message has been read'
+                            description: 'Whether the message has been read',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
-                        }
+                            description: 'Creation timestamp',
+                        },
                     },
-                    required: ['chat_id', 'sender_id', 'message']
+                    required: ['chat_id', 'sender_id', 'message'],
                 },
                 Wishlist: {
                     type: 'object',
                     properties: {
                         id: {
                             type: 'integer',
-                            description: 'The wishlist entry ID'
+                            description: 'The wishlist entry ID',
                         },
                         user_id: {
                             type: 'string',
-                            description: 'The user hash ID'
+                            description: 'The user hash ID',
                         },
                         product_id: {
                             type: 'integer',
-                            description: 'The product ID'
+                            description: 'The product ID',
                         },
                         created_at: {
                             type: 'string',
                             format: 'date-time',
-                            description: 'Creation timestamp'
-                        }
+                            description: 'Creation timestamp',
+                        },
                     },
-                    required: ['user_id', 'product_id']
+                    required: ['user_id', 'product_id'],
                 },
                 Error: {
                     type: 'object',
                     properties: {
                         error: {
                             type: 'string',
-                            description: 'Error message'
+                            description: 'Error message',
                         },
                         message: {
                             type: 'string',
-                            description: 'Detailed error message (only in development)'
-                        }
-                    }
-                }
-            }
-        }
+                            description: 'Detailed error message (only in development)',
+                        },
+                    },
+                },
+            },
+        },
     },
-    apis: [join(__dirname, 'index.js')] // Use absolute path with join
+    apis: [join(__dirname, 'index.js')], // Use absolute path with join
 };
 
 const swaggerDocs = swaggerJsdoc(swaggerOptions);
@@ -492,7 +492,7 @@ async function clearCorruptedCache() {
     } catch (error) {
         logger.error('Error clearing cache', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
     }
 }
@@ -508,7 +508,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
         cacheKeyPrefix = 'cache',
         maxCacheSize = 10 * 1024 * 1024, // 10MB
         staleWhileRevalidate = false,
-        staleTTL = 60 // 1 minute
+        staleTTL = 60, // 1 minute
     } = options;
 
     return async function (req, res, next) {
@@ -521,7 +521,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
         if (!redisConnected) {
             logger.warn('Redis not connected, skipping cache', {
                 path: req.originalUrl,
-                method: req.method
+                method: req.method,
             });
             return next();
         }
@@ -541,7 +541,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 
                 // Get metadata
                 const metadata = await redisClient.hGetAll(`${key}:meta`);
-                
+
                 let data;
                 if (metadata.compressed === 'true') {
                     data = await decompressData(cachedData);
@@ -555,9 +555,8 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                         created: parseInt(metadata.created) || Date.now(),
                         size: parseInt(metadata.size) || 0,
                         compressed: metadata.compressed === 'true',
-                        isStale: staleWhileRevalidate && 
-                            (Date.now() - parseInt(metadata.created)) > (ttl * 1000)
-                    }
+                        isStale: staleWhileRevalidate && Date.now() - parseInt(metadata.created) > ttl * 1000,
+                    },
                 };
 
                 // If data is stale and staleWhileRevalidate is enabled, trigger background refresh
@@ -565,7 +564,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                     setInCache(result.data).catch(error => {
                         logger.error('Background cache refresh error', {
                             error: error.message,
-                            key
+                            key,
                         });
                     });
                 }
@@ -575,13 +574,13 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 logger.error('Cache retrieval error', {
                     error: error.message,
                     key,
-                    retryCount
+                    retryCount,
                 });
                 return null;
             }
         };
 
-        const setInCache = async (data) => {
+        const setInCache = async data => {
             try {
                 if (!redisClient.isOpen) {
                     logger.warn('Redis client is closed, skipping cache set', { key });
@@ -597,7 +596,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                     logger.warn('Data too large for caching', {
                         key,
                         size: Buffer.byteLength(dataStr),
-                        maxSize: maxCacheSize
+                        maxSize: maxCacheSize,
                     });
                     return;
                 }
@@ -608,15 +607,15 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 }
 
                 const multi = redisClient.multi();
-                
+
                 // Set main data
                 multi.setEx(key, ttl, finalData);
-                
+
                 // Set metadata as string values
                 multi.hSet(`${key}:meta`, {
                     created: Date.now().toString(),
                     size: finalData.length.toString(),
-                    compressed: isCompressed.toString()
+                    compressed: isCompressed.toString(),
                 });
                 multi.expire(`${key}:meta`, ttl);
 
@@ -625,13 +624,13 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 logger.debug('Data cached successfully', {
                     key,
                     size: finalData.length,
-                    compressed: isCompressed
+                    compressed: isCompressed,
                 });
             } catch (error) {
                 logger.error('Cache storage error', {
                     error: error.message,
                     key,
-                    stack: error.stack
+                    stack: error.stack,
                 });
             }
         };
@@ -644,12 +643,12 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 if (cachedResult.metadata.isStale && staleWhileRevalidate) {
                     logger.debug('Returning stale data while revalidating', {
                         key,
-                        age: Date.now() - cachedResult.metadata.created
+                        age: Date.now() - cachedResult.metadata.created,
                     });
                 }
                 return res.json(cachedResult.data);
             }
-            
+
             if (retryCount < maxRetries) {
                 await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retryCount)));
                 retryCount++;
@@ -666,13 +665,13 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
                 setInCache(body).catch(error => {
                     logger.error('Async cache storage error', {
                         error: error.message,
-                        key
+                        key,
                     });
                 });
             } catch (error) {
                 logger.error('Cache middleware error', {
                     error: error.message,
-                    key
+                    key,
                 });
             }
             res.sendResponse(body);
@@ -695,21 +694,25 @@ async function compressData(data) {
             return;
         }
 
-        gzip(buffer, {
-            level: 6,
-            memLevel: 8,
-            windowBits: 15
-        }, (err, result) => {
-            if (err) {
-                logger.error('Compression error', {
-                    error: err.message,
-                    originalSize: buffer.length
-                });
-                resolve(data); // Fallback to uncompressed data
-            } else {
-                resolve(result.toString('base64'));
+        gzip(
+            buffer,
+            {
+                level: 6,
+                memLevel: 8,
+                windowBits: 15,
+            },
+            (err, result) => {
+                if (err) {
+                    logger.error('Compression error', {
+                        error: err.message,
+                        originalSize: buffer.length,
+                    });
+                    resolve(data); // Fallback to uncompressed data
+                } else {
+                    resolve(result.toString('base64'));
+                }
             }
-        });
+        );
     });
 }
 
@@ -729,23 +732,27 @@ async function decompressData(data) {
             }
 
             const buffer = Buffer.from(data, 'base64');
-            gunzip(buffer, {
-                windowBits: 15
-            }, (err, result) => {
-                if (err) {
-                    logger.error('Decompression error', {
-                        error: err.message,
-                        dataLength: data.length
-                    });
-                    reject(err);
-                } else {
-                    resolve(result.toString('utf8'));
+            gunzip(
+                buffer,
+                {
+                    windowBits: 15,
+                },
+                (err, result) => {
+                    if (err) {
+                        logger.error('Decompression error', {
+                            error: err.message,
+                            dataLength: data.length,
+                        });
+                        reject(err);
+                    } else {
+                        resolve(result.toString('utf8'));
+                    }
                 }
-            });
+            );
         } catch (error) {
             logger.error('Decompression preparation error', {
                 error: error.message,
-                dataLength: data?.length
+                dataLength: data?.length,
             });
             reject(error);
         }
@@ -776,7 +783,7 @@ async function getCachedData(key, fetchData, ttl) {
         logger.error('Cache error', {
             error: error.message,
             stack: error.stack,
-            key
+            key,
         });
         return fetchData();
     }
@@ -787,7 +794,7 @@ function validateProductId(req, res, next) {
     const productId = req.params.id;
     if (!productId || isNaN(parseInt(productId))) {
         return res.status(400).json({
-            error: 'Invalid product ID. Must be a valid integer.'
+            error: 'Invalid product ID. Must be a valid integer.',
         });
     }
     next();
@@ -803,11 +810,7 @@ function validateProductId(req, res, next) {
  * @returns {Promise<void>}
  */
 async function invalidateCachePattern(pattern, options = {}) {
-    const {
-        maxRetries = 3,
-        retryDelay = 1000,
-        batchSize = 100
-    } = options;
+    const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
 
     if (!redisConnected || !redisClient.isOpen) {
         logger.warn('Redis not connected, skipping cache invalidation', { pattern });
@@ -827,7 +830,7 @@ async function invalidateCachePattern(pattern, options = {}) {
             for (let i = 0; i < keys.length; i += batchSize) {
                 const batch = keys.slice(i, i + batchSize);
                 const multi = redisClient.multi();
-                
+
                 batch.forEach(key => {
                     multi.del(key);
                     // Also delete associated metadata
@@ -835,18 +838,18 @@ async function invalidateCachePattern(pattern, options = {}) {
                 });
 
                 await multi.exec();
-                
+
                 logger.debug('Cache batch invalidated', {
                     pattern,
                     batchSize: batch.length,
                     totalProcessed: Math.min(i + batchSize, keys.length),
-                    totalKeys: keys.length
+                    totalKeys: keys.length,
                 });
             }
 
             logger.info('Cache invalidated successfully', {
                 pattern,
-                keysCount: keys.length
+                keysCount: keys.length,
             });
             return;
         } catch (error) {
@@ -855,18 +858,18 @@ async function invalidateCachePattern(pattern, options = {}) {
                 logger.error('Failed to invalidate cache after maximum retries', {
                     pattern,
                     error: error.message,
-                    retries
+                    retries,
                 });
                 throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
             }
-            
+
             logger.warn('Cache invalidation attempt failed, retrying', {
                 pattern,
                 error: error.message,
                 attempt: retries,
-                nextAttemptIn: retryDelay
+                nextAttemptIn: retryDelay,
             });
-            
+
             await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
     }
@@ -890,7 +893,7 @@ async function invalidateCachePatterns(patterns, options = {}) {
     } catch (error) {
         logger.error('Failed to invalidate multiple cache patterns', {
             patterns,
-            error: error.message
+            error: error.message,
         });
         throw error;
     }
@@ -910,7 +913,7 @@ async function warmCache() {
             fetchData: async () => {
                 const result = await searchProducts({ limit: 100 });
                 return result.items || [];
-            }
+            },
         },
         {
             name: 'Category Tree',
@@ -918,8 +921,8 @@ async function warmCache() {
             fetchData: async () => {
                 const result = await getCategoryTree();
                 return result.rows || [];
-            }
-        }
+            },
+        },
     ];
 
     logger.info('Starting cache warm-up');
@@ -927,10 +930,10 @@ async function warmCache() {
     for (const task of warmUpTasks) {
         try {
             logger.debug(`Warming up ${task.name} cache`);
-            
+
             // Invalidate existing cache first
             await invalidateCachePattern(task.pattern);
-            
+
             // Fetch and cache new data
             const data = await task.fetchData();
             if (!data || !Array.isArray(data)) {
@@ -940,29 +943,25 @@ async function warmCache() {
 
             const key = task.pattern.replace('*', 'warm');
             const ttl = CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || CACHE_TTL.PRODUCT;
-            
-            await redisClient.setEx(
-                key,
-                ttl,
-                JSON.stringify(data)
-            );
+
+            await redisClient.setEx(key, ttl, JSON.stringify(data));
 
             // Set metadata
             await redisClient.hSet(`${key}:meta`, {
                 created: Date.now().toString(),
                 size: JSON.stringify(data).length.toString(),
-                compressed: 'false'
+                compressed: 'false',
             });
             await redisClient.expire(`${key}:meta`, ttl);
 
             logger.info(`${task.name} cache warmed up successfully`, {
                 key,
-                dataSize: data.length
+                dataSize: data.length,
             });
         } catch (error) {
             logger.error(`Failed to warm up ${task.name} cache`, {
                 error: error.message,
-                stack: error.stack
+                stack: error.stack,
             });
             // Continue with other tasks even if one fails
         }
@@ -977,27 +976,24 @@ cacheWarmingQueue.process('warm-products', async job => {
     const client = await pgPool.connect();
 
     try {
-        const products = await client.query(
-            'SELECT id FROM products ORDER BY created_at DESC LIMIT $1',
-            [limit]
-        );
+        const products = await client.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
 
         for (const product of products.rows) {
             const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
             const data = await getProductById(product.id);
-            
+
             if (data?.rows?.[0]) {
                 const dataToCache = JSON.stringify(data.rows[0]);
-                
+
                 // Use multi instead of pipeline
                 const multi = redisClient.multi();
                 multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
-                
+
                 // Add metadata
                 multi.hSet(`${key}:meta`, {
                     created: Date.now(),
                     size: dataToCache.length,
-                    type: 'product'
+                    type: 'product',
                 });
                 multi.expire(`${key}:meta`, CACHE_TTL.PRODUCT);
 
@@ -1006,12 +1002,12 @@ cacheWarmingQueue.process('warm-products', async job => {
         }
 
         logger.info('Products cache warmed', {
-            count: products.rows.length
+            count: products.rows.length,
         });
     } catch (error) {
         logger.error('Product cache warming error', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
         throw error;
     } finally {
@@ -1286,10 +1282,7 @@ async function init() {
         try {
             const result = await createProduct(req.body);
             // Invalidate relevant caches
-            await Promise.all([
-                invalidateCachePattern('api:products:search:*'),
-                invalidateCachePattern('api:categories:tree:*')
-            ]);
+            await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
             res.json(result.rows[0]);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -1385,19 +1378,19 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products', paginateResults, async function(req, res) {
+    app.get('/products', paginateResults, async function (req, res) {
         try {
             const searchParams = {
                 page: req.pagination.page,
                 pageSize: req.pagination.limit,
-                ...req.query // This allows passing other search parameters like name, category_id, etc.
+                ...req.query, // This allows passing other search parameters like name, category_id, etc.
             };
-            
+
             const result = await searchProducts(searchParams);
-            
+
             res.json({
                 data: result.items,
-                pagination: result.pagination
+                pagination: result.pagination,
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -1494,10 +1487,7 @@ async function init() {
         try {
             const result = await createCategory(req.body);
             // Invalidate relevant caches
-            await Promise.all([
-                invalidateCachePattern('api:categories:tree:*'),
-                invalidateCachePattern('api:products:search:*')
-            ]);
+            await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
             res.json(result.rows[0]);
         } catch (error) {
             res.status(500).json({ error: error.message });
@@ -1866,7 +1856,7 @@ async function init() {
   });
   */
 
-      /**
+    /**
      * @swagger
      * /products/search:
      *   get:
@@ -1931,18 +1921,19 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/search', 
+    app.get(
+        '/products/search',
         paginateResults,
         enhancedCacheMiddleware('products:search', 300, {
             compress: true,
             version: '1',
-            cacheKeyPrefix: 'api'
+            cacheKeyPrefix: 'api',
         }),
-        async function(req, res) {
+        async function (req, res) {
             try {
                 const { page, limit, offset } = req.pagination;
                 const { name, category_id, min_price, max_price } = req.query;
-                
+
                 let query = 'SELECT * FROM products WHERE deleted_at IS NULL';
                 const params = [];
                 let paramIndex = 1;
@@ -1975,20 +1966,17 @@ async function init() {
                 params.push(limit, offset);
 
                 const result = await pgPool.query(query, params);
-                const countResult = await pgPool.query(
-                    query.replace('SELECT *', 'SELECT COUNT(*)').split('ORDER BY')[0],
-                    params.slice(0, -2)
-                );
+                const countResult = await pgPool.query(query.replace('SELECT *', 'SELECT COUNT(*)').split('ORDER BY')[0], params.slice(0, -2));
                 const total = parseInt(countResult.rows[0].count);
-                
+
                 res.json({
                     data: result.rows,
                     pagination: {
                         page,
                         limit,
                         total,
-                        pages: Math.ceil(total / limit)
-                    }
+                        pages: Math.ceil(total / limit),
+                    },
                 });
             } catch (error) {
                 res.status(500).json({ error: error.message });
@@ -2641,7 +2629,7 @@ async function init() {
             // Invalidate relevant caches
             await Promise.all([
                 invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`),
-                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)
+                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
             ]);
             res.json(result.rows[0]);
         } catch (error) {
@@ -2667,14 +2655,15 @@ async function init() {
      *       500:
      *         description: Server error
      */
-    app.get('/products/:productId/reviews', 
+    app.get(
+        '/products/:productId/reviews',
         paginateResults,
         enhancedCacheMiddleware('products:reviews', 300, {
             compress: true,
             version: '1',
-            cacheKeyPrefix: 'api'
+            cacheKeyPrefix: 'api',
         }),
-        async function(req, res) {
+        async function (req, res) {
             try {
                 const { page, limit } = req.pagination;
                 const reviews = await getProductReviews(req.params.productId, { page, limit });
@@ -2719,7 +2708,7 @@ async function init() {
         try {
             const { userId } = req.params;
             const { product_id } = req.body;
-            
+
             if (!userId || !product_id) {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
@@ -2965,9 +2954,9 @@ async function init() {
         enhancedCacheMiddleware('products:price-history', 1800, {
             compress: true,
             version: '1',
-            cacheKeyPrefix: 'api'
+            cacheKeyPrefix: 'api',
         }),
-        async function(req, res) {
+        async function (req, res) {
             try {
                 const history = await getProductPriceHistory(req.params.productId);
                 res.json(history);
@@ -3047,7 +3036,7 @@ async function init() {
         validateProductId,
         enhancedCacheMiddleware('product', 300, {
             compress: true,
-            cacheKeyPrefix: 'api'
+            cacheKeyPrefix: 'api',
         }),
         async (req, res) => {
             try {
@@ -3057,7 +3046,7 @@ async function init() {
 
                 if (variantId && isNaN(variantId)) {
                     return res.status(400).json({
-                        error: 'Invalid variant ID. Must be a valid integer.'
+                        error: 'Invalid variant ID. Must be a valid integer.',
                     });
                 }
 
@@ -3068,7 +3057,7 @@ async function init() {
                     error: error.message,
                     productId: req.params.id,
                     variantId: req.query.variant_id,
-                    period: req.query.period
+                    period: req.query.period,
                 });
                 res.status(500).json({ error: error.message });
             }
@@ -3140,7 +3129,7 @@ async function init() {
             // Invalidate relevant caches
             await Promise.all([
                 invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`),
-                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)
+                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
             ]);
             res.json(result.rows[0]);
         } catch (error) {
@@ -3314,42 +3303,36 @@ async function init() {
         }
     );
 
-    
-
-    app.get('/categories', paginateResults, async function(req, res) {
+    app.get('/categories', paginateResults, async function (req, res) {
         try {
             const { page, limit, offset } = req.pagination;
-            const result = await pgPool.query(
-                'SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2',
-                [limit, offset]
-            );
+            const result = await pgPool.query('SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
             const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
             const total = parseInt(countResult.rows[0].count);
-            
+
             res.json({
                 data: result.rows,
                 pagination: {
                     page,
                     limit,
                     total,
-                    pages: Math.ceil(total / limit)
-                }
+                    pages: Math.ceil(total / limit),
+                },
             });
         } catch (error) {
             res.status(500).json({ error: error.message });
         }
     });
 
-
     // Update error handling in routes
     app.use((err, req, res, next) => {
         logger.error('Unhandled error', {
             error: err.message,
-            stack: err.stack
+            stack: err.stack,
         });
         res.status(500).json({
             error: 'Internal server error',
-            message: process.env.NODE_ENV === 'development' ? err.message : undefined
+            message: process.env.NODE_ENV === 'development' ? err.message : undefined,
         });
     });
 
@@ -3385,7 +3368,7 @@ async function applySchemaMigration(version, name, queries) {
         logger.info(`Starting migration ${version}: ${name}`, {
             version,
             name,
-            queryCount: queries.length
+            queryCount: queries.length,
         });
         await client.query('BEGIN');
 
@@ -3399,7 +3382,7 @@ async function applySchemaMigration(version, name, queries) {
                 logger.debug(`Executing migration query`, {
                     version,
                     name,
-                    query: query.substring(0, 100) + '...'
+                    query: query.substring(0, 100) + '...',
                 });
                 await client.query(query);
             }
@@ -3410,12 +3393,12 @@ async function applySchemaMigration(version, name, queries) {
             logger.info(`Successfully applied migration ${version}: ${name}`, {
                 version,
                 name,
-                queryCount: queries.length
+                queryCount: queries.length,
             });
         } else {
             logger.debug(`Migration ${version}: ${name} already applied, skipping`, {
                 version,
-                name
+                name,
             });
         }
 
@@ -3426,7 +3409,7 @@ async function applySchemaMigration(version, name, queries) {
             stack: error.stack,
             version,
             name,
-            queries
+            queries,
         });
         await client.query('ROLLBACK');
         throw error;
@@ -3438,7 +3421,7 @@ async function applySchemaMigration(version, name, queries) {
 async function createDatabaseSchema() {
     try {
         logger.info('Starting database schema creation');
-        
+
         // Create schema version table first
         await createSchemaVersionTable();
         logger.debug('Schema version table created successfully');
@@ -3451,7 +3434,7 @@ async function createDatabaseSchema() {
                 logger.info(`Applying migration: ${migration.name}`, {
                     version: migration.version,
                     name: migration.name,
-                    queryCount: migration.queries.length
+                    queryCount: migration.queries.length,
                 });
                 await applySchemaMigration(migration.version, migration.name, migration.queries);
             }
@@ -3461,7 +3444,7 @@ async function createDatabaseSchema() {
     } catch (error) {
         logger.error('Database schema creation failed', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
         throw error;
     }
@@ -3510,7 +3493,7 @@ async function setupMongoCollections() {
                 // Create collection if it doesn't exist
                 await db.createCollection(collection.name);
                 logger.info(`Created MongoDB collection: ${collection.name}`, {
-                    collectionName: collection.name
+                    collectionName: collection.name,
                 });
 
                 // Create indexes if defined
@@ -3519,19 +3502,20 @@ async function setupMongoCollections() {
                         await db.collection(collection.name).createIndex(index.key);
                         logger.debug(`Created index for collection ${collection.name}`, {
                             collectionName: collection.name,
-                            index: index.key
+                            index: index.key,
                         });
                     }
                 }
             } catch (error) {
-                if (error.code === 48) { // Collection already exists
+                if (error.code === 48) {
+                    // Collection already exists
                     logger.debug(`Collection already exists: ${collection.name}`);
                     continue;
                 }
                 logger.error(`Failed to create MongoDB collection: ${collection.name}`, {
                     error: error.message,
                     stack: error.stack,
-                    collectionName: collection.name
+                    collectionName: collection.name,
                 });
                 throw error;
             }
@@ -3541,7 +3525,7 @@ async function setupMongoCollections() {
     } catch (error) {
         logger.error('MongoDB collections setup failed', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
         throw error;
     }
@@ -3549,7 +3533,7 @@ async function setupMongoCollections() {
 
 function createProduct(productData) {
     const { name, description, price, category_id, metadata } = productData;
-    
+
     // Validate required fields
     if (!name || !price) {
         throw new Error('Name and price are required fields');
@@ -3705,14 +3689,14 @@ async function createOptimizedIndexes() {
                 await client.query(index.query);
                 logger.info(`Created index: ${index.name}`, {
                     indexName: index.name,
-                    query: index.query
+                    query: index.query,
                 });
             } catch (error) {
                 logger.error(`Failed to create index ${index.name}`, {
                     error: error.message,
                     stack: error.stack,
                     indexName: index.name,
-                    query: index.query
+                    query: index.query,
                 });
                 throw error;
             }
@@ -3724,7 +3708,7 @@ async function createOptimizedIndexes() {
         await client.query('ROLLBACK');
         logger.error('Database index creation failed', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
         throw error;
     } finally {
@@ -3769,14 +3753,14 @@ async function refreshMaterializedViews() {
                 await client.query(view.refreshQuery);
                 logger.info(`Refreshed materialized view: ${view.name}`, {
                     viewName: view.name,
-                    query: view.refreshQuery
+                    query: view.refreshQuery,
                 });
             } catch (error) {
                 logger.error(`Failed to refresh materialized view ${view.name}`, {
                     error: error.message,
                     stack: error.stack,
                     viewName: view.name,
-                    query: view.refreshQuery
+                    query: view.refreshQuery,
                 });
                 throw error;
             }
@@ -3788,7 +3772,7 @@ async function refreshMaterializedViews() {
         await client.query('ROLLBACK');
         logger.error('Materialized views refresh failed', {
             error: error.message,
-            stack: error.stack
+            stack: error.stack,
         });
         throw error;
     } finally {
@@ -4506,7 +4490,7 @@ async function processBulkOperation(type, data, options = {}) {
         dataLength: data.length,
         batchSize,
         concurrency,
-        retryAttempts
+        retryAttempts,
     });
 
     // Split data into batches
@@ -4518,7 +4502,7 @@ async function processBulkOperation(type, data, options = {}) {
     logger.debug('Data split into batches', {
         type,
         batchCount: batches.length,
-        batchSize
+        batchSize,
     });
 
     // Process batches with concurrency control
@@ -4538,7 +4522,7 @@ async function processBulkOperation(type, data, options = {}) {
             logger.debug('Adding job to queue', {
                 type,
                 jobId,
-                batchSize: batch.length
+                batchSize: batch.length,
             });
 
             const result = await bulkOperationQueue.add(
@@ -4565,14 +4549,14 @@ async function processBulkOperation(type, data, options = {}) {
             logger.debug('Job added successfully', {
                 type,
                 jobId,
-                result
+                result,
             });
         } catch (error) {
             logger.error('Failed to add job to queue', {
                 error: error.message,
                 stack: error.stack,
                 type,
-                jobId
+                jobId,
             });
             throw error;
         } finally {
@@ -4583,7 +4567,7 @@ async function processBulkOperation(type, data, options = {}) {
     logger.info('Bulk operation completed', {
         type,
         totalJobs: results.length,
-        successCount: results.filter(r => r.status === 'completed').length
+        successCount: results.filter(r => r.status === 'completed').length,
     });
 
     return results;
@@ -4752,11 +4736,11 @@ function paginateResults(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
-    
+
     req.pagination = {
         page,
         limit,
-        offset
+        offset,
     };
     next();
 }
@@ -4771,14 +4755,14 @@ function requestLogger(req, res, next) {
         method: req.method,
         url: req.originalUrl,
         ip: req.ip,
-        userAgent: req.get('user-agent')
+        userAgent: req.get('user-agent'),
     });
 
     // Log request body for non-GET requests
     if (req.method !== 'GET' && req.body) {
         logger.debug('Request body', {
             requestId,
-            body: req.body
+            body: req.body,
         });
     }
 
@@ -4793,7 +4777,7 @@ function requestLogger(req, res, next) {
             method: req.method,
             url: req.originalUrl,
             statusCode,
-            responseTime: `${responseTime}ms`
+            responseTime: `${responseTime}ms`,
         });
 
         // Log response body for errors
@@ -4801,7 +4785,7 @@ function requestLogger(req, res, next) {
             logger.error('Error response', {
                 requestId,
                 statusCode,
-                body: typeof body === 'string' ? body : JSON.stringify(body)
+                body: typeof body === 'string' ? body : JSON.stringify(body),
             });
         }
 
@@ -4822,14 +4806,14 @@ function errorLogger(err, req, res, next) {
         method: req.method,
         url: req.originalUrl,
         ip: req.ip,
-        userAgent: req.get('user-agent')
+        userAgent: req.get('user-agent'),
     });
 
     // Log request body for non-GET requests
     if (req.method !== 'GET' && req.body) {
         logger.debug('Request body at error', {
             requestId,
-            body: req.body
+            body: req.body,
         });
     }
 

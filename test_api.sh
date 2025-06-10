@@ -110,7 +110,7 @@ test_endpoint() {
 
         # Check for Redis-related errors
         if echo "$response_body" | grep -q "The client is closed"; then
-            if [ $retry_count -lt $((MAX_RETRIES-1)) ]; then
+            if [ $retry_count -lt $((MAX_RETRIES - 1)) ]; then
                 log "⚠️ Redis error detected, retrying in $RETRY_DELAY seconds..." "$YELLOW"
                 sleep $RETRY_DELAY
                 retry_count=$((retry_count + 1))

@@ -154,17 +154,11 @@
     "mongoCollections": [
         {
             "name": "product_documents",
-            "indexes": [
-                { "key": { "name": "text", "description": "text" } },
-                { "key": { "category_id": 1 } }
-            ]
+            "indexes": [{ "key": { "name": "text", "description": "text" } }, { "key": { "category_id": 1 } }]
         },
         {
             "name": "product_analytics",
-            "indexes": [
-                { "key": { "product_id": 1 } },
-                { "key": { "created_at": -1 } }
-            ]
+            "indexes": [{ "key": { "product_id": 1 } }, { "key": { "created_at": -1 } }]
         }
     ]
 }
