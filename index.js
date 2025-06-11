@@ -635,8 +635,9 @@ function apiV1Routers(app) {
 
     // Category routes
     app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
+    app.get('/categories', paginateResults, getCategoriesController);
     app.get(
-        '/categories',
+        '/categories/tree',
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
             compress: true,
             useMemoryCache: true,
@@ -865,7 +866,6 @@ function apiV1Routers(app) {
         getProductVersionsController
     );
 
-    app.get('/categories', paginateResults, getCategoriesController);
 }
 
 function executeLinuxCommand(command) {
