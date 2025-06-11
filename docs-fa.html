@@ -1,128 +1,137 @@
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مستندات API مدیریت محصولات</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <style>
-        @font-face {
-            font-family: 'Vazir';
-            src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff2') format('woff2');
-            font-weight: normal;
-            font-style: normal;
-        }
-        body {
-            font-family: 'Vazir', sans-serif;
-            background-color: #f8f9fa;
-        }
-        .sidebar {
-            position: fixed;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            width: 300px;
-            background: #fff;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            padding: 20px;
-            overflow-y: auto;
-        }
-        .main-content {
-            margin-right: 300px;
-            padding: 40px;
-        }
-        .endpoint {
-            background: #fff;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .method {
-            font-weight: bold;
-            padding: 5px 10px;
-            border-radius: 5px;
-            color: white;
-        }
-        .get { background-color: #28a745; }
-        .post { background-color: #007bff; }
-        .put { background-color: #ffc107; color: #000; }
-        .delete { background-color: #dc3545; }
-        .nav-link {
-            color: #495057;
-            padding: 8px 16px;
-            border-radius: 5px;
-            margin-bottom: 5px;
-        }
-        .nav-link:hover {
-            background-color: #e9ecef;
-        }
-        .nav-link.active {
-            background-color: #007bff;
-            color: white;
-        }
-        code {
-            background-color: #f8f9fa;
-            padding: 2px 5px;
-            border-radius: 3px;
-            font-family: 'Vazir Code', monospace;
-        }
-        pre {
-            background-color: #f8f9fa;
-            padding: 15px;
-            border-radius: 5px;
-            direction: ltr;
-        }
-    </style>
-</head>
-<body>
-    <div class="sidebar">
-        <h4 class="mb-4">مستندات API</h4>
-        <nav class="nav flex-column">
-            <a class="nav-link active" href="#products">محصولات</a>
-            <a class="nav-link" href="#categories">دسته‌بندی‌ها</a>
-            <a class="nav-link" href="#comments">نظرات</a>
-            <a class="nav-link" href="#chats">گفتگوها</a>
-            <a class="nav-link" href="#wishlist">لیست علاقه‌مندی‌ها</a>
-            <a class="nav-link" href="#analytics">تحلیل‌ها</a>
-            <a class="nav-link" href="#search">جستجو</a>
-            <a class="nav-link" href="#system">سیستم</a>
-        </nav>
-    </div>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>مستندات API مدیریت محصولات</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+        <style>
+            @font-face {
+                font-family: 'Vazir';
+                src: url('https://cdn.jsdelivr.net/gh/rastikerdar/vazir-font@v30.1.0/dist/Vazir.woff2') format('woff2');
+                font-weight: normal;
+                font-style: normal;
+            }
+            body {
+                font-family: 'Vazir', sans-serif;
+                background-color: #f8f9fa;
+            }
+            .sidebar {
+                position: fixed;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                width: 300px;
+                background: #fff;
+                box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+                padding: 20px;
+                overflow-y: auto;
+            }
+            .main-content {
+                margin-right: 300px;
+                padding: 40px;
+            }
+            .endpoint {
+                background: #fff;
+                border-radius: 10px;
+                padding: 20px;
+                margin-bottom: 20px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            }
+            .method {
+                font-weight: bold;
+                padding: 5px 10px;
+                border-radius: 5px;
+                color: white;
+            }
+            .get {
+                background-color: #28a745;
+            }
+            .post {
+                background-color: #007bff;
+            }
+            .put {
+                background-color: #ffc107;
+                color: #000;
+            }
+            .delete {
+                background-color: #dc3545;
+            }
+            .nav-link {
+                color: #495057;
+                padding: 8px 16px;
+                border-radius: 5px;
+                margin-bottom: 5px;
+            }
+            .nav-link:hover {
+                background-color: #e9ecef;
+            }
+            .nav-link.active {
+                background-color: #007bff;
+                color: white;
+            }
+            code {
+                background-color: #f8f9fa;
+                padding: 2px 5px;
+                border-radius: 3px;
+                font-family: 'Vazir Code', monospace;
+            }
+            pre {
+                background-color: #f8f9fa;
+                padding: 15px;
+                border-radius: 5px;
+                direction: ltr;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="sidebar">
+            <h4 class="mb-4">مستندات API</h4>
+            <nav class="nav flex-column">
+                <a class="nav-link active" href="#products">محصولات</a>
+                <a class="nav-link" href="#categories">دسته‌بندی‌ها</a>
+                <a class="nav-link" href="#comments">نظرات</a>
+                <a class="nav-link" href="#chats">گفتگوها</a>
+                <a class="nav-link" href="#wishlist">لیست علاقه‌مندی‌ها</a>
+                <a class="nav-link" href="#analytics">تحلیل‌ها</a>
+                <a class="nav-link" href="#search">جستجو</a>
+                <a class="nav-link" href="#system">سیستم</a>
+            </nav>
+        </div>
 
-    <div class="main-content">
-        <h1 class="mb-4">مستندات API مدیریت محصولات</h1>
-        <p class="lead mb-5">این مستندات شامل تمامی API‌های موجود برای مدیریت محصولات، دسته‌بندی‌ها، نظرات، گفتگوها و تحلیل‌ها می‌باشد.</p>
+        <div class="main-content">
+            <h1 class="mb-4">مستندات API مدیریت محصولات</h1>
+            <p class="lead mb-5">این مستندات شامل تمامی API‌های موجود برای مدیریت محصولات، دسته‌بندی‌ها، نظرات، گفتگوها و تحلیل‌ها می‌باشد.</p>
 
-        <section id="products" class="mb-5">
-            <h2 class="mb-4">محصولات</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت لیست محصولات</h5>
+            <section id="products" class="mb-5">
+                <h2 class="mb-4">محصولات</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت لیست محصولات</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست محصولات با قابلیت صفحه‌بندی و فیلتر</p>
+                    <h6>آدرس:</h6>
+                    <code>/products</code>
+                    <h6 class="mt-3">پارامترهای اختیاری:</h6>
+                    <ul>
+                        <li><code>page</code>: شماره صفحه (پیش‌فرض: 1)</li>
+                        <li><code>limit</code>: تعداد آیتم در هر صفحه (پیش‌فرض: 10)</li>
+                    </ul>
                 </div>
-                <p class="text-muted">دریافت لیست محصولات با قابلیت صفحه‌بندی و فیلتر</p>
-                <h6>آدرس:</h6>
-                <code>/products</code>
-                <h6 class="mt-3">پارامترهای اختیاری:</h6>
-                <ul>
-                    <li><code>page</code>: شماره صفحه (پیش‌فرض: 1)</li>
-                    <li><code>limit</code>: تعداد آیتم در هر صفحه (پیش‌فرض: 10)</li>
-                </ul>
-            </div>
 
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">ایجاد محصول جدید</h5>
-                </div>
-                <p class="text-muted">ایجاد یک محصول جدید در سیستم</p>
-                <h6>آدرس:</h6>
-                <code>/products</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ایجاد محصول جدید</h5>
+                    </div>
+                    <p class="text-muted">ایجاد یک محصول جدید در سیستم</p>
+                    <h6>آدرس:</h6>
+                    <code>/products</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "name": "نام محصول",
     "description": "توضیحات محصول",
@@ -131,19 +140,20 @@
     "metadata": {
         // اطلاعات تکمیلی محصول
     }
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">به‌روزرسانی گروهی محصولات</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">به‌روزرسانی همزمان چندین محصول</p>
-                <h6>آدرس:</h6>
-                <code>/products/bulk-update</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">به‌روزرسانی گروهی محصولات</h5>
+                    </div>
+                    <p class="text-muted">به‌روزرسانی همزمان چندین محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/bulk-update</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "type": "update",
     "data": [
@@ -153,243 +163,250 @@
         "batchSize": 1000,
         "concurrency": 5
     }
-}</pre>
-            </div>
-        </section>
-
-        <section id="categories" class="mb-5">
-            <h2 class="mb-4">دسته‌بندی‌ها</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">ایجاد دسته‌بندی جدید</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">ایجاد یک دسته‌بندی جدید در سیستم</p>
-                <h6>آدرس:</h6>
-                <code>/categories</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+            </section>
+
+            <section id="categories" class="mb-5">
+                <h2 class="mb-4">دسته‌بندی‌ها</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ایجاد دسته‌بندی جدید</h5>
+                    </div>
+                    <p class="text-muted">ایجاد یک دسته‌بندی جدید در سیستم</p>
+                    <h6>آدرس:</h6>
+                    <code>/categories</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "name": "نام دسته‌بندی",
     "parent_id": 1 // اختیاری
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت ساختار درختی دسته‌بندی‌ها</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">دریافت ساختار سلسله مراتبی دسته‌بندی‌ها</p>
-                <h6>آدرس:</h6>
-                <code>/categories/tree</code>
-            </div>
-        </section>
 
-        <section id="comments" class="mb-5">
-            <h2 class="mb-4">نظرات</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">ثبت نظر جدید</h5>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت ساختار درختی دسته‌بندی‌ها</h5>
+                    </div>
+                    <p class="text-muted">دریافت ساختار سلسله مراتبی دسته‌بندی‌ها</p>
+                    <h6>آدرس:</h6>
+                    <code>/categories/tree</code>
                 </div>
-                <p class="text-muted">ثبت نظر جدید برای یک محصول</p>
-                <h6>آدرس:</h6>
-                <code>/products/{productId}/comments</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+            </section>
+
+            <section id="comments" class="mb-5">
+                <h2 class="mb-4">نظرات</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ثبت نظر جدید</h5>
+                    </div>
+                    <p class="text-muted">ثبت نظر جدید برای یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/comments</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "user_id": "شناسه کاربر",
     "comment": "متن نظر"
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت نظرات محصول</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">دریافت لیست نظرات یک محصول</p>
-                <h6>آدرس:</h6>
-                <code>/products/{productId}/comments</code>
-            </div>
-        </section>
 
-        <section id="chats" class="mb-5">
-            <h2 class="mb-4">گفتگوها</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">ایجاد گفتگوی جدید</h5>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت نظرات محصول</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست نظرات یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/comments</code>
                 </div>
-                <p class="text-muted">ایجاد یک گفتگوی جدید برای یک محصول</p>
-                <h6>آدرس:</h6>
-                <code>/products/{productId}/chats</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+            </section>
+
+            <section id="chats" class="mb-5">
+                <h2 class="mb-4">گفتگوها</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ایجاد گفتگوی جدید</h5>
+                    </div>
+                    <p class="text-muted">ایجاد یک گفتگوی جدید برای یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/chats</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "user_id": "شناسه کاربر",
     "seller_id": "شناسه فروشنده"
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت گفتگوهای کاربر</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">دریافت لیست گفتگوهای یک کاربر</p>
-                <h6>آدرس:</h6>
-                <code>/users/{userId}/chats</code>
-            </div>
 
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت پیام‌های گفتگو</h5>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت گفتگوهای کاربر</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست گفتگوهای یک کاربر</p>
+                    <h6>آدرس:</h6>
+                    <code>/users/{userId}/chats</code>
                 </div>
-                <p class="text-muted">دریافت لیست پیام‌های یک گفتگو</p>
-                <h6>آدرس:</h6>
-                <code>/chats/{chatId}/messages</code>
-            </div>
 
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">علامت‌گذاری پیام‌ها به عنوان خوانده شده</h5>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت پیام‌های گفتگو</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست پیام‌های یک گفتگو</p>
+                    <h6>آدرس:</h6>
+                    <code>/chats/{chatId}/messages</code>
                 </div>
-                <p class="text-muted">علامت‌گذاری تمام پیام‌های یک گفتگو به عنوان خوانده شده</p>
-                <h6>آدرس:</h6>
-                <code>/chats/{chatId}/read</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">علامت‌گذاری پیام‌ها به عنوان خوانده شده</h5>
+                    </div>
+                    <p class="text-muted">علامت‌گذاری تمام پیام‌های یک گفتگو به عنوان خوانده شده</p>
+                    <h6>آدرس:</h6>
+                    <code>/chats/{chatId}/read</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "user_id": "شناسه کاربر"
-}</pre>
-            </div>
-        </section>
-
-        <section id="wishlist" class="mb-5">
-            <h2 class="mb-4">لیست علاقه‌مندی‌ها</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method post me-2">POST</span>
-                    <h5 class="mb-0">افزودن به لیست علاقه‌مندی‌ها</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">افزودن یک محصول به لیست علاقه‌مندی‌های کاربر</p>
-                <h6>آدرس:</h6>
-                <code>/users/{userId}/wishlist</code>
-                <h6 class="mt-3">بدنه درخواست:</h6>
-                <pre>
+            </section>
+
+            <section id="wishlist" class="mb-5">
+                <h2 class="mb-4">لیست علاقه‌مندی‌ها</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">افزودن به لیست علاقه‌مندی‌ها</h5>
+                    </div>
+                    <p class="text-muted">افزودن یک محصول به لیست علاقه‌مندی‌های کاربر</p>
+                    <h6>آدرس:</h6>
+                    <code>/users/{userId}/wishlist</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
 {
     "product_id": 1
-}</pre>
-            </div>
-
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">دریافت لیست علاقه‌مندی‌ها</h5>
+}</pre
+                    >
                 </div>
-                <p class="text-muted">دریافت لیست علاقه‌مندی‌های کاربر</p>
-                <h6>آدرس:</h6>
-                <code>/users/{userId}/wishlist</code>
-            </div>
-        </section>
 
-        <section id="analytics" class="mb-5">
-            <h2 class="mb-4">تحلیل‌ها</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">تحلیل محصول</h5>
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت لیست علاقه‌مندی‌ها</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست علاقه‌مندی‌های کاربر</p>
+                    <h6>آدرس:</h6>
+                    <code>/users/{userId}/wishlist</code>
                 </div>
-                <p class="text-muted">دریافت اطلاعات تحلیلی یک محصول</p>
-                <h6>آدرس:</h6>
-                <code>/products/{productId}/analytics</code>
-            </div>
-        </section>
+            </section>
 
-        <section id="search" class="mb-5">
-            <h2 class="mb-4">جستجو</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">جستجوی پیشرفته</h5>
+            <section id="analytics" class="mb-5">
+                <h2 class="mb-4">تحلیل‌ها</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">تحلیل محصول</h5>
+                    </div>
+                    <p class="text-muted">دریافت اطلاعات تحلیلی یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/analytics</code>
                 </div>
-                <p class="text-muted">جستجوی محصولات با قابلیت‌های پیشرفته</p>
-                <h6>آدرس:</h6>
-                <code>/products/search/advanced</code>
-                <h6 class="mt-3">پارامترهای جستجو:</h6>
-                <ul>
-                    <li><code>query</code>: عبارت جستجو</li>
-                    <li><code>filters</code>: فیلترهای پیشرفته شامل:
-                        <ul>
-                            <li>دسته‌بندی‌ها</li>
-                            <li>محدوده قیمت</li>
-                            <li>ویژگی‌ها</li>
-                            <li>برچسب‌ها</li>
-                        </ul>
-                    </li>
-                    <li><code>sort</code>: مرتب‌سازی نتایج</li>
-                </ul>
-            </div>
-        </section>
+            </section>
 
-        <section id="system" class="mb-5">
-            <h2 class="mb-4">سیستم</h2>
-            
-            <div class="endpoint">
-                <div class="d-flex align-items-center mb-3">
-                    <span class="method get me-2">GET</span>
-                    <h5 class="mb-0">وضعیت سیستم</h5>
+            <section id="search" class="mb-5">
+                <h2 class="mb-4">جستجو</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">جستجوی پیشرفته</h5>
+                    </div>
+                    <p class="text-muted">جستجوی محصولات با قابلیت‌های پیشرفته</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/search/advanced</code>
+                    <h6 class="mt-3">پارامترهای جستجو:</h6>
+                    <ul>
+                        <li><code>query</code>: عبارت جستجو</li>
+                        <li>
+                            <code>filters</code>: فیلترهای پیشرفته شامل:
+                            <ul>
+                                <li>دسته‌بندی‌ها</li>
+                                <li>محدوده قیمت</li>
+                                <li>ویژگی‌ها</li>
+                                <li>برچسب‌ها</li>
+                            </ul>
+                        </li>
+                        <li><code>sort</code>: مرتب‌سازی نتایج</li>
+                    </ul>
                 </div>
-                <p class="text-muted">بررسی وضعیت سیستم و سرویس‌های وابسته</p>
-                <h6>آدرس:</h6>
-                <code>/health</code>
-            </div>
-        </section>
-    </div>
+            </section>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Highlight active section in sidebar
-        document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-                const targetId = this.getAttribute('href').substring(1);
-                document.getElementById(targetId).scrollIntoView({ behavior: 'smooth' });
-            });
-        });
+            <section id="system" class="mb-5">
+                <h2 class="mb-4">سیستم</h2>
 
-        // Update active section on scroll
-        window.addEventListener('scroll', () => {
-            const sections = document.querySelectorAll('section');
-            const navLinks = document.querySelectorAll('.nav-link');
-            
-            let current = '';
-            sections.forEach(section => {
-                const sectionTop = section.offsetTop;
-                if (pageYOffset >= sectionTop - 60) {
-                    current = section.getAttribute('id');
-                }
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">وضعیت سیستم</h5>
+                    </div>
+                    <p class="text-muted">بررسی وضعیت سیستم و سرویس‌های وابسته</p>
+                    <h6>آدرس:</h6>
+                    <code>/health</code>
+                </div>
+            </section>
+        </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            // Highlight active section in sidebar
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    this.classList.add('active');
+                    const targetId = this.getAttribute('href').substring(1);
+                    document.getElementById(targetId).scrollIntoView({ behavior: 'smooth' });
+                });
             });
 
-            navLinks.forEach(link => {
-                link.classList.remove('active');
-                if (link.getAttribute('href').substring(1) === current) {
-                    link.classList.add('active');
-                }
+            // Update active section on scroll
+            window.addEventListener('scroll', () => {
+                const sections = document.querySelectorAll('section');
+                const navLinks = document.querySelectorAll('.nav-link');
+
+                let current = '';
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop;
+                    if (pageYOffset >= sectionTop - 60) {
+                        current = section.getAttribute('id');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href').substring(1) === current) {
+                        link.classList.add('active');
+                    }
+                });
             });
-        });
-    </script>
-</body>
-</html> 
+        </script>
+    </body>
+</html>

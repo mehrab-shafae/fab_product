@@ -28,7 +28,7 @@ import YAML from 'yamljs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'database-schema.json'), 'utf8'));
-// ======================================================================
+
 const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
     process.env.POSTGRES_URI ||
@@ -127,12 +127,398 @@ const logger = createLogger({
 });
 
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: 'Too many requests from this IP, please try again later.',
+});
+
+const speedLimiter = slowDown({
+    windowMs: 15 * 60 * 1000,
+    delayAfter: 50,
+    delayMs: (used, req) => {
+        const delayAfter = req.slowDown.limit;
+        return (used - delayAfter) * 500;
+    },
+});
+
+const CACHE_PREFIXES = {
+    PRODUCT: 'product:',
+    CATEGORY: 'category:',
+    TAG: 'tag:',
+    COMMENT: 'comment:',
+    CHAT: 'chat:',
+    ANALYTICS: 'analytics:',
+};
+
+const CACHE_TTL = {
+    PRODUCT: 3600,
+    CATEGORY: 7200,
+    USER: 1800,
+    CHAT: 300,
+    TAG: 3600,
+    COMMENT: 1800,
+    ANALYTICS: 3600,
+};
+
+const swaggerDocument = YAML.parse(readFileSync(join(__dirname, 'swagger.yaml'), 'utf8'));
+
+const pgPool = new Pool({
+    connectionString: POSTGRES_URI,
+});
+
+const mongoClient = new MongoClient(MONGO_URI);
+
+const CACHE_COMPRESSION_THRESHOLD = 1024;
+const BATCH_SIZE = 1000;
+const MAX_CONCURRENT_JOBS = 5;
+
+const productUpdateQueue = new Bull('product-updates', REDIS_URI);
+const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
+const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
+
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+const DEFAULT_SORT_FIELD = 'created_at';
+const DEFAULT_SORT_ORDER = 'DESC';
+
+const BULK_OPERATION_TYPES = {
+    UPDATE: 'update',
+    INSERT: 'insert',
+    DELETE: 'delete',
+    PRICE_UPDATE: 'price_update',
+    INVENTORY_UPDATE: 'inventory_update',
+    ATTRIBUTE_UPDATE: 'attribute_update',
+};
+
+// ======================================================================
 logger.debug = function (message, metadata = {}) {
     if (DEBUG_MODE) {
         this.info(message, { ...metadata, debug: true });
     }
 };
 
+swaggerDocument.info.title = 'Product Microservice API';
+swaggerDocument.info.description = 'API for managing products and related features';
+swaggerDocument.servers[0].description = 'Development server';
+
+cacheWarmingQueue.process('warm-products', async job => {
+    const { limit } = job.data;
+    const client = await pgPool.connect();
+
+    try {
+        const products = await client.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
+
+        for (const product of products.rows) {
+            const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
+            const data = await getProductById(product.id);
+
+            if (data?.rows?.[0]) {
+                const dataToCache = JSON.stringify(data.rows[0]);
+
+                const multi = redisClient.multi();
+                multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
+
+                multi.hSet(`${key}:meta`, {
+                    created: Date.now(),
+                    size: dataToCache.length,
+                    type: 'product',
+                });
+                multi.expire(`${key}:meta`, CACHE_TTL.PRODUCT);
+
+                await multi.exec();
+            }
+        }
+
+        logger.info('Products cache warmed', {
+            count: products.rows.length,
+        });
+    } catch (error) {
+        logger.error('Product cache warming error', {
+            error: error.message,
+            stack: error.stack,
+        });
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+cacheWarmingQueue.process('preload-related', async job => {
+    const { productId, types } = job.data;
+
+    for (const type of types) {
+        const key = `${CACHE_PREFIXES.PRODUCT}${productId}:${type}`;
+        let data;
+
+        switch (type) {
+            case 'variants':
+                data = await getProductVariants(productId);
+                break;
+            case 'images':
+                data = await getProductImages(productId);
+                break;
+            case 'reviews':
+                data = await getProductReviews(productId);
+                break;
+        }
+
+        if (data && redisConnected) {
+            await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows));
+        }
+    }
+});
+
+bulkOperationQueue.process('update-products', async job => {
+    const { products } = job.data;
+    const client = await pgPool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        for (const product of products) {
+            await client.query(
+                `UPDATE products 
+                 SET name = $1, description = $2, price = $3, 
+                     category_id = $4, metadata = $5, updated_at = NOW()
+                 WHERE id = $6`,
+                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+
+        return { success: true, count: products.length };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
+    const { batch, options } = job.data;
+    const client = await pgPool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        for (const product of batch) {
+            await client.query(
+                `UPDATE products 
+                 SET name = $1, description = $2, price = $3, 
+                     category_id = $4, metadata = $5, updated_at = NOW()
+                 WHERE id = $6`,
+                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
+            );
+        }
+
+        await client.query('COMMIT');
+        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+
+        return { success: true, count: batch.length };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
+    const { batch, options } = job.data;
+    const client = await pgPool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        for (const update of batch) {
+            await client.query(
+                `UPDATE products 
+                 SET price = $1, updated_at = NOW()
+                 WHERE id = $2`,
+                [update.price, update.product_id]
+            );
+
+            await client.query(
+                `INSERT INTO price_history 
+                 (product_id, variant_id, price, change_type, created_at)
+                 VALUES ($1, $2, $3, $4, NOW())`,
+                [update.product_id, update.variant_id, update.price, update.change_type]
+            );
+        }
+
+        await client.query('COMMIT');
+        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+
+        return { success: true, count: batch.length };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
+    const { batch, options } = job.data;
+    const client = await pgPool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        for (const update of batch) {
+            await client.query(
+                `INSERT INTO inventory_updates 
+                 (product_id, variant_id, quantity_change, location, created_at)
+                 VALUES ($1, $2, $3, $4, NOW())
+                 ON CONFLICT (product_id, variant_id, location) 
+                 DO UPDATE SET 
+                    quantity = inventory_updates.quantity + $3,
+                    updated_at = NOW()`,
+                [update.product_id, update.variant_id, update.quantity_change, update.location]
+            );
+        }
+
+        await client.query('COMMIT');
+        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+
+        return { success: true, count: batch.length };
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+});
+
+process.on('beforeExit', free);
+process.on('SIGINT', free);
+process.on('SIGTERM', free);
+process.on('SIGQUIT', free);
+
+// ======================================================================
+
+class SimpleNeuralNetwork {
+    constructor(inputSize, hiddenSize, outputSize) {
+        this.weights1 = Array(inputSize)
+            .fill()
+            .map(() =>
+                Array(hiddenSize)
+                    .fill()
+                    .map(() => Math.random() * 2 - 1)
+            );
+        this.weights2 = Array(hiddenSize)
+            .fill()
+            .map(() =>
+                Array(outputSize)
+                    .fill()
+                    .map(() => Math.random() * 2 - 1)
+            );
+    }
+
+    sigmoid(x) {
+        return 1 / (1 + Math.exp(-x));
+    }
+
+    sigmoidDerivative(x) {
+        return x * (1 - x);
+    }
+
+    forward(input) {
+        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0)));
+        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0)));
+    }
+
+    train(input, target, learningRate = 0.1) {
+        const output = this.forward(input);
+        const outputError = target.map((t, i) => t - output[i]);
+        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
+
+        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
+        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
+
+        for (let i = 0; i < this.weights1.length; i++) {
+            for (let j = 0; j < this.weights1[i].length; j++) {
+                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
+            }
+        }
+
+        for (let i = 0; i < this.weights2.length; i++) {
+            for (let j = 0; j < this.weights2[i].length; j++) {
+                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
+            }
+        }
+    }
+}
+
+class EnhancedNeuralNetwork {
+    constructor(inputSize, hiddenSize, outputSize) {
+        this.weights1 = Array(inputSize)
+            .fill()
+            .map(() =>
+                Array(hiddenSize)
+                    .fill()
+                    .map(() => Math.random() * 2 - 1)
+            );
+        this.weights2 = Array(hiddenSize)
+            .fill()
+            .map(() =>
+                Array(outputSize)
+                    .fill()
+                    .map(() => Math.random() * 2 - 1)
+            );
+        this.bias1 = Array(hiddenSize)
+            .fill()
+            .map(() => Math.random() * 2 - 1);
+        this.bias2 = Array(outputSize)
+            .fill()
+            .map(() => Math.random() * 2 - 1);
+    }
+
+    sigmoid(x) {
+        return 1 / (1 + Math.exp(-x));
+    }
+
+    sigmoidDerivative(x) {
+        return x * (1 - x);
+    }
+
+    forward(input) {
+        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0) + this.bias1));
+        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0) + this.bias2));
+    }
+
+    train(input, target, learningRate = 0.1) {
+        const output = this.forward(input);
+        const outputError = target.map((t, i) => t - output[i]);
+        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
+
+        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
+        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
+
+        for (let i = 0; i < this.weights1.length; i++) {
+            for (let j = 0; j < this.weights1[i].length; j++) {
+                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
+            }
+        }
+
+        for (let i = 0; i < this.weights2.length; i++) {
+            for (let j = 0; j < this.weights2[i].length; j++) {
+                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
+            }
+        }
+
+        this.bias1 = this.bias1.map((b, i) => b + learningRate * hiddenDelta[i]);
+        this.bias2 = this.bias2.map((b, i) => b + learningRate * outputDelta[i]);
+    }
+}
+
+// ======================================================================
 async function initializeRedis() {
     const ONE_HOUR = 60 * 60 * 1000;
     let retryTimer = null;
@@ -198,61 +584,6 @@ async function initializeRedis() {
 
     return connectToRedis();
 }
-
-const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests from this IP, please try again later.',
-});
-
-const speedLimiter = slowDown({
-    windowMs: 15 * 60 * 1000,
-    delayAfter: 50,
-    delayMs: (used, req) => {
-        const delayAfter = req.slowDown.limit;
-        return (used - delayAfter) * 500;
-    },
-});
-
-const CACHE_PREFIXES = {
-    PRODUCT: 'product:',
-    CATEGORY: 'category:',
-    TAG: 'tag:',
-    COMMENT: 'comment:',
-    CHAT: 'chat:',
-    ANALYTICS: 'analytics:',
-};
-
-const CACHE_TTL = {
-    PRODUCT: 3600,
-    CATEGORY: 7200,
-    USER: 1800,
-    CHAT: 300,
-    TAG: 3600,
-    COMMENT: 1800,
-    ANALYTICS: 3600,
-};
-
-const swaggerDocument = YAML.parse(readFileSync(join(__dirname, 'swagger.yaml'), 'utf8'));
-
-swaggerDocument.info.title = 'Product Microservice API';
-swaggerDocument.info.description = 'API for managing products and related features';
-swaggerDocument.servers[0].description = 'Development server';
-
-const pgPool = new Pool({
-    connectionString: POSTGRES_URI,
-});
-
-const mongoClient = new MongoClient(MONGO_URI);
-// ======================================================================
-
-const CACHE_COMPRESSION_THRESHOLD = 1024;
-const BATCH_SIZE = 1000;
-const MAX_CONCURRENT_JOBS = 5;
-
-const productUpdateQueue = new Bull('product-updates', REDIS_URI);
-const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
-const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
 
 async function clearCorruptedCache() {
     try {
@@ -708,73 +1039,6 @@ async function warmCache() {
     logger.info('Cache warm-up completed');
 }
 
-cacheWarmingQueue.process('warm-products', async job => {
-    const { limit } = job.data;
-    const client = await pgPool.connect();
-
-    try {
-        const products = await client.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
-
-        for (const product of products.rows) {
-            const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
-            const data = await getProductById(product.id);
-
-            if (data?.rows?.[0]) {
-                const dataToCache = JSON.stringify(data.rows[0]);
-
-                const multi = redisClient.multi();
-                multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
-
-                multi.hSet(`${key}:meta`, {
-                    created: Date.now(),
-                    size: dataToCache.length,
-                    type: 'product',
-                });
-                multi.expire(`${key}:meta`, CACHE_TTL.PRODUCT);
-
-                await multi.exec();
-            }
-        }
-
-        logger.info('Products cache warmed', {
-            count: products.rows.length,
-        });
-    } catch (error) {
-        logger.error('Product cache warming error', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    } finally {
-        client.release();
-    }
-});
-
-cacheWarmingQueue.process('preload-related', async job => {
-    const { productId, types } = job.data;
-
-    for (const type of types) {
-        const key = `${CACHE_PREFIXES.PRODUCT}${productId}:${type}`;
-        let data;
-
-        switch (type) {
-            case 'variants':
-                data = await getProductVariants(productId);
-                break;
-            case 'images':
-                data = await getProductImages(productId);
-                break;
-            case 'reviews':
-                data = await getProductReviews(productId);
-                break;
-        }
-
-        if (data && redisConnected) {
-            await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows));
-        }
-    }
-});
-
 async function processBulkProductUpdate(products) {
     const chunks = [];
     for (let i = 0; i < products.length; i += BATCH_SIZE) {
@@ -801,36 +1065,6 @@ async function processBulkProductUpdate(products) {
 
     return results;
 }
-
-bulkOperationQueue.process('update-products', async job => {
-    const { products } = job.data;
-    const client = await pgPool.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        for (const product of products) {
-            await client.query(
-                `UPDATE products 
-                 SET name = $1, description = $2, price = $3, 
-                     category_id = $4, metadata = $5, updated_at = NOW()
-                 WHERE id = $6`,
-                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
-            );
-        }
-
-        await client.query('COMMIT');
-
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-
-        return { success: true, count: products.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
 
 function scheduleCacheWarming() {
     setInterval(warmCache, 4 * 60 * 60 * 1000);
@@ -1937,11 +2171,6 @@ function getProductById(id) {
     return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
 }
 
-const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
-const DEFAULT_SORT_FIELD = 'created_at';
-const DEFAULT_SORT_ORDER = 'DESC';
-
 async function searchProducts(searchParams) {
     const {
         page = 1,
@@ -2288,59 +2517,6 @@ function markChatMessagesAsRead(chat_id, user_id) {
         RETURNING *
     `;
     return pgPool.query(query, [chat_id, user_id]);
-}
-
-class SimpleNeuralNetwork {
-    constructor(inputSize, hiddenSize, outputSize) {
-        this.weights1 = Array(inputSize)
-            .fill()
-            .map(() =>
-                Array(hiddenSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.weights2 = Array(hiddenSize)
-            .fill()
-            .map(() =>
-                Array(outputSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-    }
-
-    sigmoid(x) {
-        return 1 / (1 + Math.exp(-x));
-    }
-
-    sigmoidDerivative(x) {
-        return x * (1 - x);
-    }
-
-    forward(input) {
-        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0)));
-        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0)));
-    }
-
-    train(input, target, learningRate = 0.1) {
-        const output = this.forward(input);
-        const outputError = target.map((t, i) => t - output[i]);
-        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
-
-        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
-        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
-
-        for (let i = 0; i < this.weights1.length; i++) {
-            for (let j = 0; j < this.weights1[i].length; j++) {
-                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
-            }
-        }
-
-        for (let i = 0; i < this.weights2.length; i++) {
-            for (let j = 0; j < this.weights2[i].length; j++) {
-                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
-            }
-        }
-    }
 }
 
 async function trainRecommendationModel() {
@@ -2772,77 +2948,6 @@ function addProductRelationship(relationshipData) {
     return pgPool.query(query, [product_id, related_product_id, relationship_type]);
 }
 
-class EnhancedNeuralNetwork {
-    constructor(inputSize, hiddenSize, outputSize) {
-        this.weights1 = Array(inputSize)
-            .fill()
-            .map(() =>
-                Array(hiddenSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.weights2 = Array(hiddenSize)
-            .fill()
-            .map(() =>
-                Array(outputSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.bias1 = Array(hiddenSize)
-            .fill()
-            .map(() => Math.random() * 2 - 1);
-        this.bias2 = Array(outputSize)
-            .fill()
-            .map(() => Math.random() * 2 - 1);
-    }
-
-    sigmoid(x) {
-        return 1 / (1 + Math.exp(-x));
-    }
-
-    sigmoidDerivative(x) {
-        return x * (1 - x);
-    }
-
-    forward(input) {
-        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0) + this.bias1));
-        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0) + this.bias2));
-    }
-
-    train(input, target, learningRate = 0.1) {
-        const output = this.forward(input);
-        const outputError = target.map((t, i) => t - output[i]);
-        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
-
-        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
-        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
-
-        for (let i = 0; i < this.weights1.length; i++) {
-            for (let j = 0; j < this.weights1[i].length; j++) {
-                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
-            }
-        }
-
-        for (let i = 0; i < this.weights2.length; i++) {
-            for (let j = 0; j < this.weights2[i].length; j++) {
-                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
-            }
-        }
-
-        this.bias1 = this.bias1.map((b, i) => b + learningRate * hiddenDelta[i]);
-        this.bias2 = this.bias2.map((b, i) => b + learningRate * outputDelta[i]);
-    }
-}
-
-const BULK_OPERATION_TYPES = {
-    UPDATE: 'update',
-    INSERT: 'insert',
-    DELETE: 'delete',
-    PRICE_UPDATE: 'price_update',
-    INVENTORY_UPDATE: 'inventory_update',
-    ATTRIBUTE_UPDATE: 'attribute_update',
-};
-
 async function processBulkOperation(type, data, options = {}) {
     const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
 
@@ -2931,102 +3036,6 @@ async function processBulkOperation(type, data, options = {}) {
     return results;
 }
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        for (const product of batch) {
-            await client.query(
-                `UPDATE products 
-                 SET name = $1, description = $2, price = $3, 
-                     category_id = $4, metadata = $5, updated_at = NOW()
-                 WHERE id = $6`,
-                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
-            );
-        }
-
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
-
-bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        for (const update of batch) {
-            await client.query(
-                `UPDATE products 
-                 SET price = $1, updated_at = NOW()
-                 WHERE id = $2`,
-                [update.price, update.product_id]
-            );
-
-            await client.query(
-                `INSERT INTO price_history 
-                 (product_id, variant_id, price, change_type, created_at)
-                 VALUES ($1, $2, $3, $4, NOW())`,
-                [update.product_id, update.variant_id, update.price, update.change_type]
-            );
-        }
-
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
-
-bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
-
-    try {
-        await client.query('BEGIN');
-
-        for (const update of batch) {
-            await client.query(
-                `INSERT INTO inventory_updates 
-                 (product_id, variant_id, quantity_change, location, created_at)
-                 VALUES ($1, $2, $3, $4, NOW())
-                 ON CONFLICT (product_id, variant_id, location) 
-                 DO UPDATE SET 
-                    quantity = inventory_updates.quantity + $3,
-                    updated_at = NOW()`,
-                [update.product_id, update.variant_id, update.quantity_change, update.location]
-            );
-        }
-
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
-
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
-
 async function createMaterializedViewIndexes() {
     const client = await pgPool.connect();
     try {
@@ -3052,34 +3061,6 @@ async function createMaterializedViewIndexes() {
         client.release();
     }
 }
-
-// ======================================================================
-async function main() {
-    await clearCorruptedCache();
-    init();
-}
-main();
-// ======================================================================
-
-function free() {
-    console.log('\nCore free...');
-
-    try {
-        clearCorruptedCache();
-    } catch (_) {
-    } finally {
-        console.log('Cache cleared');
-    }
-
-    setTimeout(() => {
-        process.exit(0);
-    }, 2 * 1000);
-}
-
-process.on('beforeExit', free);
-process.on('SIGINT', free);
-process.on('SIGTERM', free);
-process.on('SIGQUIT', free);
 
 function paginateResults(req, res, next) {
     const page = parseInt(req.query.page) || 1;
@@ -3202,3 +3183,26 @@ function getProductRelationships(product_id, relationship_type) {
 function getProductVersions(product_id) {
     return pgPool.query('SELECT * FROM product_versions WHERE product_id = $1 ORDER BY version_number DESC', [product_id]);
 }
+
+function free() {
+    console.log('\nCore free...');
+
+    try {
+        clearCorruptedCache();
+    } catch (_) {
+    } finally {
+        console.log('Cache cleared');
+    }
+
+    setTimeout(() => {
+        process.exit(0);
+    }, 2 * 1000);
+}
+
+// ======================================================================
+async function main() {
+    await clearCorruptedCache();
+    init();
+}
+main();
+// ======================================================================
