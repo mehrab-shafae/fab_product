@@ -6,7 +6,6 @@ import { Pool } from 'pg';
 import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import swaggerJsdoc from 'swagger-jsdoc';
 import { createClient } from 'redis';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
@@ -15,13 +14,8 @@ import { gzip, gunzip } from 'zlib';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import expressValidator from 'express-validator';
 import { createLogger, format, transports } from 'winston';
-import { body, param, query, validationResult } from 'express-validator';
 import helmet from 'helmet';
-import xss from 'xss-clean';
-import hpp from 'hpp';
-import mongoSanitize from 'express-mongo-sanitize';
 import YAML from 'yamljs';
 import { existsSync } from 'fs';
 
@@ -547,9 +541,6 @@ async function init() {
     await initializeRedis();
 
     app.use(helmet());
-    app.use(xss());
-    app.use(hpp());
-    app.use(mongoSanitize());
     app.use(cors());
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
@@ -600,12 +591,11 @@ async function init() {
             res.status(404).send('Documentation file not found');
         }
     });
+
     app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
 
-    // Health check route
     app.get('/health', healthCheckController);
 
-    // Initialize database and system
     try {
         await createDatabaseSchema();
 
@@ -627,11 +617,12 @@ async function init() {
         process.exit(1);
     }
 
-    // Add response handler middleware
     app.use(responseHandler);
+
     apiV1Routers(apiV1Router);
 
     app.use('/api/product/v1', apiV1Router);
+    app.get('/jobs/:jobId/status', getJobStatusController);
 
     app.use((err, req, res, next) => {
         logger.error('Unhandled error', {
@@ -652,6 +643,36 @@ async function init() {
 
 function apiV1Routers(app) {
     app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), createProductController);
+    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), bulkUpdateProductsController);
+    app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
+    app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), addCommentController);
+    app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), addTagToProductController);
+    app.post('/products/:productId/chats', createProductChatController);
+    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), addChatMessageController);
+    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), markChatMessagesAsReadController);
+    app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), addProductImageController);
+    app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), createProductVariantController);
+    app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), updateInventoryController);
+    app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), addProductReviewController);
+    app.post('/users/:userId/wishlist', validateRequiredFieldsMiddleware(['product_id']), addToWishlistController);
+    app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), addProductAttributeController);
+    app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), createAttributeController);
+    app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), addPriceHistoryController);
+    app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), addProductRelationshipController);
+    app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), createProductVersionController);
+
+    app.get(
+        '/products',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        paginateResults,
+        searchProductsController
+    );
+
     app.get(
         '/products/:id',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -662,12 +683,19 @@ function apiV1Routers(app) {
         }),
         getProductByIdController
     );
-    app.get('/products', paginateResults, searchProductsController);
-    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), bulkUpdateProductsController);
 
-    // Category routes
-    app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
-    app.get('/categories', paginateResults, getCategoriesController);
+    app.get(
+        '/categories',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        paginateResults,
+        getCategoriesController
+    );
+
     app.get(
         '/categories/tree',
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
@@ -679,8 +707,6 @@ function apiV1Routers(app) {
         getCategoryTreeController
     );
 
-    // Comment routes
-    app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), addCommentController);
     app.get(
         '/products/:productId/comments',
         enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
@@ -692,8 +718,6 @@ function apiV1Routers(app) {
         getProductCommentsController
     );
 
-    // Tag routes
-    app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), addTagToProductController);
     app.get(
         '/products/tags/:tagName',
         enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
@@ -705,7 +729,6 @@ function apiV1Routers(app) {
         getProductsByTagController
     );
 
-    // Search routes
     app.get(
         '/products/search/document',
         validateRequiredFieldsMiddleware(['q']),
@@ -718,9 +741,6 @@ function apiV1Routers(app) {
         searchProductDocumentsController
     );
 
-    app.get('/jobs/:jobId/status', getJobStatusController);
-
-    app.post('/products/:productId/chats', createProductChatController);
     app.get(
         '/users/:userId/chats',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -731,7 +751,7 @@ function apiV1Routers(app) {
         }),
         getUserChatsController
     );
-    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), addChatMessageController);
+
     app.get(
         '/chats/:chatId/messages',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -742,7 +762,7 @@ function apiV1Routers(app) {
         }),
         getChatMessagesController
     );
-    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), markChatMessagesAsReadController);
+
     app.get(
         '/products/:productId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -753,6 +773,7 @@ function apiV1Routers(app) {
         }),
         getProductAnalyticsController
     );
+
     app.get(
         '/categories/:categoryId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -763,6 +784,7 @@ function apiV1Routers(app) {
         }),
         getCategoryAnalyticsController
     );
+
     app.get(
         '/products/:productId/recommendations',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -773,6 +795,7 @@ function apiV1Routers(app) {
         }),
         getProductRecommendationsController
     );
+
     app.get(
         '/products/:productId/attributes',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -783,6 +806,7 @@ function apiV1Routers(app) {
         }),
         getProductAttributesController
     );
+
     app.get(
         '/products/:productId/price-history',
         enhancedCacheMiddleware('products:price-history', 1800, {
@@ -792,6 +816,7 @@ function apiV1Routers(app) {
         }),
         getProductPriceHistoryController
     );
+
     app.get(
         '/products/:productId/price-statistics',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -802,8 +827,6 @@ function apiV1Routers(app) {
         }),
         getProductPriceStatisticsController
     );
-
-    app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), createProductVariantController);
 
     app.get(
         '/products/:productId/variants',
@@ -816,8 +839,6 @@ function apiV1Routers(app) {
         getProductVariantsController
     );
 
-    app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), addProductImageController);
-
     app.get(
         '/products/:productId/images',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -828,10 +849,6 @@ function apiV1Routers(app) {
         }),
         getProductImagesController
     );
-
-    app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), updateInventoryController);
-
-    app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), addProductReviewController);
 
     app.get(
         '/products/:productId/reviews',
@@ -844,8 +861,6 @@ function apiV1Routers(app) {
         getProductReviewsController
     );
 
-    app.post('/users/:userId/wishlist', validateRequiredFieldsMiddleware(['product_id']), addToWishlistController);
-
     app.get(
         '/users/:userId/wishlist',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -856,10 +871,6 @@ function apiV1Routers(app) {
         }),
         getWishlistController
     );
-
-    app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), addProductAttributeController);
-
-    app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), createAttributeController);
 
     app.get(
         '/products/:id/price-trends',
@@ -872,10 +883,6 @@ function apiV1Routers(app) {
         getPriceTrendsController
     );
 
-    app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), addPriceHistoryController);
-
-    app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), addProductRelationshipController);
-
     app.get(
         '/products/:productId/relationships',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -887,7 +894,6 @@ function apiV1Routers(app) {
         getProductRelationshipsController
     );
 
-    app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), createProductVersionController);
     app.get(
         '/products/:productId/versions',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1550,6 +1556,7 @@ function free() {
         process.exit(0);
     }, 2 * 1000);
 }
+
 // ======================================================================
 async function initializeRedis() {
     const ONE_HOUR = 60 * 60 * 1000;
@@ -2407,6 +2414,7 @@ async function createDatabaseSchema() {
         throw error;
     }
 }
+
 async function createSchemaVersionTable() {
     const query = `
         CREATE TABLE IF NOT EXISTS schema_versions (
@@ -2674,6 +2682,7 @@ function validateRequiredFieldsMiddleware(requiredFields) {
         next();
     };
 }
+
 // ======================================================================
 // Controller
 
@@ -3243,9 +3252,11 @@ async function getProductPriceStatisticsController(req, res) {
 
 // ======================================================================
 // run on the times
+
 function scheduleCacheWarming() {
     setInterval(warmCache, 4 * 60 * 60 * 1000);
 }
+
 function scheduleMaterializedViewRefresh() {
     setInterval(refreshMaterializedViews, 60 * 60 * 1000);
 }

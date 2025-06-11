@@ -527,6 +527,41 @@ paths:
                           status:
                             type: string
                             description: Cache warming status
+  /jobs/{jobId}/status:
+    get:
+      summary: Get job status
+      tags: [System]
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: string
+          description: Job ID
+      responses:
+        '200':
+          description: Job status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [pending, processing, completed, failed]
+                    description: Job status
+                  progress:
+                    type: number
+                    description: Job progress percentage
+                  result:
+                    type: object
+                    description: Job result
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /products:
     post:
@@ -734,42 +769,6 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Product'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /jobs/{jobId}/status:
-    get:
-      summary: Get job status
-      tags: [System]
-      parameters:
-        - in: path
-          name: jobId
-          required: true
-          schema:
-            type: string
-          description: Job ID
-      responses:
-        '200':
-          description: Job status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [pending, processing, completed, failed]
-                    description: Job status
-                  progress:
-                    type: number
-                    description: Job progress percentage
-                  result:
-                    type: object
-                    description: Job result
         '500':
           description: Server error
           content:
