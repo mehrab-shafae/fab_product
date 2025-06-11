@@ -522,6 +522,7 @@ class EnhancedNeuralNetwork {
 
 async function init() {
     const app = express();
+    const apiV1Router = express.Router();
 
     await initializeRedis();
 
@@ -598,7 +599,28 @@ async function init() {
         process.exit(1);
     }
 
-    // Product routes
+    apiV1Routers(apiV1Router);
+
+    app.use('/api/product/v1', apiV1Router);
+
+    app.use((err, req, res, next) => {
+        logger.error('Unhandled error', {
+            error: err.message,
+            stack: err.stack,
+        });
+        res.status(500).json({
+            error: 'Internal server error',
+            message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+        });
+    });
+
+    app.listen(PORT, function () {
+        console.log(`Product service is running on port ${PORT}`);
+        console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
+    });
+}
+
+function apiV1Routers(app) {
     app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), createProductController);
     app.get(
         '/products/:id',
@@ -849,22 +871,6 @@ async function init() {
     );
 
     app.get('/categories', paginateResults, getCategoriesController);
-
-    app.use((err, req, res, next) => {
-        logger.error('Unhandled error', {
-            error: err.message,
-            stack: err.stack,
-        });
-        res.status(500).json({
-            error: 'Internal server error',
-            message: process.env.NODE_ENV === 'development' ? err.message : undefined,
-        });
-    });
-
-    app.listen(PORT, function () {
-        console.log(`Product service is running on port ${PORT}`);
-        console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
-    });
 }
 
 function executeLinuxCommand(command) {
