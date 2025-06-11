@@ -666,83 +666,7 @@ async function init() {
 
     app.get('/jobs/:jobId/status', getJobStatusController);
 
-    app.get(
-        '/products/search',
-        paginateResults,
-        enhancedCacheMiddleware('products:search', 300, {
-            compress: true,
-            version: '1',
-            cacheKeyPrefix: 'api',
-        }),
-        async function (req, res) {
-            try {
-                const { page, limit, offset } = req.pagination;
-                const { name, category_id, min_price, max_price } = req.query;
-
-                let query = 'SELECT * FROM products WHERE deleted_at IS NULL';
-                const params = [];
-                let paramIndex = 1;
-
-                if (name) {
-                    query += ` AND name ILIKE $${paramIndex}`;
-                    params.push(`%${name}%`);
-                    paramIndex++;
-                }
-
-                if (category_id) {
-                    query += ` AND p.category_id = $${paramIndex}`;
-                    params.push(category_id);
-                    paramIndex++;
-                }
-
-                if (min_price) {
-                    query += ` AND price >= $${paramIndex}`;
-                    params.push(min_price);
-                    paramIndex++;
-                }
-
-                if (max_price) {
-                    query += ` AND price <= $${paramIndex}`;
-                    params.push(max_price);
-                    paramIndex++;
-                }
-
-                query += ` ORDER BY created_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
-                params.push(limit, offset);
-
-                const result = await pgPool.query(query, params);
-                const countResult = await pgPool.query(query.replace('SELECT *', 'SELECT COUNT(*)').split('ORDER BY')[0], params.slice(0, -2));
-                const total = parseInt(countResult.rows[0].count);
-
-                res.json({
-                    data: result.rows,
-                    pagination: {
-                        page,
-                        limit,
-                        total,
-                        pages: Math.ceil(total / limit),
-                    },
-                });
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        }
-    );
-
-    app.post('/products/:productId/chats', async function (req, res) {
-        try {
-            const chatData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await createProductChat(chatData);
-            await invalidateCachePattern(`/products/${req.params.productId}/chats`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    app.post('/products/:productId/chats', createProductChatController);
     app.get(
         '/users/:userId/chats',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -751,32 +675,9 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        async (req, res) => {
-            try {
-                const { userId } = req.params;
-                const chats = await getProductChats(userId);
-                res.json(chats);
-            } catch (error) {
-                console.error('Error getting user chats:', error);
-                res.status(500).json({ error: 'Failed to get user chats' });
-            }
-        }
+        getUserChatsController
     );
-
-    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), async function (req, res) {
-        try {
-            const messageData = {
-                ...req.body,
-                chat_id: req.params.chatId,
-            };
-            const result = await addChatMessage(messageData);
-            await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), addChatMessageController);
     app.get(
         '/chats/:chatId/messages',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -785,23 +686,9 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getChatMessages(req.params.chatId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getChatMessagesController
     );
-
-    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), async function (req, res) {
-        try {
-            const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
-            await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-            res.json(result.rows);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), markChatMessagesAsReadController);
     app.get(
         '/products/:productId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -810,18 +697,8 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductAnalytics(req.params.productId)
-                .then(result => {
-                    if (result.rows.length === 0) {
-                        return res.status(404).json({ error: 'Product not found' });
-                    }
-                    res.json(result.rows[0]);
-                })
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductAnalyticsController
     );
-
     app.get(
         '/categories/:categoryId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -830,18 +707,8 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getCategoryAnalytics(req.params.categoryId)
-                .then(result => {
-                    if (result.rows.length === 0) {
-                        return res.status(404).json({ error: 'Category not found' });
-                    }
-                    res.json(result.rows);
-                })
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getCategoryAnalyticsController
     );
-
     app.get(
         '/products/:productId/recommendations',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -850,11 +717,36 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductRecommendations(req.params.productId)
-                .then(result => res.json(result))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductRecommendationsController
+    );
+    app.get(
+        '/products/:productId/attributes',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        getProductAttributesController
+    );
+    app.get(
+        '/products/:productId/price-history',
+        enhancedCacheMiddleware('products:price-history', 1800, {
+            compress: true,
+            version: '1',
+            cacheKeyPrefix: 'api',
+        }),
+        getProductPriceHistoryController
+    );
+    app.get(
+        '/products/:productId/price-statistics',
+        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        getProductPriceStatisticsController
     );
 
     app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), createProductVariantController);
@@ -911,79 +803,9 @@ async function init() {
         getWishlistController
     );
 
-    app.get('/health', function (req, res) {
-        const health = {
-            status: 'healthy',
-            timestamp: new Date(),
-            services: {
-                postgres: pgPool ? 'connected' : 'disconnected',
-                redis: {
-                    status: redisConnected ? 'connected' : 'disconnected',
-                    lastError: redisClient ? redisClient.lastError : null,
-                },
-                mongo: mongoClient ? 'connected' : 'disconnected',
-            },
-            cache: {
-                enabled: redisConnected,
-                warming: {
-                    lastRun: new Date(),
-                    status: redisConnected ? 'active' : 'disabled',
-                },
-            },
-        };
-        res.json(health);
-    });
-
     app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), addProductAttributeController);
 
     app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), createAttributeController);
-
-    app.get(
-        '/products/:productId/attributes',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-        }),
-        function (req, res) {
-            getProductAttributes(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
-    );
-
-    app.get(
-        '/products/:productId/price-history',
-        enhancedCacheMiddleware('products:price-history', 1800, {
-            compress: true,
-            version: '1',
-            cacheKeyPrefix: 'api',
-        }),
-        async function (req, res) {
-            try {
-                const history = await getProductPriceHistory(req.params.productId);
-                res.json(history);
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        }
-    );
-
-    app.get(
-        '/products/:productId/price-statistics',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-        }),
-        function (req, res) {
-            getProductPriceStatistics(req.params.productId, req.query.variant_id)
-                .then(result => res.json(result.rows[0]))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
-    );
 
     app.get(
         '/products/:id/price-trends',
@@ -2878,7 +2700,27 @@ async function healthCheckController(req, res) {
             return res.status(503).json({ status: 'initializing', message: 'Database indexes are being created' });
         }
 
-        res.json({ status: 'ready', message: 'Server is ready to handle requests' });
+        const health = {
+            status: 'healthy',
+            timestamp: new Date(),
+            services: {
+                postgres: pgPool ? 'connected' : 'disconnected',
+                redis: {
+                    status: redisConnected ? 'connected' : 'disconnected',
+                    lastError: redisClient ? redisClient.lastError : null,
+                },
+                mongo: mongoClient ? 'connected' : 'disconnected',
+            },
+            cache: {
+                enabled: redisConnected,
+                warming: {
+                    lastRun: new Date(),
+                    status: redisConnected ? 'active' : 'disabled',
+                },
+            },
+        };
+
+        res.json({ status: 'ready', message: 'Server is ready to handle requests', system: health });
     } catch (error) {
         console.error('Health check failed:', error);
         res.status(500).json({ status: 'error', message: 'Health check failed' });
@@ -3281,6 +3123,124 @@ async function addProductAttributeController(req, res) {
 async function createAttributeController(req, res) {
     try {
         const result = await createProductAttribute(req.body);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function createProductChatController(req, res) {
+    try {
+        const chatData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await createProductChat(chatData);
+        await invalidateCachePattern(`/products/${req.params.productId}/chats`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getUserChatsController(req, res) {
+    try {
+        const { userId } = req.params;
+        const chats = await getProductChats(userId);
+        res.json(chats);
+    } catch (error) {
+        console.error('Error getting user chats:', error);
+        res.status(500).json({ error: 'Failed to get user chats' });
+    }
+}
+
+async function addChatMessageController(req, res) {
+    try {
+        const messageData = {
+            ...req.body,
+            chat_id: req.params.chatId,
+        };
+        const result = await addChatMessage(messageData);
+        await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getChatMessagesController(req, res) {
+    try {
+        const result = await getChatMessages(req.params.chatId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function markChatMessagesAsReadController(req, res) {
+    try {
+        const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
+        await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductAnalyticsController(req, res) {
+    try {
+        const result = await getProductAnalytics(req.params.productId);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getCategoryAnalyticsController(req, res) {
+    try {
+        const result = await getCategoryAnalytics(req.params.categoryId);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Category not found' });
+        }
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductRecommendationsController(req, res) {
+    try {
+        const result = await getProductRecommendations(req.params.productId);
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductAttributesController(req, res) {
+    try {
+        const result = await getProductAttributes(req.params.productId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductPriceHistoryController(req, res) {
+    try {
+        const history = await getProductPriceHistory(req.params.productId);
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductPriceStatisticsController(req, res) {
+    try {
+        const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
         res.json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
