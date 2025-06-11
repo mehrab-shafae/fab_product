@@ -30,8 +30,11 @@ const __dirname = dirname(__filename);
 const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'config', 'database-schema.json'), 'utf8'));
 // ======================================================================
 const PORT = process.env.PORT || 3000;
-const POSTGRES_URI = process.env.POSTGRES_URI || 
-    `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
+const POSTGRES_URI =
+    process.env.POSTGRES_URI ||
+    `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${
+        process.env.POSTGRES_HOST || 'localhost'
+    }:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
@@ -556,15 +559,6 @@ function validateProductId(req, res, next) {
     next();
 }
 
-/**
- * Invalidates cache entries matching the given pattern
- * @param {string} pattern - Redis key pattern to match
- * @param {Object} options - Additional options
- * @param {number} options.maxRetries - Maximum number of retry attempts (default: 3)
- * @param {number} options.retryDelay - Delay between retries in milliseconds (default: 1000)
- * @param {number} options.batchSize - Number of keys to process in each batch (default: 100)
- * @returns {Promise<void>}
- */
 async function invalidateCachePattern(pattern, options = {}) {
     const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
 
@@ -630,12 +624,6 @@ async function invalidateCachePattern(pattern, options = {}) {
     }
 }
 
-/**
- * Invalidates multiple cache patterns in parallel
- * @param {string[]} patterns - Array of Redis key patterns to match
- * @param {Object} options - Additional options passed to invalidateCachePattern
- * @returns {Promise<void>}
- */
 async function invalidateCachePatterns(patterns, options = {}) {
     if (!Array.isArray(patterns) || patterns.length === 0) {
         logger.warn('No patterns provided for cache invalidation');
@@ -866,39 +854,40 @@ async function init() {
     app.use(requestLogger);
     app.use(errorLogger);
 
-    // English Swagger UI
-    app.use('/api-docs/en', swaggerUi.serve, swaggerUi.setup(swaggerDocument, {
-        customCss: '.swagger-ui .topbar { display: none }',
-        customSiteTitle: "API Documentation",
-        swaggerOptions: {
-            persistAuthorization: true,
-            docExpansion: 'none',
-            filter: true,
-            showExtensions: true,
-            showCommonExtensions: true,
-            supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
-            displayRequestDuration: true,
-            deepLinking: true,
-            defaultModelsExpandDepth: 3,
-            defaultModelExpandDepth: 3,
-            defaultModelRendering: 'model',
-            displayOperationId: false,
-            filter: true,
-            maxDisplayedTags: 10,
-            showExtensions: true,
-            showCommonExtensions: true,
-            syntaxHighlight: {
-                activated: true,
-                theme: 'monokai'
+    app.use(
+        '/api-docs/en',
+        swaggerUi.serve,
+        swaggerUi.setup(swaggerDocument, {
+            customCss: '.swagger-ui .topbar { display: none }',
+            customSiteTitle: 'API Documentation',
+            swaggerOptions: {
+                persistAuthorization: true,
+                docExpansion: 'none',
+                filter: true,
+                showExtensions: true,
+                showCommonExtensions: true,
+                supportedSubmitMethods: ['get', 'post', 'put', 'delete', 'patch'],
+                displayRequestDuration: true,
+                deepLinking: true,
+                defaultModelsExpandDepth: 3,
+                defaultModelExpandDepth: 3,
+                defaultModelRendering: 'model',
+                displayOperationId: false,
+                filter: true,
+                maxDisplayedTags: 10,
+                showExtensions: true,
+                showCommonExtensions: true,
+                syntaxHighlight: {
+                    activated: true,
+                    theme: 'monokai',
+                },
+                tryItOutEnabled: true,
             },
-            tryItOutEnabled: true,
-        },
-    }));
+        })
+    );
 
-    // Persian Documentation
-    app.use('/api-docs/fa', express.static(join(__dirname, 'docs/fa')));
+    app.use('/api-docs/fa', express.static(join(__dirname, 'docs-fa.html')));
 
-    // Redirect root /api-docs to English documentation
     app.get('/api-docs', (req, res) => {
         res.redirect('/api-docs/en');
     });
@@ -957,44 +946,6 @@ async function init() {
         process.exit(1);
     }
 
-    /**
-     * @swagger
-     * /jobs/{jobId}/status:
-     *   get:
-     *     summary: Get the status of a background job
-     *     tags: [Jobs]
-     *     parameters:
-     *       - in: path
-     *         name: jobId
-     *         required: true
-     *         schema:
-     *           type: string
-     *         description: The ID of the job to check
-     *     responses:
-     *       200:
-     *         description: Job status information
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                   enum: [completed, failed, in_progress, queued]
-     *                 progress:
-     *                   type: number
-     *                   description: Progress percentage (0-100)
-     *                 result:
-     *                   type: object
-     *                   description: Job result data (if completed)
-     *                 error:
-     *                   type: string
-     *                   description: Error message (if failed)
-     *       404:
-     *         description: Job not found
-     *       500:
-     *         description: Server error
-     */
     app.get('/jobs/:jobId/status', async function (req, res) {
         try {
             const job = await bulkOperationQueue.getJob(req.params.jobId);
@@ -1021,42 +972,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products:
-     *   post:
-     *     summary: Create a new product
-     *     tags: [Products]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - name
-     *               - price
-     *             properties:
-     *               name:
-     *                 type: string
-     *               description:
-     *                 type: string
-     *               price:
-     *                 type: number
-     *               category_id:
-     *                 type: integer
-     *               metadata:
-     *                 type: object
-     *     responses:
-     *       200:
-     *         description: Product created successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Product'
-     *       500:
-     *         description: Server error
-     */
     app.post('/products', async function (req, res) {
         try {
             const result = await createProduct(req.body);
@@ -1068,30 +983,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{id}:
-     *   get:
-     *     summary: Get a product by ID
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: id
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: Product found
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Product'
-     *       404:
-     *         description: Product not found
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:id',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1112,51 +1003,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products:
-     *   get:
-     *     summary: Get a paginated list of products
-     *     tags: [Products]
-     *     parameters:
-     *       - in: query
-     *         name: page
-     *         schema:
-     *           type: integer
-     *           default: 1
-     *         description: Page number
-     *       - in: query
-     *         name: limit
-     *         schema:
-     *           type: integer
-     *           default: 10
-     *         description: Number of items per page
-     *     responses:
-     *       200:
-     *         description: Paginated list of products
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 data:
-     *                   type: array
-     *                   items:
-     *                     $ref: '#/components/schemas/Product'
-     *                 pagination:
-     *                   type: object
-     *                   properties:
-     *                     page:
-     *                       type: integer
-     *                     limit:
-     *                       type: integer
-     *                     total:
-     *                       type: integer
-     *                     pages:
-     *                       type: integer
-     *       500:
-     *         description: Server error
-     */
     app.get('/products', paginateResults, async function (req, res) {
         try {
             const searchParams = {
@@ -1176,41 +1022,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/bulk-update:
-     *   post:
-     *     summary: Bulk update products
-     *     tags: [Products]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - type
-     *               - data
-     *             properties:
-     *               type:
-     *                 type: string
-     *                 enum: [update, price_update, inventory_update]
-     *               data:
-     *                 type: array
-     *                 items:
-     *                   type: object
-     *               options:
-     *                 type: object
-     *                 properties:
-     *                   batchSize:
-     *                     type: integer
-     *                   concurrency:
-     *                     type: integer
-     *                   retryAttempts:
-     *                     type: integer
-     *                   retryDelay:
-     *                     type: integer
-     */
     app.post('/products/bulk-update', async function (req, res) {
         try {
             const { type, data, options } = req.body;
@@ -1233,35 +1044,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /categories:
-     *   post:
-     *     summary: Create a new category
-     *     tags: [Categories]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - name
-     *             properties:
-     *               name:
-     *                 type: string
-     *               parent_id:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Category created successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Category'
-     *       500:
-     *         description: Server error
-     */
     app.post('/categories', async function (req, res) {
         try {
             const result = await createCategory(req.body);
@@ -1273,24 +1055,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /categories/tree:
-     *   get:
-     *     summary: Get category hierarchy
-     *     tags: [Categories]
-     *     responses:
-     *       200:
-     *         description: Category tree
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 $ref: '#/components/schemas/Category'
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/categories/tree',
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
@@ -1306,42 +1070,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/comments:
-     *   post:
-     *     summary: Add a comment to a product
-     *     tags: [Comments]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - user_id
-     *               - comment
-     *             properties:
-     *               user_id:
-     *                 type: integer
-     *               comment:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Comment added successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Comment'
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/comments', async function (req, res) {
         try {
             const commentData = {
@@ -1356,30 +1084,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/comments:
-     *   get:
-     *     summary: Get comments for a product
-     *     tags: [Comments]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of comments
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 $ref: '#/components/schemas/Comment'
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/comments',
         enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
@@ -1395,39 +1099,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/tags:
-     *   post:
-     *     summary: Add a tag to a product
-     *     tags: [Tags]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - tag_name
-     *             properties:
-     *               tag_name:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Tag added successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               $ref: '#/components/schemas/Tag'
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/tags', async function (req, res) {
         try {
             const { tag_name } = req.body;
@@ -1440,30 +1111,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/tags/{tagName}:
-     *   get:
-     *     summary: Get products by tag
-     *     tags: [Tags]
-     *     parameters:
-     *       - in: path
-     *         name: tagName
-     *         required: true
-     *         schema:
-     *           type: string
-     *     responses:
-     *       200:
-     *         description: List of products with the specified tag
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 $ref: '#/components/schemas/Product'
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/tags/:tagName',
         enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
@@ -1479,39 +1126,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/search/document:
-     *   get:
-     *     summary: Search products using full-text search
-     *     tags: [Search]
-     *     parameters:
-     *       - in: query
-     *         name: q
-     *         required: true
-     *         schema:
-     *           type: string
-     *     responses:
-     *       200:
-     *         description: Search results
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 type: object
-     *                 properties:
-     *                   product_id:
-     *                     type: integer
-     *                   name:
-     *                     type: string
-     *                   description:
-     *                     type: string
-     *       400:
-     *         description: Search query is required
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/search/document',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1535,171 +1149,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/search/advanced:
-     *   get:
-     *     summary: Advanced product search with complex filters
-     *     tags: [Products]
-     *     parameters:
-     *       - in: query
-     *         name: query
-     *         schema:
-     *           type: string
-     *         description: Full-text search query
-     *       - in: query
-     *         name: filters
-     *         schema:
-     *           type: object
-     *           properties:
-     *             categories:
-     *               type: array
-     *               items:
-     *                 type: integer
-     *             price_range:
-     *               type: object
-     *               properties:
-     *                 min:
-     *                   type: number
-     *                 max:
-     *                   type: number
-     *             attributes:
-     *               type: object
-     *               additionalProperties:
-     *                 type: string
-     *             tags:
-     *               type: array
-     *               items:
-     *                 type: string
-     *       - in: query
-     *         name: sort
-     *         schema:
-     *           type: object
-     *           properties:
-     *             field:
-     *               type: string
-     *               enum: [price, created_at, name, rating]
-     *             order:
-     *               type: string
-     *               enum: [asc, desc]
-     *     responses:
-     *       200:
-     *         description: Advanced search results
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 data:
-     *                   type: array
-     *                   items:
-     *                     $ref: '#/components/schemas/Product'
-     *                 total:
-     *                   type: integer
-     *                 facets:
-     *                   type: object
-     *                   properties:
-     *                     categories:
-     *                       type: array
-     *                       items:
-     *                         type: object
-     *                         properties:
-     *                           id:
-     *                             type: integer
-     *                           name:
-     *                             type: string
-     *                           count:
-     *                             type: integer
-     *                     price_ranges:
-     *                       type: array
-     *                       items:
-     *                         type: object
-     *                         properties:
-     *                           min:
-     *                             type: number
-     *                           max:
-     *                             type: number
-     *                           count:
-     *                             type: integer
-     *       500:
-     *         description: Server error
-     */
-    /*
-  app.get('/products/search/advanced', cacheMiddleware(300), async function(req, res) {
-      try {
-          const results = await advancedSearch(req.query);
-          res.json(results);
-      } catch (error) {
-          res.status(500).json({ error: error.message });
-      }
-  });
-  */
-
-    /**
-     * @swagger
-     * /products/search:
-     *   get:
-     *     summary: Search products with filters
-     *     tags: [Products]
-     *     parameters:
-     *       - in: query
-     *         name: name
-     *         schema:
-     *           type: string
-     *         description: Product name to search for
-     *       - in: query
-     *         name: category_id
-     *         schema:
-     *           type: integer
-     *         description: Filter by category ID
-     *       - in: query
-     *         name: min_price
-     *         schema:
-     *           type: number
-     *         description: Minimum price filter
-     *       - in: query
-     *         name: max_price
-     *         schema:
-     *           type: number
-     *         description: Maximum price filter
-     *       - in: query
-     *         name: page
-     *         schema:
-     *           type: integer
-     *           default: 1
-     *         description: Page number
-     *       - in: query
-     *         name: limit
-     *         schema:
-     *           type: integer
-     *           default: 10
-     *         description: Number of items per page
-     *     responses:
-     *       200:
-     *         description: Search results
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 data:
-     *                   type: array
-     *                   items:
-     *                     $ref: '#/components/schemas/Product'
-     *                 pagination:
-     *                   type: object
-     *                   properties:
-     *                     page:
-     *                       type: integer
-     *                     limit:
-     *                       type: integer
-     *                     total:
-     *                       type: integer
-     *                     pages:
-     *                       type: integer
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/search',
         paginateResults,
@@ -1763,38 +1212,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/chats:
-     *   post:
-     *     summary: Start a new chat for a product
-     *     tags: [Chats]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - user_id
-     *               - seller_id
-     *             properties:
-     *               user_id:
-     *                 type: integer
-     *               seller_id:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Chat created successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/chats', async function (req, res) {
         try {
             const chatData = {
@@ -1809,25 +1226,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /users/{userId}/chats:
-     *   get:
-     *     summary: Get all chats for a user
-     *     tags: [Chats]
-     *     parameters:
-     *       - in: path
-     *         name: userId
-     *         required: true
-     *         schema:
-     *           type: string
-     *           description: User hash ID
-     *     responses:
-     *       200:
-     *         description: List of chats
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/users/:userId/chats',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -1848,38 +1246,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /chats/{chatId}/messages:
-     *   post:
-     *     summary: Add a message to a chat
-     *     tags: [Chats]
-     *     parameters:
-     *       - in: path
-     *         name: chatId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - sender_id
-     *               - message
-     *             properties:
-     *               sender_id:
-     *                 type: integer
-     *               message:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Message added successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/chats/:chatId/messages', async function (req, res) {
         try {
             const messageData = {
@@ -1894,24 +1260,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /chats/{chatId}/messages:
-     *   get:
-     *     summary: Get all messages in a chat
-     *     tags: [Chats]
-     *     parameters:
-     *       - in: path
-     *         name: chatId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of messages
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/chats/:chatId/messages',
         enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
@@ -1927,35 +1275,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /chats/{chatId}/read:
-     *   post:
-     *     summary: Mark all messages in a chat as read
-     *     tags: [Chats]
-     *     parameters:
-     *       - in: path
-     *         name: chatId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - user_id
-     *             properties:
-     *               user_id:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Messages marked as read
-     *       500:
-     *         description: Server error
-     */
     app.post('/chats/:chatId/read', async function (req, res) {
         try {
             const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
@@ -1966,57 +1285,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/analytics:
-     *   get:
-     *     summary: Get detailed analytics for a product
-     *     tags: [Analytics]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: Product analytics data
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 id:
-     *                   type: integer
-     *                 name:
-     *                   type: string
-     *                 unique_viewers:
-     *                   type: integer
-     *                 tag_count:
-     *                   type: integer
-     *                 comment_count:
-     *                   type: integer
-     *                 chat_count:
-     *                   type: integer
-     *                 avg_price:
-     *                   type: number
-     *                 min_price:
-     *                   type: number
-     *                 max_price:
-     *                   type: number
-     *                 category_name:
-     *                   type: string
-     *                 tag_analytics:
-     *                   type: array
-     *                   items:
-     *                     type: object
-     *                 recent_comments:
-     *                   type: array
-     *                   items:
-     *                     type: object
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -2037,53 +1305,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /categories/{categoryId}/analytics:
-     *   get:
-     *     summary: Get detailed analytics for a category and its subcategories
-     *     tags: [Analytics]
-     *     parameters:
-     *       - in: path
-     *         name: categoryId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: Category analytics data
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 type: object
-     *                 properties:
-     *                   id:
-     *                     type: integer
-     *                   name:
-     *                     type: string
-     *                   level:
-     *                     type: integer
-     *                   product_count:
-     *                     type: integer
-     *                   total_viewers:
-     *                     type: integer
-     *                   total_tags:
-     *                     type: integer
-     *                   avg_price:
-     *                     type: number
-     *                   min_price:
-     *                     type: number
-     *                   max_price:
-     *                     type: number
-     *                   subcategories:
-     *                     type: array
-     *                     items:
-     *                       type: object
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/categories/:categoryId/analytics',
         enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
@@ -2104,30 +1325,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/recommendations:
-     *   get:
-     *     summary: Get product recommendations
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of recommended products
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: array
-     *               items:
-     *                 $ref: '#/components/schemas/Product'
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/recommendations',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2143,45 +1340,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/variants:
-     *   post:
-     *     summary: Create a new product variant
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - sku
-     *               - name
-     *               - price
-     *             properties:
-     *               sku:
-     *                 type: string
-     *               name:
-     *                 type: string
-     *               price:
-     *                 type: number
-     *               stock_quantity:
-     *                 type: integer
-     *               attributes:
-     *                 type: object
-     *     responses:
-     *       200:
-     *         description: Variant created successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/variants', async function (req, res) {
         try {
             const variantData = {
@@ -2196,24 +1354,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/variants:
-     *   get:
-     *     summary: Get all variants for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of product variants
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/variants',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2229,41 +1369,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/images:
-     *   post:
-     *     summary: Add an image to a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - image_url
-     *             properties:
-     *               image_url:
-     *                 type: string
-     *               variant_id:
-     *                 type: integer
-     *               is_primary:
-     *                 type: boolean
-     *               order_index:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Image added successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/images', async function (req, res) {
         try {
             const imageData = {
@@ -2278,24 +1383,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/images:
-     *   get:
-     *     summary: Get all images for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of product images
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/images',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2311,41 +1398,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/inventory:
-     *   post:
-     *     summary: Update product inventory
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - quantity
-     *             properties:
-     *               variant_id:
-     *                 type: integer
-     *               quantity:
-     *                 type: integer
-     *               reserved_quantity:
-     *                 type: integer
-     *               location:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Inventory updated successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/inventory', async function (req, res) {
         try {
             const inventoryData = {
@@ -2360,44 +1412,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/reviews:
-     *   post:
-     *     summary: Add a review to a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - user_id
-     *               - rating
-     *             properties:
-     *               user_id:
-     *                 type: integer
-     *               rating:
-     *                 type: integer
-     *                 minimum: 1
-     *                 maximum: 5
-     *               review_text:
-     *                 type: string
-     *               is_verified:
-     *                 type: boolean
-     *     responses:
-     *       200:
-     *         description: Review added successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/reviews', async function (req, res) {
         try {
             const reviewData = {
@@ -2416,24 +1430,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/reviews:
-     *   get:
-     *     summary: Get all reviews for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of product reviews
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/reviews',
         paginateResults,
@@ -2453,36 +1449,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /users/{userId}/wishlist:
-     *   post:
-     *     summary: Add a product to user's wishlist
-     *     tags: [Users]
-     *     parameters:
-     *       - in: path
-     *         name: userId
-     *         required: true
-     *         schema:
-     *           type: string
-     *           description: User hash ID
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - product_id
-     *             properties:
-     *               product_id:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Product added to wishlist
-     *       500:
-     *         description: Server error
-     */
     app.post('/users/:userId/wishlist', async (req, res) => {
         try {
             const { userId } = req.params;
@@ -2501,25 +1467,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /users/{userId}/wishlist:
-     *   get:
-     *     summary: Get user's wishlist
-     *     tags: [Users]
-     *     parameters:
-     *       - in: path
-     *         name: userId
-     *         required: true
-     *         schema:
-     *           type: string
-     *           description: User hash ID
-     *     responses:
-     *       200:
-     *         description: List of wishlist products
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/users/:userId/wishlist',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2540,35 +1487,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /health:
-     *   get:
-     *     summary: Check system health
-     *     tags: [System]
-     *     responses:
-     *       200:
-     *         description: System health status
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 status:
-     *                   type: string
-     *                 timestamp:
-     *                   type: string
-     *                   format: date-time
-     *                 services:
-     *                   type: object
-     *                   properties:
-     *                     postgres:
-     *                       type: string
-     *                     redis:
-     *                       type: string
-     *                     mongo:
-     *                       type: string
-     */
     app.get('/health', function (req, res) {
         const health = {
             status: 'healthy',
@@ -2592,38 +1510,6 @@ async function init() {
         res.json(health);
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/attributes:
-     *   post:
-     *     summary: Add an attribute to a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - attribute_id
-     *               - value
-     *             properties:
-     *               attribute_id:
-     *                 type: integer
-     *               value:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Attribute added successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/attributes', async function (req, res) {
         try {
             const attributeData = {
@@ -2638,32 +1524,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /attributes:
-     *   post:
-     *     summary: Create a new product attribute
-     *     tags: [Products]
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - name
-     *               - type
-     *             properties:
-     *               name:
-     *                 type: string
-     *               type:
-     *                 type: string
-     *     responses:
-     *       200:
-     *         description: Attribute created successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/attributes', async function (req, res) {
         try {
             const result = await createProductAttribute(req.body);
@@ -2673,24 +1533,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/attributes:
-     *   get:
-     *     summary: Get all attributes for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of product attributes
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/attributes',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2706,28 +1548,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/price-history:
-     *   get:
-     *     summary: Get price history for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: variant_id
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of price changes
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/price-history',
         enhancedCacheMiddleware('products:price-history', 1800, {
@@ -2745,28 +1565,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/price-statistics:
-     *   get:
-     *     summary: Get price statistics for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: variant_id
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: Price statistics including min, max, average, and recent changes
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/price-statistics',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -2782,34 +1580,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/price-trends:
-     *   get:
-     *     summary: Get price trends for a product over time
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: variant_id
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: period
-     *         schema:
-     *           type: string
-     *           default: 30 days
-     *           description: Time period for trends (e.g., '7 days', '30 days', '1 year')
-     *     responses:
-     *       200:
-     *         description: Daily price trends including min, max, and average prices
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:id/price-trends',
         validateProductId,
@@ -2843,61 +1613,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/price-history:
-     *   post:
-     *     summary: Add a price history entry for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *         description: Product ID
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - price
-     *             properties:
-     *               price:
-     *                 type: number
-     *                 description: The new price
-     *               variant_id:
-     *                 type: integer
-     *                 description: Optional variant ID if price is for a specific variant
-     *               currency:
-     *                 type: string
-     *                 default: USD
-     *                 description: Currency code
-     *               reason:
-     *                 type: string
-     *                 description: Reason for price change
-     *     responses:
-     *       200:
-     *         description: Price history entry added successfully
-     *         content:
-     *           application/json:
-     *             schema:
-     *               type: object
-     *               properties:
-     *                 id:
-     *                   type: integer
-     *                 product_id:
-     *                   type: integer
-     *                 price:
-     *                   type: number
-     *                 created_at:
-     *                   type: string
-     *                   format: date-time
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/price-history', async function (req, res) {
         try {
             const priceData = {
@@ -2916,39 +1631,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/relationships:
-     *   post:
-     *     summary: Add a relationship between products
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - related_product_id
-     *               - relationship_type
-     *             properties:
-     *               related_product_id:
-     *                 type: integer
-     *               relationship_type:
-     *                 type: string
-     *                 enum: [similar, complementary, upgrade, downgrade]
-     *     responses:
-     *       200:
-     *         description: Relationship added successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/relationships', async function (req, res) {
         try {
             const relationshipData = {
@@ -2963,29 +1645,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/relationships:
-     *   get:
-     *     summary: Get all relationships for a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *       - in: query
-     *         name: relationship_type
-     *         schema:
-     *           type: string
-     *           enum: [similar, complementary, upgrade, downgrade]
-     *     responses:
-     *       200:
-     *         description: List of product relationships
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/relationships',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -3001,40 +1660,6 @@ async function init() {
         }
     );
 
-    /**
-     * @swagger
-     * /products/{productId}/versions:
-     *   post:
-     *     summary: Create a new version of a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     requestBody:
-     *       required: true
-     *       content:
-     *         application/json:
-     *           schema:
-     *             type: object
-     *             required:
-     *               - version_number
-     *               - changes
-     *             properties:
-     *               version_number:
-     *                 type: integer
-     *               changes:
-     *                 type: object
-     *               created_by:
-     *                 type: integer
-     *     responses:
-     *       200:
-     *         description: Version created successfully
-     *       500:
-     *         description: Server error
-     */
     app.post('/products/:productId/versions', async function (req, res) {
         try {
             const versionData = {
@@ -3049,24 +1674,6 @@ async function init() {
         }
     });
 
-    /**
-     * @swagger
-     * /products/{productId}/versions:
-     *   get:
-     *     summary: Get version history of a product
-     *     tags: [Products]
-     *     parameters:
-     *       - in: path
-     *         name: productId
-     *         required: true
-     *         schema:
-     *           type: integer
-     *     responses:
-     *       200:
-     *         description: List of product versions
-     *       500:
-     *         description: Server error
-     */
     app.get(
         '/products/:productId/versions',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
