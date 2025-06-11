@@ -520,16 +520,6 @@ class EnhancedNeuralNetwork {
 
 // ======================================================================
 
-function validateProductId(req, res, next) {
-    const productId = req.params.id;
-    if (!productId || isNaN(parseInt(productId))) {
-        return res.status(400).json({
-            error: 'Invalid product ID. Must be a valid integer.',
-        });
-    }
-    next();
-}
-
 async function init() {
     const app = express();
 
@@ -544,10 +534,10 @@ async function init() {
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
     app.use(limiter);
     app.use(speedLimiter);
-
     app.use(requestLogger);
     app.use(errorLogger);
 
+    // Swagger setup
     app.use(
         '/api-docs/en',
         swaggerUi.serve,
@@ -581,44 +571,12 @@ async function init() {
     );
 
     app.use('/api-docs/fa', express.static(join(__dirname, 'docs-fa.html')));
+    app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
 
-    app.get('/api-docs', (req, res) => {
-        res.redirect('/api-docs/en');
-    });
+    // Health check route
+    app.get('/health', healthCheckController);
 
-    app.get('/health', async (req, res) => {
-        try {
-            const result = await pgPool.query(`
-                SELECT EXISTS (
-                    SELECT FROM information_schema.tables 
-                    WHERE table_name = 'products'
-                );
-            `);
-
-            if (!result.rows[0].exists) {
-                return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
-            }
-
-            const indexResult = await pgPool.query(`
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM pg_indexes
-                    WHERE tablename = 'products'
-                    AND indexname = 'idx_products_name_trgm'
-                );
-            `);
-
-            if (!indexResult.rows[0].exists) {
-                return res.status(503).json({ status: 'initializing', message: 'Database indexes are being created' });
-            }
-
-            res.json({ status: 'ready', message: 'Server is ready to handle requests' });
-        } catch (error) {
-            console.error('Health check failed:', error);
-            res.status(500).json({ status: 'error', message: 'Health check failed' });
-        }
-    });
-
+    // Initialize database and system
     try {
         await createDatabaseSchema();
 
@@ -640,43 +598,8 @@ async function init() {
         process.exit(1);
     }
 
-    app.get('/jobs/:jobId/status', async function (req, res) {
-        try {
-            const job = await bulkOperationQueue.getJob(req.params.jobId);
-            if (!job) {
-                return res.status(404).json({ error: 'Job not found' });
-            }
-
-            const state = await job.getState();
-            const progress = job._progress;
-            const result = job.returnvalue;
-
-            res.json({
-                id: job.id,
-                state,
-                progress,
-                result,
-                attemptsMade: job.attemptsMade,
-                timestamp: job.timestamp,
-                processedOn: job.processedOn,
-                finishedOn: job.finishedOn,
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    app.post('/products', async function (req, res) {
-        try {
-            const result = await createProduct(req.body);
-
-            await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    // Product routes
+    app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), createProductController);
     app.get(
         '/products/:id',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -685,70 +608,13 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductById(req.params.id)
-                .then(result => {
-                    if (result.rows.length === 0) {
-                        return res.status(404).json({ error: 'Product not found' });
-                    }
-                    res.json(result.rows[0]);
-                })
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductByIdController
     );
+    app.get('/products', paginateResults, searchProductsController);
+    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), bulkUpdateProductsController);
 
-    app.get('/products', paginateResults, async function (req, res) {
-        try {
-            const searchParams = {
-                page: req.pagination.page,
-                pageSize: req.pagination.limit,
-                ...req.query,
-            };
-
-            const result = await searchProducts(searchParams);
-
-            res.json({
-                data: result.items,
-                pagination: result.pagination,
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    app.post('/products/bulk-update', async function (req, res) {
-        try {
-            const { type, data, options } = req.body;
-
-            if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
-                return res.status(400).json({ error: 'Invalid operation type' });
-            }
-
-            if (!Array.isArray(data) || data.length === 0) {
-                return res.status(400).json({ error: 'Invalid data array' });
-            }
-
-            const results = await processBulkOperation(type, data, options);
-            res.json({
-                message: 'Bulk operation queued successfully',
-                jobIds: results.map(r => r.id),
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    app.post('/categories', async function (req, res) {
-        try {
-            const result = await createCategory(req.body);
-
-            await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    // Category routes
+    app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
     app.get(
         '/categories/tree',
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
@@ -757,27 +623,11 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getCategoryTree()
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getCategoryTreeController
     );
 
-    app.post('/products/:productId/comments', async function (req, res) {
-        try {
-            const commentData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addComment(commentData);
-            await invalidateCachePattern(`/products/${req.params.productId}/comments`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    // Comment routes
+    app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), addCommentController);
     app.get(
         '/products/:productId/comments',
         enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
@@ -786,25 +636,11 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductComments(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductCommentsController
     );
 
-    app.post('/products/:productId/tags', async function (req, res) {
-        try {
-            const { tag_name } = req.body;
-            const result = await addTagToProduct(req.params.productId, tag_name);
-            await invalidateCachePattern(`/products/tags/${tag_name}`);
-            await invalidateCachePattern(`/products/${req.params.productId}`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    // Tag routes
+    app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), addTagToProductController);
     app.get(
         '/products/tags/:tagName',
         enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
@@ -813,13 +649,10 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductsByTag(req.params.tagName)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductsByTagController
     );
 
+    // Search routes
     app.get(
         '/products/search/document',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -828,20 +661,10 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            try {
-                const { q } = req.query;
-                if (!q) {
-                    return res.status(400).json({ error: 'Search query is required' });
-                }
-                searchProductDocuments(q)
-                    .then(results => res.json(results))
-                    .catch(error => res.status(500).json({ error: error.message }));
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        }
+        searchProductDocumentsController
     );
+
+    app.get('/jobs/:jobId/status', getJobStatusController);
 
     app.get(
         '/products/search',
@@ -940,7 +763,7 @@ async function init() {
         }
     );
 
-    app.post('/chats/:chatId/messages', async function (req, res) {
+    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), async function (req, res) {
         try {
             const messageData = {
                 ...req.body,
@@ -969,7 +792,7 @@ async function init() {
         }
     );
 
-    app.post('/chats/:chatId/read', async function (req, res) {
+    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), async function (req, res) {
         try {
             const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
             await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
@@ -1034,19 +857,7 @@ async function init() {
         }
     );
 
-    app.post('/products/:productId/variants', async function (req, res) {
-        try {
-            const variantData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await createProductVariant(variantData);
-            await invalidateCachePattern(`/products/${req.params.productId}/variants`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), createProductVariantController);
 
     app.get(
         '/products/:productId/variants',
@@ -1056,26 +867,10 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductVariants(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductVariantsController
     );
 
-    app.post('/products/:productId/images', async function (req, res) {
-        try {
-            const imageData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addProductImage(imageData);
-            await invalidateCachePattern(`/products/${req.params.productId}/images`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), addProductImageController);
 
     app.get(
         '/products/:productId/images',
@@ -1085,44 +880,12 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductImages(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductImagesController
     );
 
-    app.post('/products/:productId/inventory', async function (req, res) {
-        try {
-            const inventoryData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await updateInventory(inventoryData);
-            await invalidateCachePattern(`/products/${req.params.productId}/inventory`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), updateInventoryController);
 
-    app.post('/products/:productId/reviews', async function (req, res) {
-        try {
-            const reviewData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addProductReview(reviewData);
-
-            await Promise.all([
-                invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`),
-                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
-            ]);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), addProductReviewController);
 
     app.get(
         '/products/:productId/reviews',
@@ -1132,34 +895,10 @@ async function init() {
             version: '1',
             cacheKeyPrefix: 'api',
         }),
-        async function (req, res) {
-            try {
-                const { page, limit } = req.pagination;
-                const reviews = await getProductReviews(req.params.productId, { page, limit });
-                res.json(reviews);
-            } catch (error) {
-                res.status(500).json({ error: error.message });
-            }
-        }
+        getProductReviewsController
     );
 
-    app.post('/users/:userId/wishlist', async (req, res) => {
-        try {
-            const { userId } = req.params;
-            const { product_id } = req.body;
-
-            if (!userId || !product_id) {
-                return res.status(400).json({ error: 'Missing required fields' });
-            }
-
-            const result = await addToWishlist(userId, product_id);
-            await invalidateCachePattern(`/users/${userId}/wishlist`);
-            res.json({ id: result.rows[0].id });
-        } catch (error) {
-            console.error('Error adding to wishlist:', error);
-            res.status(500).json({ error: 'Failed to add to wishlist' });
-        }
-    });
+    app.post('/users/:userId/wishlist', validateRequiredFieldsMiddleware(['product_id']), addToWishlistController);
 
     app.get(
         '/users/:userId/wishlist',
@@ -1169,16 +908,7 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        async (req, res) => {
-            try {
-                const { userId } = req.params;
-                const wishlist = await getWishlist(userId);
-                res.json(wishlist);
-            } catch (error) {
-                console.error('Error getting wishlist:', error);
-                res.status(500).json({ error: 'Failed to get wishlist' });
-            }
-        }
+        getWishlistController
     );
 
     app.get('/health', function (req, res) {
@@ -1204,28 +934,9 @@ async function init() {
         res.json(health);
     });
 
-    app.post('/products/:productId/attributes', async function (req, res) {
-        try {
-            const attributeData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addProductAttributeValue(attributeData);
-            await invalidateCachePattern(`/products/${req.params.productId}/attributes`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), addProductAttributeController);
 
-    app.post('/attributes', async function (req, res) {
-        try {
-            const result = await createProductAttribute(req.body);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), createAttributeController);
 
     app.get(
         '/products/:productId/attributes',
@@ -1276,69 +987,22 @@ async function init() {
 
     app.get(
         '/products/:id/price-trends',
-        validateProductId,
+        validateProductIdMiddleware,
+        validateVariantIdMiddleware,
         enhancedCacheMiddleware('product', 300, {
             compress: true,
             cacheKeyPrefix: 'api',
         }),
-        async (req, res) => {
-            try {
-                const productId = parseInt(req.params.id);
-                const variantId = req.query.variant_id ? parseInt(req.query.variant_id) : null;
-                const period = req.query.period || '30 days';
-
-                if (variantId && isNaN(variantId)) {
-                    return res.status(400).json({
-                        error: 'Invalid variant ID. Must be a valid integer.',
-                    });
-                }
-
-                const trends = await getProductPriceTrends(productId, variantId, period);
-                res.json(trends);
-            } catch (error) {
-                logger.error('Price trends error', {
-                    error: error.message,
-                    productId: req.params.id,
-                    variantId: req.query.variant_id,
-                    period: req.query.period,
-                });
-                res.status(500).json({ error: error.message });
-            }
-        }
+        getPriceTrendsController
     );
 
-    app.post('/products/:productId/price-history', async function (req, res) {
-        try {
-            const priceData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addPriceHistory(priceData);
+    app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), addPriceHistoryController);
 
-            await Promise.all([
-                invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`),
-                invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
-            ]);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
-    app.post('/products/:productId/relationships', async function (req, res) {
-        try {
-            const relationshipData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await addProductRelationship(relationshipData);
-            await invalidateCachePattern(`/products/${req.params.productId}/relationships`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    app.post(
+        '/products/:productId/relationships',
+        validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']),
+        addProductRelationshipController
+    );
     app.get(
         '/products/:productId/relationships',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1347,27 +1011,10 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductRelationships(req.params.productId, req.query.relationship_type)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductRelationshipsController
     );
 
-    app.post('/products/:productId/versions', async function (req, res) {
-        try {
-            const versionData = {
-                ...req.body,
-                product_id: req.params.productId,
-            };
-            const result = await createProductVersion(versionData);
-            await invalidateCachePattern(`/products/${req.params.productId}/versions`);
-            res.json(result.rows[0]);
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
-
+    app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), createProductVersionController);
     app.get(
         '/products/:productId/versions',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1376,33 +1023,10 @@ async function init() {
             preloadRelated: true,
             version: '1',
         }),
-        function (req, res) {
-            getProductVersions(req.params.productId)
-                .then(result => res.json(result.rows))
-                .catch(error => res.status(500).json({ error: error.message }));
-        }
+        getProductVersionsController
     );
 
-    app.get('/categories', paginateResults, async function (req, res) {
-        try {
-            const { page, limit, offset } = req.pagination;
-            const result = await pgPool.query('SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
-            const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
-            const total = parseInt(countResult.rows[0].count);
-
-            res.json({
-                data: result.rows,
-                pagination: {
-                    page,
-                    limit,
-                    total,
-                    pages: Math.ceil(total / limit),
-                },
-            });
-        } catch (error) {
-            res.status(500).json({ error: error.message });
-        }
-    });
+    app.get('/categories', paginateResults, getCategoriesController);
 
     app.use((err, req, res, next) => {
         logger.error('Unhandled error', {
@@ -3021,7 +2645,8 @@ async function applySchemaMigration(version, name, queries) {
 }
 
 // ======================================================================
-// mid
+// Middleware
+
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     const {
         compress = true,
@@ -3192,8 +2817,475 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
         next();
     };
 }
+
+function validateProductIdMiddleware(req, res, next) {
+    const productId = req.params.id;
+    if (!productId || isNaN(parseInt(productId))) {
+        return res.status(400).json({
+            error: 'Invalid product ID. Must be a valid integer.',
+        });
+    }
+    next();
+}
+
+function validateVariantIdMiddleware(req, res, next) {
+    const variantId = req.query.variant_id;
+    if (variantId && isNaN(parseInt(variantId))) {
+        return res.status(400).json({
+            error: 'Invalid variant ID. Must be a valid integer.',
+        });
+    }
+    next();
+}
+
+function validateRequiredFieldsMiddleware(requiredFields) {
+    return (req, res, next) => {
+        const missingFields = requiredFields.filter(field => !req.body[field]);
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                error: `Missing required fields: ${missingFields.join(', ')}`,
+            });
+        }
+        next();
+    };
+}
 // ======================================================================
-// contr
+// Controller
+
+async function healthCheckController(req, res) {
+    try {
+        const result = await pgPool.query(`
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables 
+                WHERE table_name = 'products'
+            );
+        `);
+
+        if (!result.rows[0].exists) {
+            return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
+        }
+
+        const indexResult = await pgPool.query(`
+            SELECT EXISTS (
+                SELECT 1
+                FROM pg_indexes
+                WHERE tablename = 'products'
+                AND indexname = 'idx_products_name_trgm'
+            );
+        `);
+
+        if (!indexResult.rows[0].exists) {
+            return res.status(503).json({ status: 'initializing', message: 'Database indexes are being created' });
+        }
+
+        res.json({ status: 'ready', message: 'Server is ready to handle requests' });
+    } catch (error) {
+        console.error('Health check failed:', error);
+        res.status(500).json({ status: 'error', message: 'Health check failed' });
+    }
+}
+
+async function createProductController(req, res) {
+    try {
+        const result = await createProduct(req.body);
+        await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductByIdController(req, res) {
+    try {
+        const result = await getProductById(req.params.id);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function searchProductsController(req, res) {
+    try {
+        const searchParams = {
+            page: req.pagination.page,
+            pageSize: req.pagination.limit,
+            ...req.query,
+        };
+        const result = await searchProducts(searchParams);
+        res.json({
+            data: result.items,
+            pagination: result.pagination,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function bulkUpdateProductsController(req, res) {
+    try {
+        const { type, data, options } = req.body;
+        if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
+            return res.status(400).json({ error: 'Invalid operation type' });
+        }
+        if (!Array.isArray(data) || data.length === 0) {
+            return res.status(400).json({ error: 'Invalid data array' });
+        }
+        const results = await processBulkOperation(type, data, options);
+        res.json({
+            message: 'Bulk operation queued successfully',
+            jobIds: results.map(r => r.id),
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function createCategoryController(req, res) {
+    try {
+        const result = await createCategory(req.body);
+        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getCategoryTreeController(req, res) {
+    try {
+        const result = await getCategoryTree();
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addCommentController(req, res) {
+    try {
+        const commentData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addComment(commentData);
+        await invalidateCachePattern(`/products/${req.params.productId}/comments`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductCommentsController(req, res) {
+    try {
+        const result = await getProductComments(req.params.productId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addTagToProductController(req, res) {
+    try {
+        const { tag_name } = req.body;
+        const result = await addTagToProduct(req.params.productId, tag_name);
+        await Promise.all([invalidateCachePattern(`/products/tags/${tag_name}`), invalidateCachePattern(`/products/${req.params.productId}`)]);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductsByTagController(req, res) {
+    try {
+        const result = await getProductsByTag(req.params.tagName);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function searchProductDocumentsController(req, res) {
+    try {
+        const { q } = req.query;
+        if (!q) {
+            return res.status(400).json({ error: 'Search query is required' });
+        }
+        const results = await searchProductDocuments(q);
+        res.json(results);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+async function getJobStatusController(req, res) {
+    try {
+        const job = await bulkOperationQueue.getJob(req.params.jobId);
+        if (!job) {
+            return res.status(404).json({ error: 'Job not found' });
+        }
+
+        const state = await job.getState();
+        const progress = job._progress;
+        const result = job.returnvalue;
+
+        res.json({
+            id: job.id,
+            state,
+            progress,
+            result,
+            attemptsMade: job.attemptsMade,
+            timestamp: job.timestamp,
+            processedOn: job.processedOn,
+            finishedOn: job.finishedOn,
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getPriceTrendsController(req, res) {
+    try {
+        const productId = parseInt(req.params.id);
+        const variantId = req.query.variant_id ? parseInt(req.query.variant_id) : null;
+        const period = req.query.period || '30 days';
+
+        const trends = await getProductPriceTrends(productId, variantId, period);
+        res.json(trends);
+    } catch (error) {
+        logger.error('Price trends error', {
+            error: error.message,
+            productId: req.params.id,
+            variantId: req.query.variant_id,
+            period: req.query.period,
+        });
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addPriceHistoryController(req, res) {
+    try {
+        const priceData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addPriceHistory(priceData);
+
+        await Promise.all([
+            invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`),
+            invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
+        ]);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addProductRelationshipController(req, res) {
+    try {
+        const relationshipData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addProductRelationship(relationshipData);
+        await invalidateCachePattern(`/products/${req.params.productId}/relationships`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductRelationshipsController(req, res) {
+    try {
+        const result = await getProductRelationships(req.params.productId, req.query.relationship_type);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function createProductVersionController(req, res) {
+    try {
+        const versionData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await createProductVersion(versionData);
+        await invalidateCachePattern(`/products/${req.params.productId}/versions`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductVersionsController(req, res) {
+    try {
+        const result = await getProductVersions(req.params.productId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getCategoriesController(req, res) {
+    try {
+        const { page, limit, offset } = req.pagination;
+        const result = await pgPool.query('SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
+        const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
+        const total = parseInt(countResult.rows[0].count);
+
+        res.json({
+            data: result.rows,
+            pagination: {
+                page,
+                limit,
+                total,
+                pages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function createProductVariantController(req, res) {
+    try {
+        const variantData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await createProductVariant(variantData);
+        await invalidateCachePattern(`/products/${req.params.productId}/variants`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductVariantsController(req, res) {
+    try {
+        const result = await getProductVariants(req.params.productId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addProductImageController(req, res) {
+    try {
+        const imageData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addProductImage(imageData);
+        await invalidateCachePattern(`/products/${req.params.productId}/images`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductImagesController(req, res) {
+    try {
+        const result = await getProductImages(req.params.productId);
+        res.json(result.rows);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function updateInventoryController(req, res) {
+    try {
+        const inventoryData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await updateInventory(inventoryData);
+        await invalidateCachePattern(`/products/${req.params.productId}/inventory`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addProductReviewController(req, res) {
+    try {
+        const reviewData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addProductReview(reviewData);
+
+        await Promise.all([
+            invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`),
+            invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
+        ]);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getProductReviewsController(req, res) {
+    try {
+        const { page, limit } = req.pagination;
+        const reviews = await getProductReviews(req.params.productId, { page, limit });
+        res.json(reviews);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function addToWishlistController(req, res) {
+    try {
+        const { userId } = req.params;
+        const { product_id } = req.body;
+
+        if (!userId || !product_id) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        const result = await addToWishlist(userId, product_id);
+        await invalidateCachePattern(`/users/${userId}/wishlist`);
+        res.json({ id: result.rows[0].id });
+    } catch (error) {
+        console.error('Error adding to wishlist:', error);
+        res.status(500).json({ error: 'Failed to add to wishlist' });
+    }
+}
+
+async function getWishlistController(req, res) {
+    try {
+        const { userId } = req.params;
+        const wishlist = await getWishlist(userId);
+        res.json(wishlist);
+    } catch (error) {
+        console.error('Error getting wishlist:', error);
+        res.status(500).json({ error: 'Failed to get wishlist' });
+    }
+}
+
+async function addProductAttributeController(req, res) {
+    try {
+        const attributeData = {
+            ...req.body,
+            product_id: req.params.productId,
+        };
+        const result = await addProductAttributeValue(attributeData);
+        await invalidateCachePattern(`/products/${req.params.productId}/attributes`);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function createAttributeController(req, res) {
+    try {
+        const result = await createProductAttribute(req.body);
+        res.json(result.rows[0]);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
 
 // ======================================================================
 // run on the times
