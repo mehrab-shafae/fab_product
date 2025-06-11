@@ -60,9 +60,7 @@ const CACHE_PATTERNS = {
 
 const { combine, timestamp, printf, colorize } = format;
 
-// Error handling system
 const DB_ERROR_CODES = {
-    // Foreign key violations
     23503: {
         categories: {
             parent_id_fkey: 'The specified parent category does not exist',
@@ -74,7 +72,7 @@ const DB_ERROR_CODES = {
         },
         default: 'Referenced record does not exist',
     },
-    // Unique violations
+
     23505: {
         categories: {
             categories_name_key: 'A category with this name already exists',
@@ -86,7 +84,7 @@ const DB_ERROR_CODES = {
         },
         default: 'This record already exists',
     },
-    // Not null violations
+
     23502: {
         categories: {
             name: 'Category name is required',
@@ -99,7 +97,7 @@ const DB_ERROR_CODES = {
         },
         default: 'Required field is missing',
     },
-    // Check violations
+
     23514: {
         products: {
             products_price_check: 'Product price must be greater than 0',
@@ -110,7 +108,6 @@ const DB_ERROR_CODES = {
 };
 
 function handleDatabaseError(error) {
-    // If it's not a database error, return the original error
     if (!error.code || !DB_ERROR_CODES[error.code]) {
         return {
             message: error.message,
@@ -122,7 +119,6 @@ function handleDatabaseError(error) {
     let message = errorConfig.default;
     let statusCode = 400;
 
-    // Try to get specific error message based on table and constraint
     if (error.table && errorConfig[error.table]) {
         if (error.constraint && errorConfig[error.table][error.constraint]) {
             message = errorConfig[error.table][error.constraint];
@@ -131,18 +127,17 @@ function handleDatabaseError(error) {
         }
     }
 
-    // Special handling for specific error types
     switch (error.code) {
-        case '23503': // Foreign key violation
+        case '23503':
             statusCode = 404;
             break;
-        case '23505': // Unique violation
+        case '23505':
             statusCode = 409;
             break;
-        case '23502': // Not null violation
+        case '23502':
             statusCode = 400;
             break;
-        case '23514': // Check violation
+        case '23514':
             statusCode = 400;
             break;
         default:
@@ -163,7 +158,6 @@ function handleDatabaseError(error) {
     };
 }
 
-// Response handler middleware
 const responseHandler = (req, res, next) => {
     res.success = (data, message = 'Success') => {
         res.json({
@@ -174,7 +168,6 @@ const responseHandler = (req, res, next) => {
     };
 
     res.error = (error, statusCode = 500) => {
-        // If error is a string, it's a direct message
         if (typeof error === 'string') {
             return res.status(statusCode).json({
                 status: 'error',
@@ -183,7 +176,6 @@ const responseHandler = (req, res, next) => {
             });
         }
 
-        // If error is an object, it might be a database error
         logger.error('response Error', { error });
         const handledError = handleDatabaseError(error);
 
@@ -661,7 +653,6 @@ async function init() {
     app.use(requestLogger);
     app.use(errorLogger);
 
-    // Swagger setup
     app.use(
         '/api-docs/en',
         swaggerUi.serve,
