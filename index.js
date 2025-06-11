@@ -27,7 +27,7 @@ import YAML from 'yamljs';
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'config', 'database-schema.json'), 'utf8'));
+const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'database-schema.json'), 'utf8'));
 // ======================================================================
 const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
