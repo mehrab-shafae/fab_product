@@ -68,6 +68,27 @@ const CACHE_PATTERNS = {
 
 const { combine, timestamp, printf, colorize } = format;
 
+// Response handler middleware
+const responseHandler = (req, res, next) => {
+    res.success = (data, message = 'Success') => {
+        res.json({
+            status: 'success',
+            data,
+            message,
+        });
+    };
+
+    res.error = (message, statusCode = 500) => {
+        res.status(statusCode).json({
+            status: 'error',
+            message,
+            data: null,
+        });
+    };
+
+    next();
+};
+
 const logger = createLogger({
     level: process.env.LOG_LEVEL || 'info',
     format: combine(
@@ -597,6 +618,8 @@ async function init() {
         process.exit(1);
     }
 
+    // Add response handler middleware
+    app.use(responseHandler);
     apiV1Routers(apiV1Router);
 
     app.use('/api/product/v1', apiV1Router);
@@ -676,6 +699,7 @@ function apiV1Routers(app) {
     // Search routes
     app.get(
         '/products/search/document',
+        validateRequiredFieldsMiddleware(['q']),
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
             compress: true,
             useMemoryCache: true,
@@ -865,7 +889,6 @@ function apiV1Routers(app) {
         }),
         getProductVersionsController
     );
-
 }
 
 function executeLinuxCommand(command) {
@@ -2711,12 +2734,12 @@ async function createProductController(req, res) {
 async function getProductByIdController(req, res) {
     try {
         const result = await getProductById(req.params.id);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Product not found' });
+        if (!result.rows.length) {
+            return res.error('Product not found', 404);
         }
-        res.json(result.rows[0]);
+        res.success(result.rows[0]);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2728,12 +2751,12 @@ async function searchProductsController(req, res) {
             ...req.query,
         };
         const result = await searchProducts(searchParams);
-        res.json({
+        res.success({
             data: result.items,
             pagination: result.pagination,
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2769,9 +2792,9 @@ async function createCategoryController(req, res) {
 async function getCategoryTreeController(req, res) {
     try {
         const result = await getCategoryTree();
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2792,9 +2815,9 @@ async function addCommentController(req, res) {
 async function getProductCommentsController(req, res) {
     try {
         const result = await getProductComments(req.params.productId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2812,36 +2835,32 @@ async function addTagToProductController(req, res) {
 async function getProductsByTagController(req, res) {
     try {
         const result = await getProductsByTag(req.params.tagName);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function searchProductDocumentsController(req, res) {
     try {
-        const { q } = req.query;
-        if (!q) {
-            return res.status(400).json({ error: 'Search query is required' });
-        }
-        const results = await searchProductDocuments(q);
-        res.json(results);
+        const result = await searchProductDocuments(req.query.q);
+        res.success(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 async function getJobStatusController(req, res) {
     try {
         const job = await bulkOperationQueue.getJob(req.params.jobId);
         if (!job) {
-            return res.status(404).json({ error: 'Job not found' });
+            return res.error('Job not found', 404);
         }
 
         const state = await job.getState();
         const progress = job._progress;
         const result = job.returnvalue;
 
-        res.json({
+        res.success({
             id: job.id,
             state,
             progress,
@@ -2852,7 +2871,7 @@ async function getJobStatusController(req, res) {
             finishedOn: job.finishedOn,
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2863,7 +2882,7 @@ async function getPriceTrendsController(req, res) {
         const period = req.query.period || '30 days';
 
         const trends = await getProductPriceTrends(productId, variantId, period);
-        res.json(trends);
+        res.success(trends);
     } catch (error) {
         logger.error('Price trends error', {
             error: error.message,
@@ -2871,7 +2890,7 @@ async function getPriceTrendsController(req, res) {
             variantId: req.query.variant_id,
             period: req.query.period,
         });
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2907,9 +2926,9 @@ async function addProductRelationshipController(req, res) {
 async function getProductRelationshipsController(req, res) {
     try {
         const result = await getProductRelationships(req.params.productId, req.query.relationship_type);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2930,9 +2949,9 @@ async function createProductVersionController(req, res) {
 async function getProductVersionsController(req, res) {
     try {
         const result = await getProductVersions(req.params.productId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2943,7 +2962,7 @@ async function getCategoriesController(req, res) {
         const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
         const total = parseInt(countResult.rows[0].count);
 
-        res.json({
+        res.success({
             data: result.rows,
             pagination: {
                 page,
@@ -2953,7 +2972,7 @@ async function getCategoriesController(req, res) {
             },
         });
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2974,9 +2993,9 @@ async function createProductVariantController(req, res) {
 async function getProductVariantsController(req, res) {
     try {
         const result = await getProductVariants(req.params.productId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2997,9 +3016,9 @@ async function addProductImageController(req, res) {
 async function getProductImagesController(req, res) {
     try {
         const result = await getProductImages(req.params.productId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3036,9 +3055,9 @@ async function getProductReviewsController(req, res) {
     try {
         const { page, limit } = req.pagination;
         const reviews = await getProductReviews(req.params.productId, { page, limit });
-        res.json(reviews);
+        res.success(reviews);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3063,11 +3082,10 @@ async function addToWishlistController(req, res) {
 async function getWishlistController(req, res) {
     try {
         const { userId } = req.params;
-        const wishlist = await getWishlist(userId);
-        res.json(wishlist);
+        const result = await getWishlist(userId);
+        res.success(result.rows);
     } catch (error) {
-        console.error('Error getting wishlist:', error);
-        res.status(500).json({ error: 'Failed to get wishlist' });
+        res.error(error.message);
     }
 }
 
@@ -3111,11 +3129,10 @@ async function createProductChatController(req, res) {
 async function getUserChatsController(req, res) {
     try {
         const { userId } = req.params;
-        const chats = await getProductChats(userId);
-        res.json(chats);
+        const result = await getProductChats(userId);
+        res.success(result.rows);
     } catch (error) {
-        console.error('Error getting user chats:', error);
-        res.status(500).json({ error: 'Failed to get user chats' });
+        res.error(error.message);
     }
 }
 
@@ -3136,9 +3153,9 @@ async function addChatMessageController(req, res) {
 async function getChatMessagesController(req, res) {
     try {
         const result = await getChatMessages(req.params.chatId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3156,11 +3173,11 @@ async function getProductAnalyticsController(req, res) {
     try {
         const result = await getProductAnalytics(req.params.productId);
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Product not found' });
+            return res.error('Product not found', 404);
         }
-        res.json(result.rows[0]);
+        res.success(result.rows[0]);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3168,47 +3185,47 @@ async function getCategoryAnalyticsController(req, res) {
     try {
         const result = await getCategoryAnalytics(req.params.categoryId);
         if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Category not found' });
+            return res.error('Category not found', 404);
         }
-        res.json(result.rows);
+        res.success(result.rows[0]);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function getProductRecommendationsController(req, res) {
     try {
         const result = await getProductRecommendations(req.params.productId);
-        res.json(result);
+        res.success(result);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function getProductAttributesController(req, res) {
     try {
         const result = await getProductAttributes(req.params.productId);
-        res.json(result.rows);
+        res.success(result.rows);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function getProductPriceHistoryController(req, res) {
     try {
         const history = await getProductPriceHistory(req.params.productId);
-        res.json(history);
+        res.success(history);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function getProductPriceStatisticsController(req, res) {
     try {
         const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
-        res.json(result.rows[0]);
+        res.success(result.rows[0]);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
