@@ -2347,7 +2347,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /api/product/v1/categories/tree:
+  /api/product/v1/categories:
     get:
       summary: Get category tree
       tags: [Categories]

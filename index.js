@@ -638,7 +638,7 @@ function apiV1Routers(app) {
     // Category routes
     app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
     app.get(
-        '/categories/tree',
+        '/categories',
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
             compress: true,
             useMemoryCache: true,
