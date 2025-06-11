@@ -520,177 +520,6 @@ class EnhancedNeuralNetwork {
 
 // ======================================================================
 
-function enhancedCacheMiddleware(prefix, ttl, options = {}) {
-    const {
-        compress = true,
-        version = '1',
-        maxRetries = 2,
-        retryDelay = 100,
-        compressionThreshold = 1024,
-        cacheKeyPrefix = 'cache',
-        maxCacheSize = 10 * 1024 * 1024,
-        staleWhileRevalidate = false,
-        staleTTL = 60,
-    } = options;
-
-    return async function (req, res, next) {
-        if (req.method !== 'GET') {
-            return next();
-        }
-
-        if (!redisConnected) {
-            logger.warn('Redis not connected, skipping cache', {
-                path: req.originalUrl,
-                method: req.method,
-            });
-            return next();
-        }
-
-        const key = `${cacheKeyPrefix}:${prefix}:${version}:${req.originalUrl}`;
-        let retryCount = 0;
-
-        const getFromCache = async () => {
-            try {
-                if (!redisClient.isOpen) {
-                    logger.warn('Redis client is closed, skipping cache', { key });
-                    return null;
-                }
-
-                const cachedData = await redisClient.get(key);
-                if (!cachedData) return null;
-
-                const metadata = await redisClient.hGetAll(`${key}:meta`);
-
-                let data;
-                if (metadata.compressed === 'true') {
-                    data = await decompressData(cachedData);
-                } else {
-                    data = cachedData;
-                }
-
-                const result = {
-                    data: JSON.parse(data),
-                    metadata: {
-                        created: parseInt(metadata.created) || Date.now(),
-                        size: parseInt(metadata.size) || 0,
-                        compressed: metadata.compressed === 'true',
-                        isStale: staleWhileRevalidate && Date.now() - parseInt(metadata.created) > ttl * 1000,
-                    },
-                };
-
-                if (result.metadata.isStale && staleWhileRevalidate) {
-                    setInCache(result.data).catch(error => {
-                        logger.error('Background cache refresh error', {
-                            error: error.message,
-                            key,
-                        });
-                    });
-                }
-
-                return result;
-            } catch (error) {
-                logger.error('Cache retrieval error', {
-                    error: error.message,
-                    key,
-                    retryCount,
-                });
-                return null;
-            }
-        };
-
-        const setInCache = async data => {
-            try {
-                if (!redisClient.isOpen) {
-                    logger.warn('Redis client is closed, skipping cache set', { key });
-                    return;
-                }
-
-                const dataStr = JSON.stringify(data);
-                let finalData = dataStr;
-                let isCompressed = false;
-
-                if (Buffer.byteLength(dataStr) > maxCacheSize) {
-                    logger.warn('Data too large for caching', {
-                        key,
-                        size: Buffer.byteLength(dataStr),
-                        maxSize: maxCacheSize,
-                    });
-                    return;
-                }
-
-                if (compress && dataStr.length > compressionThreshold) {
-                    finalData = await compressData(dataStr);
-                    isCompressed = true;
-                }
-
-                const multi = redisClient.multi();
-
-                multi.setEx(key, ttl, finalData);
-
-                multi.hSet(`${key}:meta`, {
-                    created: Date.now().toString(),
-                    size: finalData.length.toString(),
-                    compressed: isCompressed.toString(),
-                });
-                multi.expire(`${key}:meta`, ttl);
-
-                await multi.exec();
-
-                logger.debug('Data cached successfully', {
-                    key,
-                    size: finalData.length,
-                    compressed: isCompressed,
-                });
-            } catch (error) {
-                logger.error('Cache storage error', {
-                    error: error.message,
-                    key,
-                    stack: error.stack,
-                });
-            }
-        };
-
-        while (retryCount <= maxRetries) {
-            const cachedResult = await getFromCache();
-            if (cachedResult) {
-                if (cachedResult.metadata.isStale && staleWhileRevalidate) {
-                    logger.debug('Returning stale data while revalidating', {
-                        key,
-                        age: Date.now() - cachedResult.metadata.created,
-                    });
-                }
-                return res.json(cachedResult.data);
-            }
-
-            if (retryCount < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retryCount)));
-                retryCount++;
-            } else {
-                break;
-            }
-        }
-
-        res.sendResponse = res.json;
-        res.json = async function (body) {
-            try {
-                setInCache(body).catch(error => {
-                    logger.error('Async cache storage error', {
-                        error: error.message,
-                        key,
-                    });
-                });
-            } catch (error) {
-                logger.error('Cache middleware error', {
-                    error: error.message,
-                    key,
-                });
-            }
-            res.sendResponse(body);
-        };
-        next();
-    };
-}
-
 function validateProductId(req, res, next) {
     const productId = req.params.id;
     if (!productId || isNaN(parseInt(productId))) {
@@ -699,10 +528,6 @@ function validateProductId(req, res, next) {
         });
     }
     next();
-}
-
-function scheduleCacheWarming() {
-    setInterval(warmCache, 4 * 60 * 60 * 1000);
 }
 
 async function init() {
@@ -1594,10 +1419,6 @@ async function init() {
         console.log(`Product service is running on port ${PORT}`);
         console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
     });
-}
-
-function scheduleMaterializedViewRefresh() {
-    setInterval(refreshMaterializedViews, 60 * 60 * 1000);
 }
 
 function executeLinuxCommand(command) {
@@ -3198,6 +3019,191 @@ async function applySchemaMigration(version, name, queries) {
         client.release();
     }
 }
+
+// ======================================================================
+// mid
+function enhancedCacheMiddleware(prefix, ttl, options = {}) {
+    const {
+        compress = true,
+        version = '1',
+        maxRetries = 2,
+        retryDelay = 100,
+        compressionThreshold = 1024,
+        cacheKeyPrefix = 'cache',
+        maxCacheSize = 10 * 1024 * 1024,
+        staleWhileRevalidate = false,
+        staleTTL = 60,
+    } = options;
+
+    return async function (req, res, next) {
+        if (req.method !== 'GET') {
+            return next();
+        }
+
+        if (!redisConnected) {
+            logger.warn('Redis not connected, skipping cache', {
+                path: req.originalUrl,
+                method: req.method,
+            });
+            return next();
+        }
+
+        const key = `${cacheKeyPrefix}:${prefix}:${version}:${req.originalUrl}`;
+        let retryCount = 0;
+
+        const getFromCache = async () => {
+            try {
+                if (!redisClient.isOpen) {
+                    logger.warn('Redis client is closed, skipping cache', { key });
+                    return null;
+                }
+
+                const cachedData = await redisClient.get(key);
+                if (!cachedData) return null;
+
+                const metadata = await redisClient.hGetAll(`${key}:meta`);
+
+                let data;
+                if (metadata.compressed === 'true') {
+                    data = await decompressData(cachedData);
+                } else {
+                    data = cachedData;
+                }
+
+                const result = {
+                    data: JSON.parse(data),
+                    metadata: {
+                        created: parseInt(metadata.created) || Date.now(),
+                        size: parseInt(metadata.size) || 0,
+                        compressed: metadata.compressed === 'true',
+                        isStale: staleWhileRevalidate && Date.now() - parseInt(metadata.created) > ttl * 1000,
+                    },
+                };
+
+                if (result.metadata.isStale && staleWhileRevalidate) {
+                    setInCache(result.data).catch(error => {
+                        logger.error('Background cache refresh error', {
+                            error: error.message,
+                            key,
+                        });
+                    });
+                }
+
+                return result;
+            } catch (error) {
+                logger.error('Cache retrieval error', {
+                    error: error.message,
+                    key,
+                    retryCount,
+                });
+                return null;
+            }
+        };
+
+        const setInCache = async data => {
+            try {
+                if (!redisClient.isOpen) {
+                    logger.warn('Redis client is closed, skipping cache set', { key });
+                    return;
+                }
+
+                const dataStr = JSON.stringify(data);
+                let finalData = dataStr;
+                let isCompressed = false;
+
+                if (Buffer.byteLength(dataStr) > maxCacheSize) {
+                    logger.warn('Data too large for caching', {
+                        key,
+                        size: Buffer.byteLength(dataStr),
+                        maxSize: maxCacheSize,
+                    });
+                    return;
+                }
+
+                if (compress && dataStr.length > compressionThreshold) {
+                    finalData = await compressData(dataStr);
+                    isCompressed = true;
+                }
+
+                const multi = redisClient.multi();
+
+                multi.setEx(key, ttl, finalData);
+
+                multi.hSet(`${key}:meta`, {
+                    created: Date.now().toString(),
+                    size: finalData.length.toString(),
+                    compressed: isCompressed.toString(),
+                });
+                multi.expire(`${key}:meta`, ttl);
+
+                await multi.exec();
+
+                logger.debug('Data cached successfully', {
+                    key,
+                    size: finalData.length,
+                    compressed: isCompressed,
+                });
+            } catch (error) {
+                logger.error('Cache storage error', {
+                    error: error.message,
+                    key,
+                    stack: error.stack,
+                });
+            }
+        };
+
+        while (retryCount <= maxRetries) {
+            const cachedResult = await getFromCache();
+            if (cachedResult) {
+                if (cachedResult.metadata.isStale && staleWhileRevalidate) {
+                    logger.debug('Returning stale data while revalidating', {
+                        key,
+                        age: Date.now() - cachedResult.metadata.created,
+                    });
+                }
+                return res.json(cachedResult.data);
+            }
+
+            if (retryCount < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retryCount)));
+                retryCount++;
+            } else {
+                break;
+            }
+        }
+
+        res.sendResponse = res.json;
+        res.json = async function (body) {
+            try {
+                setInCache(body).catch(error => {
+                    logger.error('Async cache storage error', {
+                        error: error.message,
+                        key,
+                    });
+                });
+            } catch (error) {
+                logger.error('Cache middleware error', {
+                    error: error.message,
+                    key,
+                });
+            }
+            res.sendResponse(body);
+        };
+        next();
+    };
+}
+// ======================================================================
+// contr
+
+// ======================================================================
+// run on the times
+function scheduleCacheWarming() {
+    setInterval(warmCache, 4 * 60 * 60 * 1000);
+}
+function scheduleMaterializedViewRefresh() {
+    setInterval(refreshMaterializedViews, 60 * 60 * 1000);
+}
+
 // ======================================================================
 async function main() {
     await clearCorruptedCache();
