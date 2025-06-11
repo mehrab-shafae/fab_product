@@ -48,6 +48,13 @@
             "queries": [
                 "CREATE TABLE IF NOT EXISTS product_analytics (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, analytics_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
             ]
+        },
+        {
+            "version": 5,
+            "name": "Add deleted_at to products",
+            "queries": [
+                "ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"
+            ]
         }
     ],
     "indexes": [

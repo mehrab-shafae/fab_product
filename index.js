@@ -1007,6 +1007,63 @@ function apiV1Routers(app) {
         }),
         getProductVersionsController
     );
+
+    app.put(
+        '/categories/:id',
+        validateCategoryMiddleware,
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        updateCategoryController
+    );
+
+    app.delete(
+        '/categories/:id',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        deleteCategoryController
+    );
+
+    app.get(
+        '/categories/:id',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        getCategoryByIdController
+    );
+
+    app.get(
+        '/categories/search',
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        searchCategoriesController
+    );
+
+    app.post(
+        '/categories/bulk-update',
+        validateCategoryMiddleware,
+        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+            compress: true,
+            useMemoryCache: true,
+            preloadRelated: true,
+            version: '1',
+        }),
+        bulkUpdateCategoriesController
+    );
 }
 
 function executeLinuxCommand(command) {
@@ -1580,6 +1637,42 @@ function requestLogger(req, res, next) {
     };
 
     next();
+}
+
+function updateCategory(categoryId, categoryData) {
+    const { name, parent_id } = categoryData;
+    const query = `
+        UPDATE categories 
+        SET name = COALESCE($1, name),
+            parent_id = COALESCE($2, parent_id),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $3 AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [name, parent_id, categoryId]);
+}
+
+function deleteCategory(categoryId) {
+    const query = `
+        UPDATE categories 
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [categoryId]);
+}
+
+function getCategoryById(categoryId) {
+    const query = `
+        SELECT c.*, 
+               p.name as parent_name,
+               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
+               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count
+        FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
+        WHERE c.id = $1 AND c.deleted_at IS NULL
+    `;
+    return pgPool.query(query, [categoryId]);
 }
 
 function errorLogger(err, req, res, next) {
@@ -2477,6 +2570,95 @@ async function getCurrentSchemaVersion() {
     return result.rows[0]?.current_version || 0;
 }
 
+async function searchCategories(searchParams) {
+    const { page = 1, limit = 10, name, parent_id, include_deleted = false } = searchParams;
+    const offset = (page - 1) * limit;
+
+    // Validate parent_id if provided
+    if (parent_id !== undefined && parent_id !== null) {
+        const parsedParentId = parseInt(parent_id);
+        if (isNaN(parsedParentId)) {
+            throw new Error('Parent ID must be a valid integer');
+        }
+        searchParams.parent_id = parsedParentId;
+    }
+
+    let query = `
+        SELECT c.*, 
+               p.name as parent_name,
+               (SELECT COUNT(*) FROM products WHERE category_id = c.id AND deleted_at IS NULL) as product_count,
+               (SELECT COUNT(*) FROM categories WHERE parent_id = c.id AND deleted_at IS NULL) as subcategory_count
+        FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
+        WHERE 1=1
+    `;
+    const queryParams = [];
+    let paramIndex = 1;
+
+    if (name) {
+        query += ` AND c.name ILIKE $${paramIndex}`;
+        queryParams.push(`%${name}%`);
+        paramIndex++;
+    }
+
+    if (parent_id !== undefined) {
+        query += ` AND c.parent_id = $${paramIndex}`;
+        queryParams.push(parent_id);
+        paramIndex++;
+    }
+
+    if (!include_deleted) {
+        query += ` AND c.deleted_at IS NULL`;
+    }
+
+    query += ` ORDER BY c.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    queryParams.push(limit, offset);
+
+    const result = await pgPool.query(query, queryParams);
+    const countResult = await pgPool.query(
+        `SELECT COUNT(*) FROM categories c WHERE 1=1 ${name ? 'AND c.name ILIKE $1' : ''} ${parent_id !== undefined ? 'AND c.parent_id = $2' : ''} ${!include_deleted ? 'AND c.deleted_at IS NULL' : ''}`,
+        [name ? `%${name}%` : null, parent_id].filter(Boolean)
+    );
+
+    return {
+        items: result.rows,
+        total: parseInt(countResult.rows[0].count),
+        page,
+        limit,
+        pages: Math.ceil(parseInt(countResult.rows[0].count) / limit),
+    };
+}
+
+async function bulkUpdateCategories(categories) {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+        const results = [];
+
+        for (const category of categories) {
+            const { id, name, parent_id } = category;
+            const result = await client.query(
+                `UPDATE categories 
+                 SET name = COALESCE($1, name),
+                     parent_id = COALESCE($2, parent_id),
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $3 AND deleted_at IS NULL
+                 RETURNING *`,
+                [name, parent_id, id]
+            );
+            results.push(result.rows[0]);
+        }
+
+        await client.query('COMMIT');
+        return results;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
 async function applySchemaMigration(version, name, queries) {
     const client = await pgPool.connect();
     try {
@@ -2724,6 +2906,22 @@ function validateRequiredFieldsMiddleware(requiredFields) {
         }
         next();
     };
+}
+
+function validateCategoryMiddleware(req, res, next) {
+    const { name, parent_id } = req.body;
+
+    if (!name) {
+        return res.error('Category name is required', 400);
+    }
+
+    if (parent_id !== undefined && parent_id !== null) {
+        if (!Number.isInteger(Number(parent_id)) || Number(parent_id) <= 0) {
+            return res.error('Parent ID must be a positive integer', 400);
+        }
+    }
+
+    next();
 }
 
 // ======================================================================
@@ -3246,6 +3444,63 @@ async function getProductPriceStatisticsController(req, res) {
     try {
         const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
         res.success(result.rows[0]);
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function updateCategoryController(req, res) {
+    try {
+        const result = await updateCategory(req.params.id, req.body);
+        if (result.rows.length === 0) {
+            return res.error('Category not found', 404);
+        }
+        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*'), invalidateCachePattern(`api:categories:${req.params.id}:*`)]);
+        res.success(result.rows[0], 'Category updated successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function deleteCategoryController(req, res) {
+    try {
+        const result = await deleteCategory(req.params.id);
+        if (result.rows.length === 0) {
+            return res.error('Category not found', 404);
+        }
+        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*'), invalidateCachePattern(`api:categories:${req.params.id}:*`)]);
+        res.success(result.rows[0], 'Category deleted successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function getCategoryByIdController(req, res) {
+    try {
+        const result = await getCategoryById(req.params.id);
+        if (result.rows.length === 0) {
+            return res.error('Category not found', 404);
+        }
+        res.success(result.rows[0]);
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function searchCategoriesController(req, res) {
+    try {
+        const result = await searchCategories(req.query);
+        res.success(result);
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function bulkUpdateCategoriesController(req, res) {
+    try {
+        const result = await bulkUpdateCategories(req.body.categories);
+        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*')]);
+        res.success(result, 'Categories updated successfully');
     } catch (error) {
         res.error(error);
     }

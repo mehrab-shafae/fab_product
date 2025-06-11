@@ -2543,4 +2543,265 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{id}:
+    get:
+      summary: Get category by ID
+      tags: [Categories]
+      description: |
+        Get detailed information about a specific category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: integer
+                    description: Category ID
+                  name:
+                    type: string
+                    description: Category name
+                  parent_id:
+                    type: integer
+                    description: Parent category ID
+                  parent_name:
+                    type: string
+                    description: Parent category name
+                  product_count:
+                    type: integer
+                    description: Number of products in this category
+                  subcategory_count:
+                    type: integer
+                    description: Number of subcategories
+                  created_at:
+                    type: string
+                    format: date-time
+                    description: Creation timestamp
+                  updated_at:
+                    type: string
+                    format: date-time
+                    description: Last update timestamp
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    put:
+      summary: Update category
+      tags: [Categories]
+      description: |
+        Update an existing category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: New category name
+                parent_id:
+                  type: integer
+                  description: New parent category ID
+      responses:
+        '200':
+          description: Category updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    delete:
+      summary: Delete category
+      tags: [Categories]
+      description: |
+        Soft delete a category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/search:
+    get:
+      summary: Search categories
+      tags: [Categories]
+      description: |
+        Search categories with filters and pagination
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+            minLength: 1
+          description: Category name to search for
+        - in: query
+          name: parent_id
+          schema:
+            type: integer
+            minimum: 1
+          description: Filter by parent category ID
+        - in: query
+          name: include_deleted
+          schema:
+            type: boolean
+            default: false
+          description: Include soft-deleted categories
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  total:
+                    type: integer
+                    description: Total number of items
+                  page:
+                    type: integer
+                    description: Current page number
+                  limit:
+                    type: integer
+                    description: Items per page
+                  pages:
+                    type: integer
+                    description: Total number of pages
+        '400':
+          description: Invalid input parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/bulk-update:
+    post:
+      summary: Bulk update categories
+      tags: [Categories]
+      description: |
+        Update multiple categories simultaneously
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categories
+              properties:
+                categories:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - id
+                    properties:
+                      id:
+                        type: integer
+                        description: Category ID
+                      name:
+                        type: string
+                        description: New category name
+                      parent_id:
+                        type: integer
+                        description: New parent category ID
+      responses:
+        '200':
+          description: Categories updated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/Error' 
