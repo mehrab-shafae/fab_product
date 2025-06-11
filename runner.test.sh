@@ -69,7 +69,7 @@ run_tests() {
 
     sleep 3
 
-    ./test_api.sh
+    ./api.test.sh
 
     sleep 2
 
