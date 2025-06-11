@@ -91,11 +91,14 @@
             <nav class="nav flex-column">
                 <a class="nav-link active" href="#products">محصولات</a>
                 <a class="nav-link" href="#categories">دسته‌بندی‌ها</a>
-                <a class="nav-link" href="#comments">نظرات</a>
+                <a class="nav-link" href="#reviews">نظرات</a>
+                <a class="nav-link" href="#comments">کامنت‌ها</a>
                 <a class="nav-link" href="#chats">گفتگوها</a>
                 <a class="nav-link" href="#wishlist">لیست علاقه‌مندی‌ها</a>
                 <a class="nav-link" href="#analytics">تحلیل‌ها</a>
-                <a class="nav-link" href="#search">جستجو</a>
+                <a class="nav-link" href="#variants">تنوع محصولات</a>
+                <a class="nav-link" href="#images">تصاویر</a>
+                <a class="nav-link" href="#attributes">ویژگی‌ها</a>
                 <a class="nav-link" href="#system">سیستم</a>
             </nav>
         </div>
@@ -112,7 +115,7 @@
                         <span class="method get me-2">GET</span>
                         <h5 class="mb-0">دریافت لیست محصولات</h5>
                     </div>
-                    <p class="text-muted">دریافت لیست محصولات با قابلیت صفحه‌بندی و فیلتر</p>
+                    <p class="text-muted">دریافت لیست محصولات با قابلیت صفحه‌بندی</p>
                     <h6>آدرس:</h6>
                     <code>/products</code>
                     <h6 class="mt-3">پارامترهای اختیاری:</h6>
@@ -140,8 +143,17 @@
     "metadata": {
         // اطلاعات تکمیلی محصول
     }
-}</pre
-                    >
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت محصول با شناسه</h5>
+                    </div>
+                    <p class="text-muted">دریافت اطلاعات یک محصول با استفاده از شناسه</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{id}</code>
                 </div>
 
                 <div class="endpoint">
@@ -161,10 +173,25 @@
     ],
     "options": {
         "batchSize": 1000,
-        "concurrency": 5
+        "concurrency": 5,
+        "retryAttempts": 3,
+        "retryDelay": 1000
     }
-}</pre
-                    >
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">جستجوی محصولات</h5>
+                    </div>
+                    <p class="text-muted">جستجوی محصولات با استفاده از متن</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/search/document</code>
+                    <h6 class="mt-3">پارامترهای جستجو:</h6>
+                    <ul>
+                        <li><code>query</code>: عبارت جستجو</li>
+                    </ul>
                 </div>
             </section>
 
@@ -184,8 +211,22 @@
 {
     "name": "نام دسته‌بندی",
     "parent_id": 1 // اختیاری
-}</pre
-                    >
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت لیست دسته‌بندی‌ها</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست دسته‌بندی‌ها با قابلیت صفحه‌بندی</p>
+                    <h6>آدرس:</h6>
+                    <code>/categories</code>
+                    <h6 class="mt-3">پارامترهای اختیاری:</h6>
+                    <ul>
+                        <li><code>page</code>: شماره صفحه (پیش‌فرض: 1)</li>
+                        <li><code>limit</code>: تعداد آیتم در هر صفحه (پیش‌فرض: 10)</li>
+                    </ul>
                 </div>
 
                 <div class="endpoint">
@@ -199,7 +240,7 @@
                 </div>
             </section>
 
-            <section id="comments" class="mb-5">
+            <section id="reviews" class="mb-5">
                 <h2 class="mb-4">نظرات</h2>
 
                 <div class="endpoint">
@@ -209,14 +250,14 @@
                     </div>
                     <p class="text-muted">ثبت نظر جدید برای یک محصول</p>
                     <h6>آدرس:</h6>
-                    <code>/products/{productId}/comments</code>
+                    <code>/products/{productId}/reviews</code>
                     <h6 class="mt-3">بدنه درخواست:</h6>
                     <pre>
 {
     "user_id": "شناسه کاربر",
-    "comment": "متن نظر"
-}</pre
-                    >
+    "rating": 5,
+    "content": "متن نظر"
+}</pre>
                 </div>
 
                 <div class="endpoint">
@@ -226,136 +267,109 @@
                     </div>
                     <p class="text-muted">دریافت لیست نظرات یک محصول</p>
                     <h6>آدرس:</h6>
-                    <code>/products/{productId}/comments</code>
-                </div>
-            </section>
-
-            <section id="chats" class="mb-5">
-                <h2 class="mb-4">گفتگوها</h2>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method post me-2">POST</span>
-                        <h5 class="mb-0">ایجاد گفتگوی جدید</h5>
-                    </div>
-                    <p class="text-muted">ایجاد یک گفتگوی جدید برای یک محصول</p>
-                    <h6>آدرس:</h6>
-                    <code>/products/{productId}/chats</code>
-                    <h6 class="mt-3">بدنه درخواست:</h6>
-                    <pre>
-{
-    "user_id": "شناسه کاربر",
-    "seller_id": "شناسه فروشنده"
-}</pre
-                    >
-                </div>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method get me-2">GET</span>
-                        <h5 class="mb-0">دریافت گفتگوهای کاربر</h5>
-                    </div>
-                    <p class="text-muted">دریافت لیست گفتگوهای یک کاربر</p>
-                    <h6>آدرس:</h6>
-                    <code>/users/{userId}/chats</code>
-                </div>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method get me-2">GET</span>
-                        <h5 class="mb-0">دریافت پیام‌های گفتگو</h5>
-                    </div>
-                    <p class="text-muted">دریافت لیست پیام‌های یک گفتگو</p>
-                    <h6>آدرس:</h6>
-                    <code>/chats/{chatId}/messages</code>
-                </div>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method post me-2">POST</span>
-                        <h5 class="mb-0">علامت‌گذاری پیام‌ها به عنوان خوانده شده</h5>
-                    </div>
-                    <p class="text-muted">علامت‌گذاری تمام پیام‌های یک گفتگو به عنوان خوانده شده</p>
-                    <h6>آدرس:</h6>
-                    <code>/chats/{chatId}/read</code>
-                    <h6 class="mt-3">بدنه درخواست:</h6>
-                    <pre>
-{
-    "user_id": "شناسه کاربر"
-}</pre
-                    >
-                </div>
-            </section>
-
-            <section id="wishlist" class="mb-5">
-                <h2 class="mb-4">لیست علاقه‌مندی‌ها</h2>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method post me-2">POST</span>
-                        <h5 class="mb-0">افزودن به لیست علاقه‌مندی‌ها</h5>
-                    </div>
-                    <p class="text-muted">افزودن یک محصول به لیست علاقه‌مندی‌های کاربر</p>
-                    <h6>آدرس:</h6>
-                    <code>/users/{userId}/wishlist</code>
-                    <h6 class="mt-3">بدنه درخواست:</h6>
-                    <pre>
-{
-    "product_id": 1
-}</pre
-                    >
-                </div>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method get me-2">GET</span>
-                        <h5 class="mb-0">دریافت لیست علاقه‌مندی‌ها</h5>
-                    </div>
-                    <p class="text-muted">دریافت لیست علاقه‌مندی‌های کاربر</p>
-                    <h6>آدرس:</h6>
-                    <code>/users/{userId}/wishlist</code>
-                </div>
-            </section>
-
-            <section id="analytics" class="mb-5">
-                <h2 class="mb-4">تحلیل‌ها</h2>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method get me-2">GET</span>
-                        <h5 class="mb-0">تحلیل محصول</h5>
-                    </div>
-                    <p class="text-muted">دریافت اطلاعات تحلیلی یک محصول</p>
-                    <h6>آدرس:</h6>
-                    <code>/products/{productId}/analytics</code>
-                </div>
-            </section>
-
-            <section id="search" class="mb-5">
-                <h2 class="mb-4">جستجو</h2>
-
-                <div class="endpoint">
-                    <div class="d-flex align-items-center mb-3">
-                        <span class="method get me-2">GET</span>
-                        <h5 class="mb-0">جستجوی پیشرفته</h5>
-                    </div>
-                    <p class="text-muted">جستجوی محصولات با قابلیت‌های پیشرفته</p>
-                    <h6>آدرس:</h6>
-                    <code>/products/search/advanced</code>
-                    <h6 class="mt-3">پارامترهای جستجو:</h6>
+                    <code>/products/{productId}/reviews</code>
+                    <h6 class="mt-3">پارامترهای اختیاری:</h6>
                     <ul>
-                        <li><code>query</code>: عبارت جستجو</li>
-                        <li>
-                            <code>filters</code>: فیلترهای پیشرفته شامل:
-                            <ul>
-                                <li>دسته‌بندی‌ها</li>
-                                <li>محدوده قیمت</li>
-                                <li>ویژگی‌ها</li>
-                                <li>برچسب‌ها</li>
-                            </ul>
-                        </li>
-                        <li><code>sort</code>: مرتب‌سازی نتایج</li>
+                        <li><code>page</code>: شماره صفحه (پیش‌فرض: 1)</li>
+                        <li><code>limit</code>: تعداد آیتم در هر صفحه (پیش‌فرض: 10)</li>
                     </ul>
+                </div>
+            </section>
+
+            <section id="variants" class="mb-5">
+                <h2 class="mb-4">تنوع محصولات</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ایجاد تنوع محصول</h5>
+                    </div>
+                    <p class="text-muted">ایجاد تنوع جدید برای یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/variants</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
+{
+    "name": "نام تنوع",
+    "price": 100000,
+    "sku": "کد محصول"
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت تنوع‌های محصول</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست تنوع‌های یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/variants</code>
+                </div>
+            </section>
+
+            <section id="images" class="mb-5">
+                <h2 class="mb-4">تصاویر</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">افزودن تصویر محصول</h5>
+                    </div>
+                    <p class="text-muted">افزودن تصویر جدید به محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/images</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
+{
+    "url": "آدرس تصویر",
+    "alt_text": "متن جایگزین تصویر"
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method get me-2">GET</span>
+                        <h5 class="mb-0">دریافت تصاویر محصول</h5>
+                    </div>
+                    <p class="text-muted">دریافت لیست تصاویر یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/images</code>
+                </div>
+            </section>
+
+            <section id="attributes" class="mb-5">
+                <h2 class="mb-4">ویژگی‌ها</h2>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">ایجاد ویژگی جدید</h5>
+                    </div>
+                    <p class="text-muted">ایجاد ویژگی جدید در سیستم</p>
+                    <h6>آدرس:</h6>
+                    <code>/attributes</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
+{
+    "name": "نام ویژگی",
+    "type": "نوع ویژگی"
+}</pre>
+                </div>
+
+                <div class="endpoint">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="method post me-2">POST</span>
+                        <h5 class="mb-0">افزودن ویژگی به محصول</h5>
+                    </div>
+                    <p class="text-muted">افزودن ویژگی به یک محصول</p>
+                    <h6>آدرس:</h6>
+                    <code>/products/{productId}/attributes</code>
+                    <h6 class="mt-3">بدنه درخواست:</h6>
+                    <pre>
+{
+    "attribute_id": 1,
+    "value": "مقدار ویژگی"
+}</pre>
                 </div>
             </section>
 
@@ -370,6 +384,27 @@
                     <p class="text-muted">بررسی وضعیت سیستم و سرویس‌های وابسته</p>
                     <h6>آدرس:</h6>
                     <code>/health</code>
+                    <h6 class="mt-3">پاسخ:</h6>
+                    <pre>
+{
+    "status": "وضعیت سیستم",
+    "timestamp": "زمان بررسی",
+    "services": {
+        "postgres": "وضعیت اتصال به PostgreSQL",
+        "redis": {
+            "status": "وضعیت اتصال به Redis",
+            "lastError": "آخرین خطا"
+        },
+        "mongo": "وضعیت اتصال به MongoDB"
+    },
+    "cache": {
+        "enabled": true,
+        "warming": {
+            "lastRun": "زمان آخرین اجرا",
+            "status": "وضعیت"
+        }
+    }
+}</pre>
                 </div>
             </section>
         </div>

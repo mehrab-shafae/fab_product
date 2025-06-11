@@ -23,6 +23,7 @@ import xss from 'xss-clean';
 import hpp from 'hpp';
 import mongoSanitize from 'express-mongo-sanitize';
 import YAML from 'yamljs';
+import { existsSync } from 'fs';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -590,7 +591,15 @@ async function init() {
         })
     );
 
-    app.use('/api-docs/fa', express.static(join(__dirname, 'docs-fa.html')));
+    app.get('/api-docs/fa', (req, res) => {
+        const docsPath = join(__dirname, 'docs-fa.html');
+        if (existsSync(docsPath)) {
+            res.sendFile(docsPath);
+        } else {
+            console.error(`Documentation file not found at: ${docsPath}`);
+            res.status(404).send('Documentation file not found');
+        }
+    });
     app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
 
     // Health check route
