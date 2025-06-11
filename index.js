@@ -60,6 +60,109 @@ const CACHE_PATTERNS = {
 
 const { combine, timestamp, printf, colorize } = format;
 
+// Error handling system
+const DB_ERROR_CODES = {
+    // Foreign key violations
+    23503: {
+        categories: {
+            parent_id_fkey: 'The specified parent category does not exist',
+            default: 'Referenced record does not exist',
+        },
+        products: {
+            category_id_fkey: 'The specified category does not exist',
+            default: 'Referenced record does not exist',
+        },
+        default: 'Referenced record does not exist',
+    },
+    // Unique violations
+    23505: {
+        categories: {
+            categories_name_key: 'A category with this name already exists',
+            default: 'This record already exists',
+        },
+        products: {
+            products_sku_key: 'A product with this SKU already exists',
+            default: 'This record already exists',
+        },
+        default: 'This record already exists',
+    },
+    // Not null violations
+    23502: {
+        categories: {
+            name: 'Category name is required',
+            default: 'Required field is missing',
+        },
+        products: {
+            name: 'Product name is required',
+            price: 'Product price is required',
+            default: 'Required field is missing',
+        },
+        default: 'Required field is missing',
+    },
+    // Check violations
+    23514: {
+        products: {
+            products_price_check: 'Product price must be greater than 0',
+            default: 'Invalid value provided',
+        },
+        default: 'Invalid value provided',
+    },
+};
+
+function handleDatabaseError(error) {
+    // If it's not a database error, return the original error
+    if (!error.code || !DB_ERROR_CODES[error.code]) {
+        return {
+            message: error.message,
+            statusCode: 500,
+        };
+    }
+
+    const errorConfig = DB_ERROR_CODES[error.code];
+    let message = errorConfig.default;
+    let statusCode = 400;
+
+    // Try to get specific error message based on table and constraint
+    if (error.table && errorConfig[error.table]) {
+        if (error.constraint && errorConfig[error.table][error.constraint]) {
+            message = errorConfig[error.table][error.constraint];
+        } else if (errorConfig[error.table].default) {
+            message = errorConfig[error.table].default;
+        }
+    }
+
+    // Special handling for specific error types
+    switch (error.code) {
+        case '23503': // Foreign key violation
+            statusCode = 404;
+            break;
+        case '23505': // Unique violation
+            statusCode = 409;
+            break;
+        case '23502': // Not null violation
+            statusCode = 400;
+            break;
+        case '23514': // Check violation
+            statusCode = 400;
+            break;
+        default:
+            statusCode = 500;
+    }
+
+    return {
+        message,
+        statusCode,
+        details:
+            process.env.NODE_ENV === 'development'
+                ? {
+                      code: error.code,
+                      table: error.table,
+                      constraint: error.constraint,
+                  }
+                : undefined,
+    };
+}
+
 // Response handler middleware
 const responseHandler = (req, res, next) => {
     res.success = (data, message = 'Success') => {
@@ -70,11 +173,25 @@ const responseHandler = (req, res, next) => {
         });
     };
 
-    res.error = (message, statusCode = 500) => {
-        res.status(statusCode).json({
+    res.error = (error, statusCode = 500) => {
+        // If error is a string, it's a direct message
+        if (typeof error === 'string') {
+            return res.status(statusCode).json({
+                status: 'error',
+                message: error,
+                data: null,
+            });
+        }
+
+        // If error is an object, it might be a database error
+        logger.error('response Error', { error });
+        const handledError = handleDatabaseError(error);
+
+        res.status(handledError.statusCode).json({
             status: 'error',
-            message,
+            message: handledError.message,
             data: null,
+            ...(handledError.details && { details: handledError.details }),
         });
     };
 
@@ -2643,7 +2760,7 @@ async function createProductController(req, res) {
         await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
         res.success(result.rows[0], 'Product created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2655,7 +2772,7 @@ async function getProductByIdController(req, res) {
         }
         res.success(result.rows[0]);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2672,7 +2789,7 @@ async function searchProductsController(req, res) {
             pagination: result.pagination,
         });
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2686,9 +2803,12 @@ async function bulkUpdateProductsController(req, res) {
             return res.error('Invalid data array', 400);
         }
         const results = await processBulkOperation(type, data, options);
-        res.success({
-            jobIds: results.map(r => r.id)
-        }, 'Bulk operation queued successfully');
+        res.success(
+            {
+                jobIds: results.map(r => r.id),
+            },
+            'Bulk operation queued successfully'
+        );
     } catch (error) {
         res.error(error.message);
     }
@@ -2700,7 +2820,7 @@ async function createCategoryController(req, res) {
         await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
         res.success(result.rows[0], 'Category created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2709,7 +2829,7 @@ async function getCategoryTreeController(req, res) {
         const result = await getCategoryTree();
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2723,7 +2843,7 @@ async function addCommentController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/comments`);
         res.success(result.rows[0], 'Comment added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2732,7 +2852,7 @@ async function getProductCommentsController(req, res) {
         const result = await getProductComments(req.params.productId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2743,7 +2863,7 @@ async function addTagToProductController(req, res) {
         await Promise.all([invalidateCachePattern(`/products/tags/${tag_name}`), invalidateCachePattern(`/products/${req.params.productId}`)]);
         res.success(result.rows[0], 'Tag added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2752,7 +2872,7 @@ async function getProductsByTagController(req, res) {
         const result = await getProductsByTag(req.params.tagName);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2761,9 +2881,10 @@ async function searchProductDocumentsController(req, res) {
         const result = await searchProductDocuments(req.query.q);
         res.success(result);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
+
 async function getJobStatusController(req, res) {
     try {
         const job = await bulkOperationQueue.getJob(req.params.jobId);
@@ -2799,13 +2920,7 @@ async function getPriceTrendsController(req, res) {
         const trends = await getProductPriceTrends(productId, variantId, period);
         res.success(trends);
     } catch (error) {
-        logger.error('Price trends error', {
-            error: error.message,
-            productId: req.params.id,
-            variantId: req.query.variant_id,
-            period: req.query.period,
-        });
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2819,7 +2934,7 @@ async function addPriceHistoryController(req, res) {
         await Promise.all([invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
         res.success(result.rows[0], 'Price history added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2833,7 +2948,7 @@ async function addProductRelationshipController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/relationships`);
         res.success(result.rows[0], 'Product relationship added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2842,7 +2957,7 @@ async function getProductRelationshipsController(req, res) {
         const result = await getProductRelationships(req.params.productId, req.query.relationship_type);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2856,7 +2971,7 @@ async function createProductVersionController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/versions`);
         res.success(result.rows[0], 'Product version created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2865,7 +2980,7 @@ async function getProductVersionsController(req, res) {
         const result = await getProductVersions(req.params.productId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2886,7 +3001,7 @@ async function getCategoriesController(req, res) {
             },
         });
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2900,7 +3015,7 @@ async function createProductVariantController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/variants`);
         res.success(result.rows[0], 'Product variant created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2909,7 +3024,7 @@ async function getProductVariantsController(req, res) {
         const result = await getProductVariants(req.params.productId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2923,7 +3038,7 @@ async function addProductImageController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/images`);
         res.success(result.rows[0], 'Product image added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2932,7 +3047,7 @@ async function getProductImagesController(req, res) {
         const result = await getProductImages(req.params.productId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2946,7 +3061,7 @@ async function updateInventoryController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/inventory`);
         res.success(result.rows[0], 'Inventory updated successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2960,7 +3075,7 @@ async function addProductReviewController(req, res) {
         await Promise.all([invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
         res.success(result.rows[0], 'Product review added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -2973,7 +3088,7 @@ async function getProductReviewsController(req, res) {
             pagination: reviews.pagination,
         });
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3001,7 +3116,7 @@ async function getWishlistController(req, res) {
         const result = await getWishlist(userId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3015,7 +3130,7 @@ async function addProductAttributeController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/attributes`);
         res.success(result.rows[0], 'Product attribute added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3024,7 +3139,7 @@ async function createAttributeController(req, res) {
         const result = await createProductAttribute(req.body);
         res.success(result.rows[0], 'Attribute created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3038,7 +3153,7 @@ async function createProductChatController(req, res) {
         await invalidateCachePattern(`/products/${req.params.productId}/chats`);
         res.success(result.rows[0], 'Product chat created successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3048,7 +3163,7 @@ async function getUserChatsController(req, res) {
         const result = await getProductChats(userId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3062,7 +3177,7 @@ async function addChatMessageController(req, res) {
         await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
         res.success(result.rows[0], 'Chat message added successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3071,7 +3186,7 @@ async function getChatMessagesController(req, res) {
         const result = await getChatMessages(req.params.chatId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3081,7 +3196,7 @@ async function markChatMessagesAsReadController(req, res) {
         await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
         res.success(result.rows, 'Chat messages marked as read successfully');
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3093,7 +3208,7 @@ async function getProductAnalyticsController(req, res) {
         }
         res.success(result.rows[0]);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3105,7 +3220,7 @@ async function getCategoryAnalyticsController(req, res) {
         }
         res.success(result.rows[0]);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3114,7 +3229,7 @@ async function getProductRecommendationsController(req, res) {
         const result = await getProductRecommendations(req.params.productId);
         res.success(result);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3123,7 +3238,7 @@ async function getProductAttributesController(req, res) {
         const result = await getProductAttributes(req.params.productId);
         res.success(result.rows);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3132,7 +3247,7 @@ async function getProductPriceHistoryController(req, res) {
         const history = await getProductPriceHistory(req.params.productId);
         res.success(history);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
@@ -3141,7 +3256,7 @@ async function getProductPriceStatisticsController(req, res) {
         const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
         res.success(result.rows[0]);
     } catch (error) {
-        res.error(error.message);
+        res.error(error);
     }
 }
 
