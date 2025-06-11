@@ -34,6 +34,20 @@
             "queries": [
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"
             ]
+        },
+        {
+            "version": 3,
+            "name": "Ensure product_documents table exists",
+            "queries": [
+                "CREATE TABLE IF NOT EXISTS product_documents (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, category_id INTEGER REFERENCES categories(id), document_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+            ]
+        },
+        {
+            "version": 4,
+            "name": "Ensure product_analytics table exists",
+            "queries": [
+                "CREATE TABLE IF NOT EXISTS product_analytics (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, analytics_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+            ]
         }
     ],
     "indexes": [

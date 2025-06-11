@@ -597,10 +597,11 @@ async function init() {
         if (false) optimizeSystemForService();
 
         await createMaterializedViews();
-        await createOptimizedIndexes();
-
         await createMaterializedViewIndexes();
         await refreshMaterializedViews();
+
+        await createOptimizedIndexes();
+
         scheduleMaterializedViewRefresh();
         scheduleCacheWarming();
         await warmCache();
