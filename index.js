@@ -519,88 +519,6 @@ class EnhancedNeuralNetwork {
 }
 
 // ======================================================================
-async function initializeRedis() {
-    const ONE_HOUR = 60 * 60 * 1000;
-    let retryTimer = null;
-    let isReconnecting = false;
-
-    const connectToRedis = async () => {
-        if (isReconnecting) return false;
-        isReconnecting = true;
-
-        try {
-            logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
-            redisClient = createClient({
-                url: REDIS_URI,
-                socket: {
-                    reconnectStrategy: retries => {
-                        if (retries > 3) {
-                            logger.error('Redis max retries reached');
-                            return new Error('Redis max retries reached');
-                        }
-                        return Math.min(retries * 100, 3000);
-                    },
-                },
-            });
-
-            redisClient.on('error', err => {
-                logger.error('Redis connection error', { error: err.message });
-                redisConnected = false;
-                if (!retryTimer) {
-                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
-                }
-            });
-
-            redisClient.on('connect', () => {
-                logger.info('Successfully connected to Redis');
-                redisConnected = true;
-                if (retryTimer) {
-                    clearInterval(retryTimer);
-                    retryTimer = null;
-                }
-            });
-
-            redisClient.on('end', () => {
-                logger.info('Redis connection ended');
-                redisConnected = false;
-                if (!retryTimer) {
-                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
-                }
-            });
-
-            await redisClient.connect();
-            isReconnecting = false;
-            return true;
-        } catch (error) {
-            logger.error('Failed to connect to Redis', { error: error.message });
-            redisConnected = false;
-            if (!retryTimer) {
-                retryTimer = setInterval(connectToRedis, ONE_HOUR);
-            }
-            isReconnecting = false;
-            return false;
-        }
-    };
-
-    return connectToRedis();
-}
-
-async function clearCorruptedCache() {
-    try {
-        logger.info('Clearing corrupted cache');
-        if (redisClient) {
-            await redisClient.flushAll();
-            logger.debug('Redis cache cleared');
-        }
-        logger.debug('Memory cache cleared');
-        logger.info('Cache cleared successfully');
-    } catch (error) {
-        logger.error('Error clearing cache', {
-            error: error.message,
-            stack: error.stack,
-        });
-    }
-}
 
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     const {
@@ -773,113 +691,6 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
     };
 }
 
-async function compressData(data) {
-    return new Promise((resolve, reject) => {
-        if (!data || typeof data !== 'string') {
-            reject(new Error('Invalid data format for compression'));
-            return;
-        }
-
-        const buffer = Buffer.from(data);
-        if (buffer.length < CACHE_COMPRESSION_THRESHOLD) {
-            resolve(data);
-            return;
-        }
-
-        gzip(
-            buffer,
-            {
-                level: 6,
-                memLevel: 8,
-                windowBits: 15,
-            },
-            (err, result) => {
-                if (err) {
-                    logger.error('Compression error', {
-                        error: err.message,
-                        originalSize: buffer.length,
-                    });
-                    resolve(data);
-                } else {
-                    resolve(result.toString('base64'));
-                }
-            }
-        );
-    });
-}
-
-async function decompressData(data) {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!data) {
-                reject(new Error('Empty data for decompression'));
-                return;
-            }
-
-            const isCompressed = data.startsWith('H4sI');
-            if (!isCompressed) {
-                resolve(data);
-                return;
-            }
-
-            const buffer = Buffer.from(data, 'base64');
-            gunzip(
-                buffer,
-                {
-                    windowBits: 15,
-                },
-                (err, result) => {
-                    if (err) {
-                        logger.error('Decompression error', {
-                            error: err.message,
-                            dataLength: data.length,
-                        });
-                        reject(err);
-                    } else {
-                        resolve(result.toString('utf8'));
-                    }
-                }
-            );
-        } catch (error) {
-            logger.error('Decompression preparation error', {
-                error: error.message,
-                dataLength: data?.length,
-            });
-            reject(error);
-        }
-    });
-}
-
-async function getCachedData(key, fetchData, ttl) {
-    try {
-        if (!redisConnected) {
-            logger.debug('Redis not connected, fetching data directly', { key });
-            return await fetchData();
-        }
-
-        const cachedData = await redisClient.get(key);
-        if (cachedData) {
-            logger.debug('Cache hit', { key });
-            return JSON.parse(cachedData);
-        }
-
-        logger.debug('Cache miss, fetching data', { key });
-        const data = await fetchData();
-        if (redisConnected) {
-            await redisClient.setEx(key, ttl, JSON.stringify(data));
-            logger.debug('Data cached', { key, ttl });
-        }
-        return data;
-    } catch (error) {
-        logger.error('Cache error', {
-            error: error.message,
-            stack: error.stack,
-            key,
-        });
-        return fetchData();
-    }
-}
-
 function validateProductId(req, res, next) {
     const productId = req.params.id;
     if (!productId || isNaN(parseInt(productId))) {
@@ -888,182 +699,6 @@ function validateProductId(req, res, next) {
         });
     }
     next();
-}
-
-async function invalidateCachePattern(pattern, options = {}) {
-    const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
-
-    if (!redisConnected || !redisClient.isOpen) {
-        logger.warn('Redis not connected, skipping cache invalidation', { pattern });
-        return;
-    }
-
-    let retries = 0;
-    while (retries < maxRetries) {
-        try {
-            const keys = await redisClient.keys(pattern);
-            if (keys.length === 0) {
-                logger.debug('No cache keys found to invalidate', { pattern });
-                return;
-            }
-
-            for (let i = 0; i < keys.length; i += batchSize) {
-                const batch = keys.slice(i, i + batchSize);
-                const multi = redisClient.multi();
-
-                batch.forEach(key => {
-                    multi.del(key);
-
-                    multi.del(`${key}:meta`);
-                });
-
-                await multi.exec();
-
-                logger.debug('Cache batch invalidated', {
-                    pattern,
-                    batchSize: batch.length,
-                    totalProcessed: Math.min(i + batchSize, keys.length),
-                    totalKeys: keys.length,
-                });
-            }
-
-            logger.info('Cache invalidated successfully', {
-                pattern,
-                keysCount: keys.length,
-            });
-            return;
-        } catch (error) {
-            retries++;
-            if (retries === maxRetries) {
-                logger.error('Failed to invalidate cache after maximum retries', {
-                    pattern,
-                    error: error.message,
-                    retries,
-                });
-                throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
-            }
-
-            logger.warn('Cache invalidation attempt failed, retrying', {
-                pattern,
-                error: error.message,
-                attempt: retries,
-                nextAttemptIn: retryDelay,
-            });
-
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-    }
-}
-
-async function invalidateCachePatterns(patterns, options = {}) {
-    if (!Array.isArray(patterns) || patterns.length === 0) {
-        logger.warn('No patterns provided for cache invalidation');
-        return;
-    }
-
-    try {
-        await Promise.all(patterns.map(pattern => invalidateCachePattern(pattern, options)));
-        logger.info('Multiple cache patterns invalidated successfully', { patterns });
-    } catch (error) {
-        logger.error('Failed to invalidate multiple cache patterns', {
-            patterns,
-            error: error.message,
-        });
-        throw error;
-    }
-}
-
-async function warmCache() {
-    if (!redisConnected || !redisClient.isOpen) {
-        logger.warn('Redis not connected, skipping cache warm-up');
-        return;
-    }
-
-    const warmUpTasks = [
-        {
-            name: 'Product Search',
-            pattern: CACHE_PATTERNS.PRODUCT.SEARCH,
-            fetchData: async () => {
-                const result = await searchProducts({ limit: 100 });
-                return result.items || [];
-            },
-        },
-        {
-            name: 'Category Tree',
-            pattern: CACHE_PATTERNS.CATEGORY.TREE,
-            fetchData: async () => {
-                const result = await getCategoryTree();
-                return result.rows || [];
-            },
-        },
-    ];
-
-    logger.info('Starting cache warm-up');
-
-    for (const task of warmUpTasks) {
-        try {
-            logger.debug(`Warming up ${task.name} cache`);
-
-            await invalidateCachePattern(task.pattern);
-
-            const data = await task.fetchData();
-            if (!data || !Array.isArray(data)) {
-                logger.warn(`No data returned for ${task.name}, skipping cache warm-up`);
-                continue;
-            }
-
-            const key = task.pattern.replace('*', 'warm');
-            const ttl = CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || CACHE_TTL.PRODUCT;
-
-            await redisClient.setEx(key, ttl, JSON.stringify(data));
-
-            await redisClient.hSet(`${key}:meta`, {
-                created: Date.now().toString(),
-                size: JSON.stringify(data).length.toString(),
-                compressed: 'false',
-            });
-            await redisClient.expire(`${key}:meta`, ttl);
-
-            logger.info(`${task.name} cache warmed up successfully`, {
-                key,
-                dataSize: data.length,
-            });
-        } catch (error) {
-            logger.error(`Failed to warm up ${task.name} cache`, {
-                error: error.message,
-                stack: error.stack,
-            });
-        }
-    }
-
-    logger.info('Cache warm-up completed');
-}
-
-async function processBulkProductUpdate(products) {
-    const chunks = [];
-    for (let i = 0; i < products.length; i += BATCH_SIZE) {
-        chunks.push(products.slice(i, i + BATCH_SIZE));
-    }
-
-    const results = [];
-    for (const chunk of chunks) {
-        const result = await bulkOperationQueue.add(
-            'update-products',
-            {
-                products: chunk,
-            },
-            {
-                attempts: 3,
-                backoff: {
-                    type: 'exponential',
-                    delay: 1000,
-                },
-            }
-        );
-        results.push(result);
-    }
-
-    return results;
 }
 
 function scheduleCacheWarming() {
@@ -1961,109 +1596,6 @@ async function init() {
     });
 }
 
-async function createSchemaVersionTable() {
-    const query = `
-        CREATE TABLE IF NOT EXISTS schema_versions (
-            id SERIAL PRIMARY KEY,
-            version INTEGER NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(version)
-        );
-    `;
-    await pgPool.query(query);
-}
-
-async function getCurrentSchemaVersion() {
-    const query = 'SELECT MAX(version) as current_version FROM schema_versions';
-    const result = await pgPool.query(query);
-    return result.rows[0]?.current_version || 0;
-}
-
-async function applySchemaMigration(version, name, queries) {
-    const client = await pgPool.connect();
-    try {
-        logger.info(`Starting migration ${version}: ${name}`, {
-            version,
-            name,
-            queryCount: queries.length,
-        });
-        await client.query('BEGIN');
-
-        const checkQuery = 'SELECT version FROM schema_versions WHERE version = $1';
-        const checkResult = await client.query(checkQuery, [version]);
-
-        if (checkResult.rows.length === 0) {
-            for (const query of queries) {
-                logger.debug(`Executing migration query`, {
-                    version,
-                    name,
-                    query: query.substring(0, 100) + '...',
-                });
-                await client.query(query);
-            }
-
-            const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
-            await client.query(insertQuery, [version, name]);
-            logger.info(`Successfully applied migration ${version}: ${name}`, {
-                version,
-                name,
-                queryCount: queries.length,
-            });
-        } else {
-            logger.debug(`Migration ${version}: ${name} already applied, skipping`, {
-                version,
-                name,
-            });
-        }
-
-        await client.query('COMMIT');
-    } catch (error) {
-        logger.error(`Failed to apply migration ${version}: ${name}`, {
-            error: error.message,
-            stack: error.stack,
-            version,
-            name,
-            queries,
-        });
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-}
-
-async function createDatabaseSchema() {
-    try {
-        logger.info('Starting database schema creation');
-
-        await createSchemaVersionTable();
-        logger.debug('Schema version table created successfully');
-
-        const currentVersion = await getCurrentSchemaVersion();
-        logger.debug('Current schema version', { version: currentVersion });
-
-        for (const migration of schemaConfig.migrations) {
-            if (migration.version > currentVersion) {
-                logger.info(`Applying migration: ${migration.name}`, {
-                    version: migration.version,
-                    name: migration.name,
-                    queryCount: migration.queries.length,
-                });
-                await applySchemaMigration(migration.version, migration.name, migration.queries);
-            }
-        }
-
-        logger.info('Database schema creation completed successfully');
-    } catch (error) {
-        logger.error('Database schema creation failed', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    }
-}
-
 function scheduleMaterializedViewRefresh() {
     setInterval(refreshMaterializedViews, 60 * 60 * 1000);
 }
@@ -2094,54 +1626,6 @@ function optimizeSystemForService() {
     executeLinuxCommand('echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor');
 }
 
-async function setupMongoCollections() {
-    try {
-        logger.info('Setting up MongoDB collections');
-        await mongoClient.connect();
-        logger.debug('MongoDB connection established');
-
-        const db = mongoClient.db();
-
-        for (const collection of schemaConfig.mongoCollections) {
-            try {
-                await db.createCollection(collection.name);
-                logger.info(`Created MongoDB collection: ${collection.name}`, {
-                    collectionName: collection.name,
-                });
-
-                if (collection.indexes) {
-                    for (const index of collection.indexes) {
-                        await db.collection(collection.name).createIndex(index.key);
-                        logger.debug(`Created index for collection ${collection.name}`, {
-                            collectionName: collection.name,
-                            index: index.key,
-                        });
-                    }
-                }
-            } catch (error) {
-                if (error.code === 48) {
-                    logger.debug(`Collection already exists: ${collection.name}`);
-                    continue;
-                }
-                logger.error(`Failed to create MongoDB collection: ${collection.name}`, {
-                    error: error.message,
-                    stack: error.stack,
-                    collectionName: collection.name,
-                });
-                throw error;
-            }
-        }
-
-        logger.info('MongoDB collections setup completed successfully');
-    } catch (error) {
-        logger.error('MongoDB collections setup failed', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    }
-}
-
 function createProduct(productData) {
     const { name, description, price, category_id, metadata } = productData;
 
@@ -2169,208 +1653,6 @@ function createProduct(productData) {
 
 function getProductById(id) {
     return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
-}
-
-async function searchProducts(searchParams) {
-    const {
-        page = 1,
-        pageSize = DEFAULT_PAGE_SIZE,
-        sortField = DEFAULT_SORT_FIELD,
-        sortOrder = DEFAULT_SORT_ORDER,
-        name,
-        category_id,
-        min_price,
-        max_price,
-        tags,
-        attributes,
-    } = searchParams;
-
-    const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
-    const offset = (page - 1) * validatedPageSize;
-
-    let query = `
-        SELECT p.*, 
-               COUNT(*) OVER() as total_count,
-               array_agg(DISTINCT t.tag_name) FILTER (WHERE t.tag_name IS NOT NULL) as tags,
-               jsonb_object_agg(
-                   pa.name,
-                   pav.value
-               ) FILTER (WHERE pa.name IS NOT NULL AND pav.value IS NOT NULL) as attributes
-        FROM products p
-        LEFT JOIN product_tags t ON p.id = t.product_id
-        LEFT JOIN product_attribute_values pav ON p.id = pav.product_id
-        LEFT JOIN product_attributes pa ON pav.attribute_id = pa.id
-        WHERE 1=1
-    `;
-
-    const queryParams = [];
-    let paramIndex = 1;
-
-    if (name) {
-        query += ` AND p.name ILIKE $${paramIndex}`;
-        queryParams.push(`%${name}%`);
-        paramIndex++;
-    }
-
-    if (category_id) {
-        query += ` AND p.category_id = $${paramIndex}`;
-        queryParams.push(category_id);
-        paramIndex++;
-    }
-
-    if (min_price !== undefined) {
-        query += ` AND p.price >= $${paramIndex}`;
-        queryParams.push(min_price);
-        paramIndex++;
-    }
-
-    if (max_price !== undefined) {
-        query += ` AND p.price <= $${paramIndex}`;
-        queryParams.push(max_price);
-        paramIndex++;
-    }
-
-    if (tags && tags.length > 0) {
-        query += ` AND EXISTS (
-            SELECT 1 FROM product_tags t2 
-            WHERE t2.product_id = p.id 
-            AND t2.tag_name = ANY($${paramIndex})
-        )`;
-        queryParams.push(tags);
-        paramIndex++;
-    }
-
-    if (attributes && Object.keys(attributes).length > 0) {
-        const attributeConditions = [];
-        for (const [key, value] of Object.entries(attributes)) {
-            attributeConditions.push(`(
-                pa.name = $${paramIndex} 
-                AND pav.value = $${paramIndex + 1}
-            )`);
-            queryParams.push(key, value);
-            paramIndex += 2;
-        }
-        query += ` AND (${attributeConditions.join(' OR ')})`;
-    }
-
-    query += `
-        GROUP BY p.id
-        ORDER BY p.${sortField} ${sortOrder}
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-    queryParams.push(validatedPageSize, offset);
-
-    const result = await pgPool.query(query, queryParams);
-
-    return {
-        items: result.rows,
-        pagination: {
-            total: parseInt(result.rows[0]?.total_count || 0),
-            page: page,
-            pageSize: validatedPageSize,
-            totalPages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / validatedPageSize),
-        },
-    };
-}
-
-async function createOptimizedIndexes() {
-    const client = await pgPool.connect();
-    try {
-        logger.info('Starting database index creation');
-        await client.query('BEGIN');
-
-        for (const index of schemaConfig.indexes) {
-            try {
-                await client.query(index.query);
-                logger.info(`Created index: ${index.name}`, {
-                    indexName: index.name,
-                    query: index.query,
-                });
-            } catch (error) {
-                logger.error(`Failed to create index ${index.name}`, {
-                    error: error.message,
-                    stack: error.stack,
-                    indexName: index.name,
-                    query: index.query,
-                });
-                throw error;
-            }
-        }
-
-        await client.query('COMMIT');
-        logger.info('Database index creation completed successfully');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        logger.error('Database index creation failed', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    } finally {
-        client.release();
-    }
-}
-
-async function createMaterializedViews() {
-    const client = await pgPool.connect();
-    try {
-        await client.query('BEGIN');
-
-        for (const view of schemaConfig.materializedViews) {
-            try {
-                await client.query(view.query);
-                console.log(`Created materialized view: ${view.name}`);
-            } catch (error) {
-                console.error(`Failed to create materialized view ${view.name}:`, error);
-                throw error;
-            }
-        }
-
-        await client.query('COMMIT');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-}
-
-async function refreshMaterializedViews() {
-    const client = await pgPool.connect();
-    try {
-        logger.info('Starting materialized views refresh');
-        await client.query('BEGIN');
-
-        for (const view of schemaConfig.materializedViews) {
-            try {
-                await client.query(view.refreshQuery);
-                logger.info(`Refreshed materialized view: ${view.name}`, {
-                    viewName: view.name,
-                    query: view.refreshQuery,
-                });
-            } catch (error) {
-                logger.error(`Failed to refresh materialized view ${view.name}`, {
-                    error: error.message,
-                    stack: error.stack,
-                    viewName: view.name,
-                    query: view.refreshQuery,
-                });
-                throw error;
-            }
-        }
-
-        await client.query('COMMIT');
-        logger.info('Materialized views refresh completed successfully');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        logger.error('Materialized views refresh failed', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    } finally {
-        client.release();
-    }
 }
 
 function createCategory(categoryData) {
@@ -2433,36 +1715,6 @@ function getProductsByTag(tag_name) {
     return pgPool.query(query, [tag_name]);
 }
 
-async function storeProductDocument(productData) {
-    const db = mongoClient.db();
-    const collection = db.collection('product_documents');
-
-    const document = {
-        product_id: productData.id,
-        name: productData.name,
-        description: productData.description,
-        category_id: productData.category_id,
-        metadata: productData.metadata,
-        created_at: new Date(),
-        updated_at: new Date(),
-    };
-
-    return collection.insertOne(document);
-}
-
-async function searchProductDocuments(searchQuery) {
-    const db = mongoClient.db();
-    const collection = db.collection('product_documents');
-
-    const query = {
-        $text: {
-            $search: searchQuery,
-        },
-    };
-
-    return collection.find(query).toArray();
-}
-
 function createProductChat(chatData) {
     const { product_id, user_id, seller_id } = chatData;
     const query = `
@@ -2517,83 +1769,6 @@ function markChatMessagesAsRead(chat_id, user_id) {
         RETURNING *
     `;
     return pgPool.query(query, [chat_id, user_id]);
-}
-
-async function trainRecommendationModel() {
-    try {
-        const result = await pgPool.query(`
-            SELECT 
-                p.id as product_id,
-                p.category_id,
-                COUNT(DISTINCT pc.user_id) as view_count,
-                COUNT(DISTINCT pt.tag_name) as tag_count,
-                AVG(p.price) as avg_price
-            FROM products p
-            LEFT JOIN product_comments pc ON p.id = pc.product_id
-            LEFT JOIN product_tags pt ON p.id = pt.product_id
-            GROUP BY p.id, p.category_id
-        `);
-
-        const trainingData = result.rows.map(row => ({
-            input: [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.avg_price / 1000],
-            output: [row.view_count > 10 ? 1 : 0],
-        }));
-
-        const nn = new SimpleNeuralNetwork(4, 8, 1);
-        for (let i = 0; i < 1000; i++) {
-            trainingData.forEach(data => {
-                nn.train(data.input, data.output);
-            });
-        }
-
-        return nn;
-    } catch (error) {
-        console.error('Error training recommendation model:', error);
-        throw error;
-    }
-}
-
-async function getProductRecommendations(productId) {
-    try {
-        const product = await getProductById(productId);
-        if (!product.rows.length) {
-            throw new Error('Product not found');
-        }
-
-        const model = await trainRecommendationModel();
-
-        const result = await pgPool.query(
-            `
-            SELECT 
-                p.*,
-                COUNT(DISTINCT pt.tag_name) as tag_count,
-                COUNT(DISTINCT pc.user_id) as view_count
-            FROM products p
-            LEFT JOIN product_tags pt ON p.id = pt.product_id
-            LEFT JOIN product_comments pc ON p.id = pc.product_id
-            WHERE p.id != $1
-            GROUP BY p.id
-            HAVING COUNT(DISTINCT pt.tag_name) > 0
-            ORDER BY 
-                CASE WHEN p.category_id = $2 THEN 1 ELSE 0 END DESC,
-                tag_count DESC,
-                view_count DESC
-            LIMIT 10
-        `,
-            [productId, product.rows[0].category_id]
-        );
-
-        const scoredProducts = result.rows.map(row => {
-            const input = [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.price / 1000];
-            const score = model.forward(input)[0];
-            return { ...row, score };
-        });
-
-        return scoredProducts.sort((a, b) => b.score - a.score);
-    } catch (error) {
-        console.error('Error getting product recommendations:', error);
-        throw error;
-    }
 }
 
 function getProductAnalytics(productId) {
@@ -2948,120 +2123,6 @@ function addProductRelationship(relationshipData) {
     return pgPool.query(query, [product_id, related_product_id, relationship_type]);
 }
 
-async function processBulkOperation(type, data, options = {}) {
-    const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
-
-    logger.info('Starting bulk operation', {
-        type,
-        dataLength: data.length,
-        batchSize,
-        concurrency,
-        retryAttempts,
-    });
-
-    const batches = [];
-    for (let i = 0; i < data.length; i += batchSize) {
-        batches.push(data.slice(i, i + batchSize));
-    }
-
-    logger.debug('Data split into batches', {
-        type,
-        batchCount: batches.length,
-        batchSize,
-    });
-
-    const results = [];
-    const activeJobs = new Set();
-
-    for (const batch of batches) {
-        while (activeJobs.size >= concurrency) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        const jobId = Date.now().toString();
-        activeJobs.add(jobId);
-
-        try {
-            logger.debug('Adding job to queue', {
-                type,
-                jobId,
-                batchSize: batch.length,
-            });
-
-            const result = await bulkOperationQueue.add(
-                type,
-                {
-                    batch,
-                    options: {
-                        retryAttempts,
-                        retryDelay,
-                    },
-                },
-                {
-                    attempts: retryAttempts,
-                    backoff: {
-                        type: 'exponential',
-                        delay: retryDelay,
-                    },
-                    removeOnComplete: true,
-                    removeOnFail: false,
-                }
-            );
-
-            results.push(result);
-            logger.debug('Job added successfully', {
-                type,
-                jobId,
-                result,
-            });
-        } catch (error) {
-            logger.error('Failed to add job to queue', {
-                error: error.message,
-                stack: error.stack,
-                type,
-                jobId,
-            });
-            throw error;
-        } finally {
-            activeJobs.delete(jobId);
-        }
-    }
-
-    logger.info('Bulk operation completed', {
-        type,
-        totalJobs: results.length,
-        successCount: results.filter(r => r.status === 'completed').length,
-    });
-
-    return results;
-}
-
-async function createMaterializedViewIndexes() {
-    const client = await pgPool.connect();
-    try {
-        await client.query('BEGIN');
-
-        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_analytics_id ON mv_product_analytics(id)');
-        console.log('Created unique index for mv_product_analytics');
-
-        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)');
-        console.log('Created unique index for mv_category_analytics');
-
-        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_price_trends_id ON mv_product_price_trends(id)');
-        console.log('Created unique index for mv_product_price_trends');
-
-        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_inventory_status_id ON mv_product_inventory_status(id)');
-        console.log('Created unique index for mv_product_inventory_status');
-
-        await client.query('COMMIT');
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-}
-
 function paginateResults(req, res, next) {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
@@ -3198,7 +2259,945 @@ function free() {
         process.exit(0);
     }, 2 * 1000);
 }
+// ======================================================================
+async function initializeRedis() {
+    const ONE_HOUR = 60 * 60 * 1000;
+    let retryTimer = null;
+    let isReconnecting = false;
 
+    const connectToRedis = async () => {
+        if (isReconnecting) return false;
+        isReconnecting = true;
+
+        try {
+            logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
+            redisClient = createClient({
+                url: REDIS_URI,
+                socket: {
+                    reconnectStrategy: retries => {
+                        if (retries > 3) {
+                            logger.error('Redis max retries reached');
+                            return new Error('Redis max retries reached');
+                        }
+                        return Math.min(retries * 100, 3000);
+                    },
+                },
+            });
+
+            redisClient.on('error', err => {
+                logger.error('Redis connection error', { error: err.message });
+                redisConnected = false;
+                if (!retryTimer) {
+                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
+                }
+            });
+
+            redisClient.on('connect', () => {
+                logger.info('Successfully connected to Redis');
+                redisConnected = true;
+                if (retryTimer) {
+                    clearInterval(retryTimer);
+                    retryTimer = null;
+                }
+            });
+
+            redisClient.on('end', () => {
+                logger.info('Redis connection ended');
+                redisConnected = false;
+                if (!retryTimer) {
+                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
+                }
+            });
+
+            await redisClient.connect();
+            isReconnecting = false;
+            return true;
+        } catch (error) {
+            logger.error('Failed to connect to Redis', { error: error.message });
+            redisConnected = false;
+            if (!retryTimer) {
+                retryTimer = setInterval(connectToRedis, ONE_HOUR);
+            }
+            isReconnecting = false;
+            return false;
+        }
+    };
+
+    return connectToRedis();
+}
+
+async function clearCorruptedCache() {
+    try {
+        logger.info('Clearing corrupted cache');
+        if (redisClient) {
+            await redisClient.flushAll();
+            logger.debug('Redis cache cleared');
+        }
+        logger.debug('Memory cache cleared');
+        logger.info('Cache cleared successfully');
+    } catch (error) {
+        logger.error('Error clearing cache', {
+            error: error.message,
+            stack: error.stack,
+        });
+    }
+}
+
+async function compressData(data) {
+    return new Promise((resolve, reject) => {
+        if (!data || typeof data !== 'string') {
+            reject(new Error('Invalid data format for compression'));
+            return;
+        }
+
+        const buffer = Buffer.from(data);
+        if (buffer.length < CACHE_COMPRESSION_THRESHOLD) {
+            resolve(data);
+            return;
+        }
+
+        gzip(
+            buffer,
+            {
+                level: 6,
+                memLevel: 8,
+                windowBits: 15,
+            },
+            (err, result) => {
+                if (err) {
+                    logger.error('Compression error', {
+                        error: err.message,
+                        originalSize: buffer.length,
+                    });
+                    resolve(data);
+                } else {
+                    resolve(result.toString('base64'));
+                }
+            }
+        );
+    });
+}
+
+async function decompressData(data) {
+    return new Promise((resolve, reject) => {
+        try {
+            if (!data) {
+                reject(new Error('Empty data for decompression'));
+                return;
+            }
+
+            const isCompressed = data.startsWith('H4sI');
+            if (!isCompressed) {
+                resolve(data);
+                return;
+            }
+
+            const buffer = Buffer.from(data, 'base64');
+            gunzip(
+                buffer,
+                {
+                    windowBits: 15,
+                },
+                (err, result) => {
+                    if (err) {
+                        logger.error('Decompression error', {
+                            error: err.message,
+                            dataLength: data.length,
+                        });
+                        reject(err);
+                    } else {
+                        resolve(result.toString('utf8'));
+                    }
+                }
+            );
+        } catch (error) {
+            logger.error('Decompression preparation error', {
+                error: error.message,
+                dataLength: data?.length,
+            });
+            reject(error);
+        }
+    });
+}
+
+async function getCachedData(key, fetchData, ttl) {
+    try {
+        if (!redisConnected) {
+            logger.debug('Redis not connected, fetching data directly', { key });
+            return await fetchData();
+        }
+
+        const cachedData = await redisClient.get(key);
+        if (cachedData) {
+            logger.debug('Cache hit', { key });
+            return JSON.parse(cachedData);
+        }
+
+        logger.debug('Cache miss, fetching data', { key });
+        const data = await fetchData();
+        if (redisConnected) {
+            await redisClient.setEx(key, ttl, JSON.stringify(data));
+            logger.debug('Data cached', { key, ttl });
+        }
+        return data;
+    } catch (error) {
+        logger.error('Cache error', {
+            error: error.message,
+            stack: error.stack,
+            key,
+        });
+        return fetchData();
+    }
+}
+
+async function invalidateCachePattern(pattern, options = {}) {
+    const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
+
+    if (!redisConnected || !redisClient.isOpen) {
+        logger.warn('Redis not connected, skipping cache invalidation', { pattern });
+        return;
+    }
+
+    let retries = 0;
+    while (retries < maxRetries) {
+        try {
+            const keys = await redisClient.keys(pattern);
+            if (keys.length === 0) {
+                logger.debug('No cache keys found to invalidate', { pattern });
+                return;
+            }
+
+            for (let i = 0; i < keys.length; i += batchSize) {
+                const batch = keys.slice(i, i + batchSize);
+                const multi = redisClient.multi();
+
+                batch.forEach(key => {
+                    multi.del(key);
+
+                    multi.del(`${key}:meta`);
+                });
+
+                await multi.exec();
+
+                logger.debug('Cache batch invalidated', {
+                    pattern,
+                    batchSize: batch.length,
+                    totalProcessed: Math.min(i + batchSize, keys.length),
+                    totalKeys: keys.length,
+                });
+            }
+
+            logger.info('Cache invalidated successfully', {
+                pattern,
+                keysCount: keys.length,
+            });
+            return;
+        } catch (error) {
+            retries++;
+            if (retries === maxRetries) {
+                logger.error('Failed to invalidate cache after maximum retries', {
+                    pattern,
+                    error: error.message,
+                    retries,
+                });
+                throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
+            }
+
+            logger.warn('Cache invalidation attempt failed, retrying', {
+                pattern,
+                error: error.message,
+                attempt: retries,
+                nextAttemptIn: retryDelay,
+            });
+
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+        }
+    }
+}
+
+async function invalidateCachePatterns(patterns, options = {}) {
+    if (!Array.isArray(patterns) || patterns.length === 0) {
+        logger.warn('No patterns provided for cache invalidation');
+        return;
+    }
+
+    try {
+        await Promise.all(patterns.map(pattern => invalidateCachePattern(pattern, options)));
+        logger.info('Multiple cache patterns invalidated successfully', { patterns });
+    } catch (error) {
+        logger.error('Failed to invalidate multiple cache patterns', {
+            patterns,
+            error: error.message,
+        });
+        throw error;
+    }
+}
+
+async function warmCache() {
+    if (!redisConnected || !redisClient.isOpen) {
+        logger.warn('Redis not connected, skipping cache warm-up');
+        return;
+    }
+
+    const warmUpTasks = [
+        {
+            name: 'Product Search',
+            pattern: CACHE_PATTERNS.PRODUCT.SEARCH,
+            fetchData: async () => {
+                const result = await searchProducts({ limit: 100 });
+                return result.items || [];
+            },
+        },
+        {
+            name: 'Category Tree',
+            pattern: CACHE_PATTERNS.CATEGORY.TREE,
+            fetchData: async () => {
+                const result = await getCategoryTree();
+                return result.rows || [];
+            },
+        },
+    ];
+
+    logger.info('Starting cache warm-up');
+
+    for (const task of warmUpTasks) {
+        try {
+            logger.debug(`Warming up ${task.name} cache`);
+
+            await invalidateCachePattern(task.pattern);
+
+            const data = await task.fetchData();
+            if (!data || !Array.isArray(data)) {
+                logger.warn(`No data returned for ${task.name}, skipping cache warm-up`);
+                continue;
+            }
+
+            const key = task.pattern.replace('*', 'warm');
+            const ttl = CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || CACHE_TTL.PRODUCT;
+
+            await redisClient.setEx(key, ttl, JSON.stringify(data));
+
+            await redisClient.hSet(`${key}:meta`, {
+                created: Date.now().toString(),
+                size: JSON.stringify(data).length.toString(),
+                compressed: 'false',
+            });
+            await redisClient.expire(`${key}:meta`, ttl);
+
+            logger.info(`${task.name} cache warmed up successfully`, {
+                key,
+                dataSize: data.length,
+            });
+        } catch (error) {
+            logger.error(`Failed to warm up ${task.name} cache`, {
+                error: error.message,
+                stack: error.stack,
+            });
+        }
+    }
+
+    logger.info('Cache warm-up completed');
+}
+
+async function processBulkProductUpdate(products) {
+    const chunks = [];
+    for (let i = 0; i < products.length; i += BATCH_SIZE) {
+        chunks.push(products.slice(i, i + BATCH_SIZE));
+    }
+
+    const results = [];
+    for (const chunk of chunks) {
+        const result = await bulkOperationQueue.add(
+            'update-products',
+            {
+                products: chunk,
+            },
+            {
+                attempts: 3,
+                backoff: {
+                    type: 'exponential',
+                    delay: 1000,
+                },
+            }
+        );
+        results.push(result);
+    }
+
+    return results;
+}
+
+async function createMaterializedViewIndexes() {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_analytics_id ON mv_product_analytics(id)');
+        console.log('Created unique index for mv_product_analytics');
+
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)');
+        console.log('Created unique index for mv_category_analytics');
+
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_price_trends_id ON mv_product_price_trends(id)');
+        console.log('Created unique index for mv_product_price_trends');
+
+        await client.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_product_inventory_status_id ON mv_product_inventory_status(id)');
+        console.log('Created unique index for mv_product_inventory_status');
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function processBulkOperation(type, data, options = {}) {
+    const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
+
+    logger.info('Starting bulk operation', {
+        type,
+        dataLength: data.length,
+        batchSize,
+        concurrency,
+        retryAttempts,
+    });
+
+    const batches = [];
+    for (let i = 0; i < data.length; i += batchSize) {
+        batches.push(data.slice(i, i + batchSize));
+    }
+
+    logger.debug('Data split into batches', {
+        type,
+        batchCount: batches.length,
+        batchSize,
+    });
+
+    const results = [];
+    const activeJobs = new Set();
+
+    for (const batch of batches) {
+        while (activeJobs.size >= concurrency) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const jobId = Date.now().toString();
+        activeJobs.add(jobId);
+
+        try {
+            logger.debug('Adding job to queue', {
+                type,
+                jobId,
+                batchSize: batch.length,
+            });
+
+            const result = await bulkOperationQueue.add(
+                type,
+                {
+                    batch,
+                    options: {
+                        retryAttempts,
+                        retryDelay,
+                    },
+                },
+                {
+                    attempts: retryAttempts,
+                    backoff: {
+                        type: 'exponential',
+                        delay: retryDelay,
+                    },
+                    removeOnComplete: true,
+                    removeOnFail: false,
+                }
+            );
+
+            results.push(result);
+            logger.debug('Job added successfully', {
+                type,
+                jobId,
+                result,
+            });
+        } catch (error) {
+            logger.error('Failed to add job to queue', {
+                error: error.message,
+                stack: error.stack,
+                type,
+                jobId,
+            });
+            throw error;
+        } finally {
+            activeJobs.delete(jobId);
+        }
+    }
+
+    logger.info('Bulk operation completed', {
+        type,
+        totalJobs: results.length,
+        successCount: results.filter(r => r.status === 'completed').length,
+    });
+
+    return results;
+}
+
+async function getProductRecommendations(productId) {
+    try {
+        const product = await getProductById(productId);
+        if (!product.rows.length) {
+            throw new Error('Product not found');
+        }
+
+        const model = await trainRecommendationModel();
+
+        const result = await pgPool.query(
+            `
+            SELECT 
+                p.*,
+                COUNT(DISTINCT pt.tag_name) as tag_count,
+                COUNT(DISTINCT pc.user_id) as view_count
+            FROM products p
+            LEFT JOIN product_tags pt ON p.id = pt.product_id
+            LEFT JOIN product_comments pc ON p.id = pc.product_id
+            WHERE p.id != $1
+            GROUP BY p.id
+            HAVING COUNT(DISTINCT pt.tag_name) > 0
+            ORDER BY 
+                CASE WHEN p.category_id = $2 THEN 1 ELSE 0 END DESC,
+                tag_count DESC,
+                view_count DESC
+            LIMIT 10
+        `,
+            [productId, product.rows[0].category_id]
+        );
+
+        const scoredProducts = result.rows.map(row => {
+            const input = [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.price / 1000];
+            const score = model.forward(input)[0];
+            return { ...row, score };
+        });
+
+        return scoredProducts.sort((a, b) => b.score - a.score);
+    } catch (error) {
+        console.error('Error getting product recommendations:', error);
+        throw error;
+    }
+}
+
+async function trainRecommendationModel() {
+    try {
+        const result = await pgPool.query(`
+            SELECT 
+                p.id as product_id,
+                p.category_id,
+                COUNT(DISTINCT pc.user_id) as view_count,
+                COUNT(DISTINCT pt.tag_name) as tag_count,
+                AVG(p.price) as avg_price
+            FROM products p
+            LEFT JOIN product_comments pc ON p.id = pc.product_id
+            LEFT JOIN product_tags pt ON p.id = pt.product_id
+            GROUP BY p.id, p.category_id
+        `);
+
+        const trainingData = result.rows.map(row => ({
+            input: [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.avg_price / 1000],
+            output: [row.view_count > 10 ? 1 : 0],
+        }));
+
+        const nn = new SimpleNeuralNetwork(4, 8, 1);
+        for (let i = 0; i < 1000; i++) {
+            trainingData.forEach(data => {
+                nn.train(data.input, data.output);
+            });
+        }
+
+        return nn;
+    } catch (error) {
+        console.error('Error training recommendation model:', error);
+        throw error;
+    }
+}
+
+async function storeProductDocument(productData) {
+    const db = mongoClient.db();
+    const collection = db.collection('product_documents');
+
+    const document = {
+        product_id: productData.id,
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.category_id,
+        metadata: productData.metadata,
+        created_at: new Date(),
+        updated_at: new Date(),
+    };
+
+    return collection.insertOne(document);
+}
+
+async function searchProductDocuments(searchQuery) {
+    const db = mongoClient.db();
+    const collection = db.collection('product_documents');
+
+    const query = {
+        $text: {
+            $search: searchQuery,
+        },
+    };
+
+    return collection.find(query).toArray();
+}
+
+async function searchProducts(searchParams) {
+    const {
+        page = 1,
+        pageSize = DEFAULT_PAGE_SIZE,
+        sortField = DEFAULT_SORT_FIELD,
+        sortOrder = DEFAULT_SORT_ORDER,
+        name,
+        category_id,
+        min_price,
+        max_price,
+        tags,
+        attributes,
+    } = searchParams;
+
+    const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
+    const offset = (page - 1) * validatedPageSize;
+
+    let query = `
+        SELECT p.*, 
+               COUNT(*) OVER() as total_count,
+               array_agg(DISTINCT t.tag_name) FILTER (WHERE t.tag_name IS NOT NULL) as tags,
+               jsonb_object_agg(
+                   pa.name,
+                   pav.value
+               ) FILTER (WHERE pa.name IS NOT NULL AND pav.value IS NOT NULL) as attributes
+        FROM products p
+        LEFT JOIN product_tags t ON p.id = t.product_id
+        LEFT JOIN product_attribute_values pav ON p.id = pav.product_id
+        LEFT JOIN product_attributes pa ON pav.attribute_id = pa.id
+        WHERE 1=1
+    `;
+
+    const queryParams = [];
+    let paramIndex = 1;
+
+    if (name) {
+        query += ` AND p.name ILIKE $${paramIndex}`;
+        queryParams.push(`%${name}%`);
+        paramIndex++;
+    }
+
+    if (category_id) {
+        query += ` AND p.category_id = $${paramIndex}`;
+        queryParams.push(category_id);
+        paramIndex++;
+    }
+
+    if (min_price !== undefined) {
+        query += ` AND p.price >= $${paramIndex}`;
+        queryParams.push(min_price);
+        paramIndex++;
+    }
+
+    if (max_price !== undefined) {
+        query += ` AND p.price <= $${paramIndex}`;
+        queryParams.push(max_price);
+        paramIndex++;
+    }
+
+    if (tags && tags.length > 0) {
+        query += ` AND EXISTS (
+            SELECT 1 FROM product_tags t2 
+            WHERE t2.product_id = p.id 
+            AND t2.tag_name = ANY($${paramIndex})
+        )`;
+        queryParams.push(tags);
+        paramIndex++;
+    }
+
+    if (attributes && Object.keys(attributes).length > 0) {
+        const attributeConditions = [];
+        for (const [key, value] of Object.entries(attributes)) {
+            attributeConditions.push(`(
+                pa.name = $${paramIndex} 
+                AND pav.value = $${paramIndex + 1}
+            )`);
+            queryParams.push(key, value);
+            paramIndex += 2;
+        }
+        query += ` AND (${attributeConditions.join(' OR ')})`;
+    }
+
+    query += `
+        GROUP BY p.id
+        ORDER BY p.${sortField} ${sortOrder}
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
+    queryParams.push(validatedPageSize, offset);
+
+    const result = await pgPool.query(query, queryParams);
+
+    return {
+        items: result.rows,
+        pagination: {
+            total: parseInt(result.rows[0]?.total_count || 0),
+            page: page,
+            pageSize: validatedPageSize,
+            totalPages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / validatedPageSize),
+        },
+    };
+}
+
+async function createOptimizedIndexes() {
+    const client = await pgPool.connect();
+    try {
+        logger.info('Starting database index creation');
+        await client.query('BEGIN');
+
+        for (const index of schemaConfig.indexes) {
+            try {
+                await client.query(index.query);
+                logger.info(`Created index: ${index.name}`, {
+                    indexName: index.name,
+                    query: index.query,
+                });
+            } catch (error) {
+                logger.error(`Failed to create index ${index.name}`, {
+                    error: error.message,
+                    stack: error.stack,
+                    indexName: index.name,
+                    query: index.query,
+                });
+                throw error;
+            }
+        }
+
+        await client.query('COMMIT');
+        logger.info('Database index creation completed successfully');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error('Database index creation failed', {
+            error: error.message,
+            stack: error.stack,
+        });
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function createMaterializedViews() {
+    const client = await pgPool.connect();
+    try {
+        await client.query('BEGIN');
+
+        for (const view of schemaConfig.materializedViews) {
+            try {
+                await client.query(view.query);
+                console.log(`Created materialized view: ${view.name}`);
+            } catch (error) {
+                console.error(`Failed to create materialized view ${view.name}:`, error);
+                throw error;
+            }
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function refreshMaterializedViews() {
+    const client = await pgPool.connect();
+    try {
+        logger.info('Starting materialized views refresh');
+        await client.query('BEGIN');
+
+        for (const view of schemaConfig.materializedViews) {
+            try {
+                await client.query(view.refreshQuery);
+                logger.info(`Refreshed materialized view: ${view.name}`, {
+                    viewName: view.name,
+                    query: view.refreshQuery,
+                });
+            } catch (error) {
+                logger.error(`Failed to refresh materialized view ${view.name}`, {
+                    error: error.message,
+                    stack: error.stack,
+                    viewName: view.name,
+                    query: view.refreshQuery,
+                });
+                throw error;
+            }
+        }
+
+        await client.query('COMMIT');
+        logger.info('Materialized views refresh completed successfully');
+    } catch (error) {
+        await client.query('ROLLBACK');
+        logger.error('Materialized views refresh failed', {
+            error: error.message,
+            stack: error.stack,
+        });
+        throw error;
+    } finally {
+        client.release();
+    }
+}
+
+async function setupMongoCollections() {
+    try {
+        logger.info('Setting up MongoDB collections');
+        await mongoClient.connect();
+        logger.debug('MongoDB connection established');
+
+        const db = mongoClient.db();
+
+        for (const collection of schemaConfig.mongoCollections) {
+            try {
+                await db.createCollection(collection.name);
+                logger.info(`Created MongoDB collection: ${collection.name}`, {
+                    collectionName: collection.name,
+                });
+
+                if (collection.indexes) {
+                    for (const index of collection.indexes) {
+                        await db.collection(collection.name).createIndex(index.key);
+                        logger.debug(`Created index for collection ${collection.name}`, {
+                            collectionName: collection.name,
+                            index: index.key,
+                        });
+                    }
+                }
+            } catch (error) {
+                if (error.code === 48) {
+                    logger.debug(`Collection already exists: ${collection.name}`);
+                    continue;
+                }
+                logger.error(`Failed to create MongoDB collection: ${collection.name}`, {
+                    error: error.message,
+                    stack: error.stack,
+                    collectionName: collection.name,
+                });
+                throw error;
+            }
+        }
+
+        logger.info('MongoDB collections setup completed successfully');
+    } catch (error) {
+        logger.error('MongoDB collections setup failed', {
+            error: error.message,
+            stack: error.stack,
+        });
+        throw error;
+    }
+}
+
+async function createDatabaseSchema() {
+    try {
+        logger.info('Starting database schema creation');
+
+        await createSchemaVersionTable();
+        logger.debug('Schema version table created successfully');
+
+        const currentVersion = await getCurrentSchemaVersion();
+        logger.debug('Current schema version', { version: currentVersion });
+
+        for (const migration of schemaConfig.migrations) {
+            if (migration.version > currentVersion) {
+                logger.info(`Applying migration: ${migration.name}`, {
+                    version: migration.version,
+                    name: migration.name,
+                    queryCount: migration.queries.length,
+                });
+                await applySchemaMigration(migration.version, migration.name, migration.queries);
+            }
+        }
+
+        logger.info('Database schema creation completed successfully');
+    } catch (error) {
+        logger.error('Database schema creation failed', {
+            error: error.message,
+            stack: error.stack,
+        });
+        throw error;
+    }
+}
+async function createSchemaVersionTable() {
+    const query = `
+        CREATE TABLE IF NOT EXISTS schema_versions (
+            id SERIAL PRIMARY KEY,
+            version INTEGER NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(version)
+        );
+    `;
+    await pgPool.query(query);
+}
+
+async function getCurrentSchemaVersion() {
+    const query = 'SELECT MAX(version) as current_version FROM schema_versions';
+    const result = await pgPool.query(query);
+    return result.rows[0]?.current_version || 0;
+}
+
+async function applySchemaMigration(version, name, queries) {
+    const client = await pgPool.connect();
+    try {
+        logger.info(`Starting migration ${version}: ${name}`, {
+            version,
+            name,
+            queryCount: queries.length,
+        });
+        await client.query('BEGIN');
+
+        const checkQuery = 'SELECT version FROM schema_versions WHERE version = $1';
+        const checkResult = await client.query(checkQuery, [version]);
+
+        if (checkResult.rows.length === 0) {
+            for (const query of queries) {
+                logger.debug(`Executing migration query`, {
+                    version,
+                    name,
+                    query: query.substring(0, 100) + '...',
+                });
+                await client.query(query);
+            }
+
+            const insertQuery = 'INSERT INTO schema_versions (version, name) VALUES ($1, $2)';
+            await client.query(insertQuery, [version, name]);
+            logger.info(`Successfully applied migration ${version}: ${name}`, {
+                version,
+                name,
+                queryCount: queries.length,
+            });
+        } else {
+            logger.debug(`Migration ${version}: ${name} already applied, skipping`, {
+                version,
+                name,
+            });
+        }
+
+        await client.query('COMMIT');
+    } catch (error) {
+        logger.error(`Failed to apply migration ${version}: ${name}`, {
+            error: error.message,
+            stack: error.stack,
+            version,
+            name,
+            queries,
+        });
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
+}
 // ======================================================================
 async function main() {
     await clearCorruptedCache();
