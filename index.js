@@ -3176,12 +3176,83 @@ async function getProductVersionsController(req, res) {
 async function getCategoriesController(req, res) {
     try {
         const { page, limit, offset } = req.pagination;
-        const result = await pgPool.query('SELECT * FROM categories WHERE deleted_at IS NULL ORDER BY name LIMIT $1 OFFSET $2', [limit, offset]);
-        const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE deleted_at IS NULL');
+        
+        // First get paginated parent categories
+        const parentQuery = `
+            SELECT c.*, 
+                   (SELECT COUNT(*) FROM products WHERE category_id = c.id AND deleted_at IS NULL) as product_count,
+                   (SELECT COUNT(*) FROM categories WHERE parent_id = c.id AND deleted_at IS NULL) as subcategory_count
+            FROM categories c
+            WHERE c.parent_id IS NULL AND c.deleted_at IS NULL
+            ORDER BY c.name
+            LIMIT $1 OFFSET $2
+        `;
+        
+        const parentResult = await pgPool.query(parentQuery, [limit, offset]);
+        
+        // Get total count of parent categories for pagination
+        const countResult = await pgPool.query(
+            'SELECT COUNT(*) FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL'
+        );
         const total = parseInt(countResult.rows[0].count);
 
+        // For each parent category, get all its child categories recursively
+        const parentIds = parentResult.rows.map(cat => cat.id);
+        const childQuery = `
+            WITH RECURSIVE category_tree AS (
+                -- Base case: direct children of parent categories
+                SELECT 
+                    id, 
+                    name, 
+                    parent_id, 
+                    1 as level,
+                    ARRAY[parent_id] as parent_path
+                FROM categories
+                WHERE parent_id = ANY($1) AND deleted_at IS NULL
+                
+                UNION ALL
+                
+                -- Recursive case: children of children
+                SELECT 
+                    c.id, 
+                    c.name, 
+                    c.parent_id, 
+                    ct.level + 1,
+                    ct.parent_path || c.parent_id
+                FROM categories c
+                JOIN category_tree ct ON c.parent_id = ct.id
+                WHERE c.deleted_at IS NULL
+            )
+            SELECT 
+                ct.*,
+                (SELECT COUNT(*) FROM products WHERE category_id = ct.id AND deleted_at IS NULL) as product_count,
+                (SELECT COUNT(*) FROM categories WHERE parent_id = ct.id AND deleted_at IS NULL) as subcategory_count
+            FROM category_tree ct
+            ORDER BY ct.parent_path, ct.name
+        `;
+        
+        const childResult = await pgPool.query(childQuery, [parentIds]);
+
+        // Organize categories into a hierarchical structure
+        const categories = parentResult.rows.map(parent => {
+            // Get all children that belong to this parent (direct or indirect)
+            const children = childResult.rows.filter(child => {
+                // Check if this child's parent_path includes the parent's ID
+                return child.parent_path.includes(parent.id);
+            }).map(child => ({
+                ...child,
+                // Remove the parent_path array from the response
+                parent_path: undefined
+            }));
+            
+            return {
+                ...parent,
+                children
+            };
+        });
+
         res.success({
-            items: result.rows,
+            items: categories,
             pagination: {
                 page,
                 limit,
