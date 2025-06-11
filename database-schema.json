@@ -5,7 +5,7 @@
             "name": "Initial schema",
             "queries": [
                 "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-                "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
+                "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, price DECIMAL(10,2), category_id INTEGER REFERENCES categories(id), metadata JSONB, status VARCHAR(20) DEFAULT 'active', featured BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_attributes (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, description TEXT, data_type VARCHAR(50) NOT NULL, is_required BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_attribute_values (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, attribute_id INTEGER REFERENCES product_attributes(id) ON DELETE CASCADE, value TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, attribute_id))",
@@ -24,6 +24,13 @@
                 "CREATE TABLE IF NOT EXISTS product_relationships (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, related_product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, relationship_type VARCHAR(50) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, related_product_id, relationship_type))",
                 "CREATE TABLE IF NOT EXISTS product_reviews (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, user_id VARCHAR(64) NOT NULL, rating INTEGER CHECK (rating >= 1 AND rating <= 5), review_text TEXT, is_verified BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_versions (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, version_number INTEGER NOT NULL, changes JSONB, created_by VARCHAR(64) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)"
+            ]
+        },
+        {
+            "version": 2,
+            "name": "Add deleted_at to categories",
+            "queries": [
+                "ALTER TABLE categories ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"
             ]
         }
     ],
