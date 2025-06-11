@@ -32,9 +32,7 @@ const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'database-schema.js
 const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
     process.env.POSTGRES_URI ||
-    `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${
-        process.env.POSTGRES_HOST || 'localhost'
-    }:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
+    `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
@@ -842,11 +840,8 @@ function apiV1Routers(app) {
 
     app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), addPriceHistoryController);
 
-    app.post(
-        '/products/:productId/relationships',
-        validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']),
-        addProductRelationshipController
-    );
+    app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), addProductRelationshipController);
+
     app.get(
         '/products/:productId/relationships',
         enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
@@ -1205,16 +1200,7 @@ function addPriceHistory(priceData) {
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING *
     `;
-    return pgPool.query(query, [
-        product_id,
-        variant_id,
-        price,
-        change_reason,
-        effective_date || new Date(),
-        discount_percentage || 0,
-        currency || 'USD',
-        source || 'system',
-    ]);
+    return pgPool.query(query, [product_id, variant_id, price, change_reason, effective_date || new Date(), discount_percentage || 0, currency || 'USD', source || 'system']);
 }
 
 function getProductPriceStatistics(product_id, variant_id) {
@@ -2121,18 +2107,7 @@ async function searchProductDocuments(searchQuery) {
 }
 
 async function searchProducts(searchParams) {
-    const {
-        page = 1,
-        pageSize = DEFAULT_PAGE_SIZE,
-        sortField = DEFAULT_SORT_FIELD,
-        sortOrder = DEFAULT_SORT_ORDER,
-        name,
-        category_id,
-        min_price,
-        max_price,
-        tags,
-        attributes,
-    } = searchParams;
+    const { page = 1, pageSize = DEFAULT_PAGE_SIZE, sortField = DEFAULT_SORT_FIELD, sortOrder = DEFAULT_SORT_ORDER, name, category_id, min_price, max_price, tags, attributes } = searchParams;
 
     const validatedPageSize = Math.min(Math.max(1, pageSize), MAX_PAGE_SIZE);
     const offset = (page - 1) * validatedPageSize;
@@ -2476,17 +2451,7 @@ async function applySchemaMigration(version, name, queries) {
 // Middleware
 
 function enhancedCacheMiddleware(prefix, ttl, options = {}) {
-    const {
-        compress = true,
-        version = '1',
-        maxRetries = 2,
-        retryDelay = 100,
-        compressionThreshold = 1024,
-        cacheKeyPrefix = 'cache',
-        maxCacheSize = 10 * 1024 * 1024,
-        staleWhileRevalidate = false,
-        staleTTL = 60,
-    } = options;
+    const { compress = true, version = '1', maxRetries = 2, retryDelay = 100, compressionThreshold = 1024, cacheKeyPrefix = 'cache', maxCacheSize = 10 * 1024 * 1024, staleWhileRevalidate = false, staleTTL = 60 } = options;
 
     return async function (req, res, next) {
         if (req.method !== 'GET') {
@@ -2918,10 +2883,7 @@ async function addPriceHistoryController(req, res) {
         };
         const result = await addPriceHistory(priceData);
 
-        await Promise.all([
-            invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`),
-            invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
-        ]);
+        await Promise.all([invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
         res.json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -3063,10 +3025,7 @@ async function addProductReviewController(req, res) {
         };
         const result = await addProductReview(reviewData);
 
-        await Promise.all([
-            invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`),
-            invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`),
-        ]);
+        await Promise.all([invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
         res.json(result.rows[0]);
     } catch (error) {
         res.status(500).json({ error: error.message });

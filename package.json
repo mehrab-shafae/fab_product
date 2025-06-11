@@ -5,8 +5,7 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node index.js"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^9.0.2",
@@ -31,8 +30,5 @@
     "winston": "^3.11.0",
     "xss-clean": "^0.1.4",
     "yamljs": "^0.3.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.2"
   }
 }
