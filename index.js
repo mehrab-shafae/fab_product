@@ -2641,9 +2641,9 @@ async function createProductController(req, res) {
     try {
         const result = await createProduct(req.body);
         await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2680,18 +2680,17 @@ async function bulkUpdateProductsController(req, res) {
     try {
         const { type, data, options } = req.body;
         if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
-            return res.status(400).json({ error: 'Invalid operation type' });
+            return res.error('Invalid operation type', 400);
         }
         if (!Array.isArray(data) || data.length === 0) {
-            return res.status(400).json({ error: 'Invalid data array' });
+            return res.error('Invalid data array', 400);
         }
         const results = await processBulkOperation(type, data, options);
-        res.json({
-            message: 'Bulk operation queued successfully',
-            jobIds: results.map(r => r.id),
-        });
+        res.success({
+            jobIds: results.map(r => r.id)
+        }, 'Bulk operation queued successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2699,9 +2698,9 @@ async function createCategoryController(req, res) {
     try {
         const result = await createCategory(req.body);
         await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Category created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2722,9 +2721,9 @@ async function addCommentController(req, res) {
         };
         const result = await addComment(commentData);
         await invalidateCachePattern(`/products/${req.params.productId}/comments`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Comment added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2742,9 +2741,9 @@ async function addTagToProductController(req, res) {
         const { tag_name } = req.body;
         const result = await addTagToProduct(req.params.productId, tag_name);
         await Promise.all([invalidateCachePattern(`/products/tags/${tag_name}`), invalidateCachePattern(`/products/${req.params.productId}`)]);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Tag added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2817,11 +2816,10 @@ async function addPriceHistoryController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addPriceHistory(priceData);
-
         await Promise.all([invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Price history added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2833,9 +2831,9 @@ async function addProductRelationshipController(req, res) {
         };
         const result = await addProductRelationship(relationshipData);
         await invalidateCachePattern(`/products/${req.params.productId}/relationships`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product relationship added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2856,9 +2854,9 @@ async function createProductVersionController(req, res) {
         };
         const result = await createProductVersion(versionData);
         await invalidateCachePattern(`/products/${req.params.productId}/versions`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product version created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2900,9 +2898,9 @@ async function createProductVariantController(req, res) {
         };
         const result = await createProductVariant(variantData);
         await invalidateCachePattern(`/products/${req.params.productId}/variants`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product variant created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2923,9 +2921,9 @@ async function addProductImageController(req, res) {
         };
         const result = await addProductImage(imageData);
         await invalidateCachePattern(`/products/${req.params.productId}/images`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product image added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2946,9 +2944,9 @@ async function updateInventoryController(req, res) {
         };
         const result = await updateInventory(inventoryData);
         await invalidateCachePattern(`/products/${req.params.productId}/inventory`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Inventory updated successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -2959,11 +2957,10 @@ async function addProductReviewController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductReview(reviewData);
-
         await Promise.all([invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product review added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3016,18 +3013,18 @@ async function addProductAttributeController(req, res) {
         };
         const result = await addProductAttributeValue(attributeData);
         await invalidateCachePattern(`/products/${req.params.productId}/attributes`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product attribute added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
 async function createAttributeController(req, res) {
     try {
         const result = await createProductAttribute(req.body);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Attribute created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3039,9 +3036,9 @@ async function createProductChatController(req, res) {
         };
         const result = await createProductChat(chatData);
         await invalidateCachePattern(`/products/${req.params.productId}/chats`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Product chat created successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3063,9 +3060,9 @@ async function addChatMessageController(req, res) {
         };
         const result = await addChatMessage(messageData);
         await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-        res.json(result.rows[0]);
+        res.success(result.rows[0], 'Chat message added successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
@@ -3082,9 +3079,9 @@ async function markChatMessagesAsReadController(req, res) {
     try {
         const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
         await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-        res.json(result.rows);
+        res.success(result.rows, 'Chat messages marked as read successfully');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.error(error.message);
     }
 }
 
