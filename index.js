@@ -2752,7 +2752,7 @@ async function searchProductsController(req, res) {
         };
         const result = await searchProducts(searchParams);
         res.success({
-            data: result.items,
+            items: result.items,
             pagination: result.pagination,
         });
     } catch (error) {
@@ -2963,7 +2963,7 @@ async function getCategoriesController(req, res) {
         const total = parseInt(countResult.rows[0].count);
 
         res.success({
-            data: result.rows,
+            items: result.rows,
             pagination: {
                 page,
                 limit,
@@ -3055,7 +3055,10 @@ async function getProductReviewsController(req, res) {
     try {
         const { page, limit } = req.pagination;
         const reviews = await getProductReviews(req.params.productId, { page, limit });
-        res.success(reviews);
+        res.success({
+            items: reviews.items,
+            pagination: reviews.pagination,
+        });
     } catch (error) {
         res.error(error.message);
     }
