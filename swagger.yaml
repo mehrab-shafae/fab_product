@@ -6,7 +6,9 @@ info:
 
 servers:
   - url: http://localhost:3000/api/product/v1
-    description: Development server
+    description: Product API endpoints
+  - url: http://localhost:3000
+    description: System endpoints
 
 components:
   schemas:
@@ -468,7 +470,63 @@ components:
           description: Last update timestamp
 
 paths:
-  /products:
+  /health:
+    get:
+      summary: Check system health
+      tags: [System]
+      description: |
+        Check the health status of the system and its dependencies
+      responses:
+        '200':
+          description: System health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    description: System status
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Current timestamp
+                  services:
+                    type: object
+                    properties:
+                      postgres:
+                        type: string
+                        description: PostgreSQL connection status
+                      redis:
+                        type: object
+                        properties:
+                          status:
+                            type: string
+                            description: Redis connection status
+                          lastError:
+                            type: string
+                            description: Last Redis error
+                      mongo:
+                        type: string
+                        description: MongoDB connection status
+                  cache:
+                    type: object
+                    properties:
+                      enabled:
+                        type: boolean
+                        description: Cache status
+                      warming:
+                        type: object
+                        properties:
+                          lastRun:
+                            type: string
+                            format: date-time
+                            description: Last cache warming run
+                          status:
+                            type: string
+                            description: Cache warming status
+
+  /api/product/v1/products:
     post:
       summary: Create a new product
       tags: [Products]
@@ -934,7 +992,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/variants:
+  /api/product/v1/products/{productId}/variants:
     post:
       summary: Create product variant
       tags: [Products]
@@ -965,12 +1023,13 @@ paths:
                 sku:
                   type: string
                   description: Stock keeping unit
-                stock_quantity:
-                  type: integer
-                  description: Stock quantity
       responses:
         '200':
           description: Variant created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
         '500':
           description: Server error
           content:
@@ -990,24 +1049,13 @@ paths:
           description: Product ID
       responses:
         '200':
-          description: Product variants
+          description: List of product variants
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    name:
-                      type: string
-                    price:
-                      type: number
-                    sku:
-                      type: string
-                    stock_quantity:
-                      type: integer
+                  $ref: '#/components/schemas/ProductVariant'
         '500':
           description: Server error
           content:
@@ -1015,7 +1063,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/images:
+  /api/product/v1/products/{productId}/images:
     post:
       summary: Add product image
       tags: [Products]
@@ -1042,15 +1090,13 @@ paths:
                 alt_text:
                   type: string
                   description: Image alt text
-                variant_id:
-                  type: integer
-                  description: Variant ID
-                is_primary:
-                  type: boolean
-                  description: Whether this is the primary image
       responses:
         '200':
           description: Image added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImage'
         '500':
           description: Server error
           content:
@@ -1070,24 +1116,13 @@ paths:
           description: Product ID
       responses:
         '200':
-          description: Product images
+          description: List of product images
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                    url:
-                      type: string
-                    alt_text:
-                      type: string
-                    variant_id:
-                      type: integer
-                    is_primary:
-                      type: boolean
+                  $ref: '#/components/schemas/ProductImage'
         '500':
           description: Server error
           content:
@@ -1095,9 +1130,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/inventory:
+  /api/product/v1/products/{productId}/inventory:
     post:
-      summary: Update inventory
+      summary: Update product inventory
       tags: [Products]
       parameters:
         - in: path
@@ -1118,7 +1153,7 @@ paths:
               properties:
                 quantity:
                   type: integer
-                  description: Stock quantity
+                  description: New quantity
                 variant_id:
                   type: integer
                   description: Variant ID
@@ -1361,7 +1396,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/chats:
+  /api/product/v1/products/{productId}/chats:
     post:
       summary: Create a new product chat
       tags: [Chats]
@@ -1398,7 +1433,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /users/{userId}/chats:
+  /api/product/v1/users/{userId}/chats:
     get:
       summary: Get user chats
       tags: [Chats]
@@ -1425,7 +1460,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /chats/{chatId}/messages:
+  /api/product/v1/chats/{chatId}/messages:
     post:
       summary: Add message to chat
       tags: [Chats]
@@ -1492,7 +1527,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /chats/{chatId}/read:
+  /api/product/v1/chats/{chatId}/read:
     post:
       summary: Mark chat messages as read
       tags: [Chats]
@@ -1525,7 +1560,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/analytics:
+  /api/product/v1/products/{productId}/analytics:
     get:
       summary: Get product analytics
       tags: [Analytics]
@@ -1550,7 +1585,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /categories/{categoryId}/analytics:
+  /api/product/v1/categories/{categoryId}/analytics:
     get:
       summary: Get category analytics
       tags: [Analytics]
@@ -1575,7 +1610,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/recommendations:
+  /api/product/v1/products/{productId}/recommendations:
     get:
       summary: Get product recommendations
       tags: [Products]
@@ -1602,7 +1637,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/attributes:
+  /api/product/v1/products/{productId}/attributes:
     get:
       summary: Get product attributes
       tags: [Products]
@@ -1629,7 +1664,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/price-history:
+  /api/product/v1/products/{productId}/price-history:
     get:
       summary: Get product price history
       tags: [Products]
@@ -1661,7 +1696,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/price-statistics:
+  /api/product/v1/products/{productId}/price-statistics:
     get:
       summary: Get product price statistics
       tags: [Products]
@@ -2277,63 +2312,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /health:
-    get:
-      summary: Check system health
-      tags: [System]
-      description: |
-        Check the health status of the system and its dependencies
-      responses:
-        '200':
-          description: System health status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    description: System status
-                  timestamp:
-                    type: string
-                    format: date-time
-                    description: Current timestamp
-                  services:
-                    type: object
-                    properties:
-                      postgres:
-                        type: string
-                        description: PostgreSQL connection status
-                      redis:
-                        type: object
-                        properties:
-                          status:
-                            type: string
-                            description: Redis connection status
-                          lastError:
-                            type: string
-                            description: Last Redis error
-                      mongo:
-                        type: string
-                        description: MongoDB connection status
-                  cache:
-                    type: object
-                    properties:
-                      enabled:
-                        type: boolean
-                        description: Cache status
-                      warming:
-                        type: object
-                        properties:
-                          lastRun:
-                            type: string
-                            format: date-time
-                            description: Last cache warming run
-                          status:
-                            type: string
-                            description: Cache warming status
-
-  /categories:
+  /api/product/v1/categories:
     post:
       summary: Create a new category
       tags: [Categories]
@@ -2368,7 +2347,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /categories/tree:
+  /api/product/v1/categories/tree:
     get:
       summary: Get category tree
       tags: [Categories]
@@ -2390,7 +2369,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/tags/{tagName}:
+  /api/product/v1/products/tags/{tagName}:
     get:
       summary: Get products by tag
       tags: [Products]
@@ -2417,40 +2396,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/{productId}/tags:
-    post:
-      summary: Add tag to product
-      tags: [Products]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema:
-            type: integer
-          description: Product ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tag_name
-              properties:
-                tag_name:
-                  type: string
-                  description: Tag name
-      responses:
-        '200':
-          description: Tag added successfully
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /products/{productId}/comments:
+  /api/product/v1/products/{productId}/comments:
     post:
       summary: Add comment to product
       tags: [Comments]
@@ -2510,6 +2456,39 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/product/v1/products/{productId}/tags:
+    post:
+      summary: Add tag to product
+      tags: [Products]
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - tag_name
+              properties:
+                tag_name:
+                  type: string
+                  description: Tag name
+      responses:
+        '200':
+          description: Tag added successfully
         '500':
           description: Server error
           content:
