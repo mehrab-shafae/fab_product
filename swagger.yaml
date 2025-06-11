@@ -508,9 +508,6 @@ paths:
                           lastError:
                             type: string
                             description: Last Redis error
-                      mongo:
-                        type: string
-                        description: MongoDB connection status
                   cache:
                     type: object
                     properties:

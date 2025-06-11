@@ -3,7 +3,6 @@ import 'dotenv/config';
 import express from 'express';
 import { execSync } from 'child_process';
 import { Pool } from 'pg';
-import { MongoClient } from 'mongodb';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import { createClient } from 'redis';
@@ -11,13 +10,12 @@ import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import Bull from 'bull';
 import { gzip, gunzip } from 'zlib';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
-import { existsSync } from 'fs';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -28,7 +26,6 @@ const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
     process.env.POSTGRES_URI ||
     `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
 let redisClient = null;
@@ -181,8 +178,6 @@ const swaggerDocument = YAML.parse(readFileSync(join(__dirname, 'swagger.yaml'),
 const pgPool = new Pool({
     connectionString: POSTGRES_URI,
 });
-
-const mongoClient = new MongoClient(MONGO_URI);
 
 const CACHE_COMPRESSION_THRESHOLD = 1024;
 const BATCH_SIZE = 1000;
@@ -601,7 +596,6 @@ async function init() {
 
         if (false) optimizeSystemForService();
 
-        await setupMongoCollections();
         await createMaterializedViews();
         await createOptimizedIndexes();
 
@@ -2116,33 +2110,21 @@ async function trainRecommendationModel() {
 }
 
 async function storeProductDocument(productData) {
-    const db = mongoClient.db();
-    const collection = db.collection('product_documents');
-
-    const document = {
-        product_id: productData.id,
-        name: productData.name,
-        description: productData.description,
-        category_id: productData.category_id,
-        metadata: productData.metadata,
-        created_at: new Date(),
-        updated_at: new Date(),
-    };
-
-    return collection.insertOne(document);
+    const { product_id, name, description, category_id, document_data } = productData;
+    const result = await pgPool.query('INSERT INTO product_documents (product_id, name, description, category_id, document_data) VALUES ($1, $2, $3, $4, $5) RETURNING *', [product_id, name, description, category_id, document_data]);
+    return result.rows[0];
 }
 
 async function searchProductDocuments(searchQuery) {
-    const db = mongoClient.db();
-    const collection = db.collection('product_documents');
-
-    const query = {
-        $text: {
-            $search: searchQuery,
-        },
-    };
-
-    return collection.find(query).toArray();
+    const result = await pgPool.query(
+        `SELECT pd.*, p.name as product_name, c.name as category_name 
+         FROM product_documents pd 
+         JOIN products p ON pd.product_id = p.id 
+         LEFT JOIN categories c ON pd.category_id = c.id 
+         WHERE to_tsvector('english', pd.name || ' ' || COALESCE(pd.description, '')) @@ to_tsquery('english', $1)`,
+        [searchQuery.replace(/\s+/g, ' & ')]
+    );
+    return result.rows;
 }
 
 async function searchProducts(searchParams) {
@@ -2333,54 +2315,6 @@ async function refreshMaterializedViews() {
         throw error;
     } finally {
         client.release();
-    }
-}
-
-async function setupMongoCollections() {
-    try {
-        logger.info('Setting up MongoDB collections');
-        await mongoClient.connect();
-        logger.debug('MongoDB connection established');
-
-        const db = mongoClient.db();
-
-        for (const collection of schemaConfig.mongoCollections) {
-            try {
-                await db.createCollection(collection.name);
-                logger.info(`Created MongoDB collection: ${collection.name}`, {
-                    collectionName: collection.name,
-                });
-
-                if (collection.indexes) {
-                    for (const index of collection.indexes) {
-                        await db.collection(collection.name).createIndex(index.key);
-                        logger.debug(`Created index for collection ${collection.name}`, {
-                            collectionName: collection.name,
-                            index: index.key,
-                        });
-                    }
-                }
-            } catch (error) {
-                if (error.code === 48) {
-                    logger.debug(`Collection already exists: ${collection.name}`);
-                    continue;
-                }
-                logger.error(`Failed to create MongoDB collection: ${collection.name}`, {
-                    error: error.message,
-                    stack: error.stack,
-                    collectionName: collection.name,
-                });
-                throw error;
-            }
-        }
-
-        logger.info('MongoDB collections setup completed successfully');
-    } catch (error) {
-        logger.error('MongoDB collections setup failed', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
     }
 }
 
@@ -2688,54 +2622,17 @@ function validateRequiredFieldsMiddleware(requiredFields) {
 
 async function healthCheckController(req, res) {
     try {
-        const result = await pgPool.query(`
-            SELECT EXISTS (
-                SELECT FROM information_schema.tables 
-                WHERE table_name = 'products'
-            );
-        `);
-
-        if (!result.rows[0].exists) {
-            return res.status(503).json({ status: 'initializing', message: 'Database schema is being created' });
-        }
-
-        const indexResult = await pgPool.query(`
-            SELECT EXISTS (
-                SELECT 1
-                FROM pg_indexes
-                WHERE tablename = 'products'
-                AND indexname = 'idx_products_name_trgm'
-            );
-        `);
-
-        if (!indexResult.rows[0].exists) {
-            return res.status(503).json({ status: 'initializing', message: 'Database indexes are being created' });
-        }
-
         const health = {
-            status: 'healthy',
-            timestamp: new Date(),
-            services: {
-                postgres: pgPool ? 'connected' : 'disconnected',
-                redis: {
-                    status: redisConnected ? 'connected' : 'disconnected',
-                    lastError: redisClient ? redisClient.lastError : null,
-                },
-                mongo: mongoClient ? 'connected' : 'disconnected',
-            },
-            cache: {
-                enabled: redisConnected,
-                warming: {
-                    lastRun: new Date(),
-                    status: redisConnected ? 'active' : 'disabled',
-                },
-            },
+            uptime: process.uptime(),
+            message: 'OK',
+            timestamp: Date.now(),
+            postgres: pool ? 'connected' : 'disconnected',
+            redis: redisClient ? 'connected' : 'disconnected',
         };
-
-        res.json({ status: 'ready', message: 'Server is ready to handle requests', system: health });
+        res.json(health);
     } catch (error) {
-        console.error('Health check failed:', error);
-        res.status(500).json({ status: 'error', message: 'Health check failed' });
+        logger.error('Health check failed', { error: error.message });
+        res.status(500).json({ error: 'Health check failed' });
     }
 }
 

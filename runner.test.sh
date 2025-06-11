@@ -56,7 +56,6 @@ run_tests() {
     psql -U postgres -c "CREATE DATABASE $DB_NAME;"
 
     export POSTGRES_URI="postgresql://postgres:postgres@localhost:5432/$DB_NAME"
-    export MONGO_URI="mongodb://localhost:27017/$DB_NAME"
 
     # Ensure port 3000 is free before starting
     wait_for_port 3000 || {

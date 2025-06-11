@@ -23,7 +23,9 @@
                 "CREATE TABLE IF NOT EXISTS product_price_history (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, variant_id INTEGER REFERENCES product_variants(id) ON DELETE CASCADE, price DECIMAL(10,2) NOT NULL, change_reason VARCHAR(100), effective_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, discount_percentage DECIMAL(5,2) DEFAULT 0, currency VARCHAR(3) DEFAULT 'USD', source VARCHAR(50) DEFAULT 'system', created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_relationships (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, related_product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, relationship_type VARCHAR(50) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, related_product_id, relationship_type))",
                 "CREATE TABLE IF NOT EXISTS product_reviews (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, user_id VARCHAR(64) NOT NULL, rating INTEGER CHECK (rating >= 1 AND rating <= 5), review_text TEXT, is_verified BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
-                "CREATE TABLE IF NOT EXISTS product_versions (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, version_number INTEGER NOT NULL, changes JSONB, created_by VARCHAR(64) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)"
+                "CREATE TABLE IF NOT EXISTS product_versions (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, version_number INTEGER NOT NULL, changes JSONB, created_by VARCHAR(64) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
+                "CREATE TABLE IF NOT EXISTS product_documents (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, category_id INTEGER REFERENCES categories(id), document_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                "CREATE TABLE IF NOT EXISTS product_analytics (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, analytics_data JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
             ]
         },
         {
@@ -134,6 +136,22 @@
         {
             "name": "idx_mv_category_analytics_id",
             "query": "CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_analytics_id ON mv_category_analytics(id)"
+        },
+        {
+            "name": "idx_product_documents_name_description",
+            "query": "CREATE INDEX IF NOT EXISTS idx_product_documents_name_description ON product_documents USING gin(to_tsvector('english', name || ' ' || COALESCE(description, '')))"
+        },
+        {
+            "name": "idx_product_documents_category",
+            "query": "CREATE INDEX IF NOT EXISTS idx_product_documents_category ON product_documents(category_id)"
+        },
+        {
+            "name": "idx_product_analytics_product",
+            "query": "CREATE INDEX IF NOT EXISTS idx_product_analytics_product ON product_analytics(product_id)"
+        },
+        {
+            "name": "idx_product_analytics_created_at",
+            "query": "CREATE INDEX IF NOT EXISTS idx_product_analytics_created_at ON product_analytics(created_at DESC)"
         }
     ],
     "materializedViews": [
@@ -156,16 +174,6 @@
             "name": "mv_product_inventory_status",
             "query": "CREATE MATERIALIZED VIEW IF NOT EXISTS mv_product_inventory_status AS SELECT DISTINCT ON (p.id, pv.id) p.id, p.name, pv.id as variant_id, pv.sku, pi.quantity, pi.reserved_quantity, (pi.quantity - pi.reserved_quantity) as available_quantity FROM products p JOIN product_variants pv ON p.id = pv.product_id JOIN product_inventory pi ON pv.id = pi.variant_id ORDER BY p.id, pv.id",
             "refreshQuery": "REFRESH MATERIALIZED VIEW CONCURRENTLY mv_product_inventory_status"
-        }
-    ],
-    "mongoCollections": [
-        {
-            "name": "product_documents",
-            "indexes": [{ "key": { "name": "text", "description": "text" } }, { "key": { "category_id": 1 } }]
-        },
-        {
-            "name": "product_analytics",
-            "indexes": [{ "key": { "product_id": 1 } }, { "key": { "created_at": -1 } }]
         }
     ]
 }
