@@ -248,28 +248,29 @@ const logger = createLogger({
 
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
-    message: 'Too many requests from this IP, please try again later.',
+    max: isDevelopment ? 0 : 250, // 0 means no limit in development
+    message: 'Too many requests from this IP, please try again later.'
 });
 
 const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000,
-    delayAfter: 50,
+    delayAfter: isDevelopment ? 100 : 50, // Double the threshold in development
     delayMs: (used, req) => {
         // Base delay calculation
-        const baseDelay = (used - req.slowDown.limit) * 500;
-
+        const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500); // Half the delay in development
+        
         // Adjust delay based on HTTP method
-        const methodMultiplier =
-            {
-                GET: 0.5, // Less delay for GET requests
-                POST: 2.0, // More delay for POST requests
-                PUT: 1.5, // Moderate delay for PUT requests
-                DELETE: 1.5, // Moderate delay for DELETE requests
-                PATCH: 1.5, // Moderate delay for PATCH requests
-            }[req.method] || 1.0;
+        const methodMultiplier = {
+            GET: 0.5, // Less delay for GET requests
+            POST: 2.0, // More delay for POST requests
+            PUT: 1.5, // Moderate delay for PUT requests
+            DELETE: 1.5, // Moderate delay for DELETE requests
+            PATCH: 1.5, // Moderate delay for PATCH requests
+        }[req.method] || 1.0;
 
         // Check if the route has caching
         const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
@@ -281,7 +282,7 @@ const speedLimiter = slowDown({
         const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
 
         // Ensure minimum delay for non-cached routes
-        return hasCaching ? finalDelay : Math.max(finalDelay, 200);
+        return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200); // Half the minimum delay in development
     },
     keyGenerator: req => {
         // Generate key based on IP and route pattern
