@@ -223,7 +223,8 @@ class CacheManager {
         const { staleWhileRevalidate = true } = options;
         
         return async (req, res, next) => {
-            const key = `${prefix}:${req.originalUrl}`;
+            // Create a consistent cache key based on the request
+            const key = `api:${prefix}:${req.params.id || 'list'}:${req.query ? JSON.stringify(req.query) : 'all'}`;
             
             try {
                 const cachedData = await this.get(key);
@@ -1380,14 +1381,6 @@ function apiV1Routers(app) {
     app.put(
         '/categories/:id',
         validateCategoryMiddleware,
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
         requestLogger,
         updateCategoryController
     );
@@ -1395,14 +1388,6 @@ function apiV1Routers(app) {
     app.delete(
         '/categories/:id',
         validateCategoryMiddleware,
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
         requestLogger,
         deleteCategoryController
     );
@@ -1440,14 +1425,6 @@ function apiV1Routers(app) {
     app.post(
         '/categories/bulk-update',
         validateCategoryMiddleware,
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
         requestLogger,
         bulkUpdateCategoriesController
     );
@@ -4191,14 +4168,22 @@ async function updateCategoryController(req, res) {
             return res.error('Category not found', 404);
         }
         
-        // Increment cache version to invalidate all category caches
+        // Invalidate all related caches
+        await Promise.all([
+            cacheManager.invalidate(`api:categories:${req.params.id}:*`),
+            cacheManager.invalidate('api:categories:tree:*'),
+            cacheManager.invalidate('api:categories:search:*')
+        ]);
+        
+        // Increment cache version
         await cacheManager.incrementVersion();
         
-        // Warm up frequently accessed caches
-        await cacheManager.warmCache([
-            'api:categories:tree:*',
-            `api:categories:${req.params.id}:*`
-        ]);
+        // Warm up the specific category cache with fresh data
+        await cacheManager.set(
+            `api:categories:${req.params.id}:details`,
+            result.rows[0],
+            CACHE_TTL.CATEGORY
+        );
         
         res.success(result.rows[0], 'Category updated successfully');
     } catch (error) {
@@ -4213,7 +4198,14 @@ async function deleteCategoryController(req, res) {
             return res.error('Category not found', 404);
         }
         
-        // Increment cache version to invalidate all category caches
+        // Invalidate all related caches
+        await Promise.all([
+            cacheManager.invalidate(`api:categories:${req.params.id}:*`),
+            cacheManager.invalidate('api:categories:tree:*'),
+            cacheManager.invalidate('api:categories:search:*')
+        ]);
+        
+        // Increment cache version
         await cacheManager.incrementVersion();
         
         res.success(result.rows[0], 'Category deleted successfully');
@@ -4224,7 +4216,7 @@ async function deleteCategoryController(req, res) {
 
 async function getCategoryByIdController(req, res) {
     try {
-        const key = `api:categories:${req.params.id}:*`;
+        const key = `api:categories:${req.params.id}:details`;
         const cachedData = await cacheManager.get(key);
         
         if (cachedData) {
@@ -4236,6 +4228,7 @@ async function getCategoryByIdController(req, res) {
             return res.error('Category not found', 404);
         }
         
+        // Set cache with the specific key pattern
         await cacheManager.set(key, result.rows[0], CACHE_TTL.CATEGORY);
         res.success(result.rows[0]);
     } catch (error) {
