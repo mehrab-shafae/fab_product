@@ -471,6 +471,28 @@ components:
           format: date-time
           description: Last update timestamp
 
+    PaginatedResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          description: Array of items
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              description: Current page number
+            limit:
+              type: integer
+              description: Number of items per page
+            total:
+              type: integer
+              description: Total number of items
+            pages:
+              type: integer
+              description: Total number of pages
+
 paths:
   /health:
     get:
@@ -752,26 +774,37 @@ paths:
       tags: [Products]
       parameters:
         - in: query
-          name: query
+          name: q
           required: true
           schema:
             type: string
           description: Search query
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: Search results
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
 
   /products/{productId}/price-trends:
     get:
@@ -1236,33 +1269,18 @@ paths:
           description: Number of items per page
       responses:
         '200':
-          description: Product reviews
+          description: List of product reviews
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Review'
-                  pagination:
-                    type: object
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
                     properties:
-                      page:
-                        type: integer
-                      limit:
-                        type: integer
-                      total:
-                        type: integer
-                      pages:
-                        type: integer
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Review'
 
   /users/{userId}/wishlist:
     post:
@@ -1311,21 +1329,32 @@ paths:
           schema:
             type: string
           description: User hash ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: User wishlist
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Wishlist'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
 
   /products/{productId}/attributes:
     post:
@@ -1387,6 +1416,10 @@ paths:
       responses:
         '200':
           description: Attribute created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Attribute'
         '500':
           description: Server error
           content:
@@ -1442,21 +1475,32 @@ paths:
           schema:
             type: string
           description: User hash ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: List of user chats
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Chat'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Chat'
 
   /chats/{chatId}/messages:
     post:
@@ -1509,21 +1553,32 @@ paths:
           schema:
             type: string
           description: Chat ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: List of chat messages
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ChatMessage'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ChatMessage'
 
   /chats/{chatId}/read:
     post:
@@ -1960,22 +2015,21 @@ paths:
           schema:
             type: integer
             default: 10
-          description: Items per page
+          description: Number of items per page
       responses:
         '200':
           description: List of product reviews
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProductReview'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ProductReview'
 
   /users/{userId}/wishlist:
     post:
@@ -2020,21 +2074,32 @@ paths:
           schema:
             type: string
           description: User hash ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: User wishlist
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
 
   /products/{productId}/attributes:
     post:
@@ -2429,21 +2494,32 @@ paths:
           schema:
             type: string
           description: Tag name
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: List of products with the specified tag
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
 
   /products/{productId}/comments:
     post:
@@ -2496,21 +2572,32 @@ paths:
           schema:
             type: integer
           description: Product ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
       responses:
         '200':
           description: List of comments
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Comment'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Comment'
 
   /products/{productId}/tags:
     post:
@@ -2693,13 +2780,11 @@ paths:
           name: name
           schema:
             type: string
-            minLength: 1
           description: Category name to search for
         - in: query
           name: parent_id
           schema:
             type: integer
-            minimum: 1
           description: Filter by parent category ID
         - in: query
           name: include_deleted
@@ -2711,15 +2796,12 @@ paths:
           name: page
           schema:
             type: integer
-            minimum: 1
             default: 1
           description: Page number
         - in: query
           name: limit
           schema:
             type: integer
-            minimum: 1
-            maximum: 100
             default: 10
           description: Number of items per page
       responses:
@@ -2728,36 +2810,14 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  items:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-                  total:
-                    type: integer
-                    description: Total number of items
-                  page:
-                    type: integer
-                    description: Current page number
-                  limit:
-                    type: integer
-                    description: Items per page
-                  pages:
-                    type: integer
-                    description: Total number of pages
-        '400':
-          description: Invalid input parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
 
   /categories/bulk-update:
     post:

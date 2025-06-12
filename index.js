@@ -745,24 +745,42 @@ async function init() {
 }
 
 function apiV1Routers(app) {
-    app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), createProductController);
-    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), bulkUpdateProductsController);
-    app.post('/categories', validateRequiredFieldsMiddleware(['name']), createCategoryController);
-    app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), addCommentController);
-    app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), addTagToProductController);
-    app.post('/products/:productId/chats', createProductChatController);
-    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), addChatMessageController);
-    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), markChatMessagesAsReadController);
-    app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), addProductImageController);
-    app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), createProductVariantController);
-    app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), updateInventoryController);
-    app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), addProductReviewController);
-    app.post('/users/:userId/wishlist', validateRequiredFieldsMiddleware(['product_id']), addToWishlistController);
-    app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), addProductAttributeController);
-    app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), createAttributeController);
-    app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), addPriceHistoryController);
-    app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), addProductRelationshipController);
-    app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), createProductVersionController);
+
+    app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), requestLogger, createProductController);
+
+    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), requestLogger, bulkUpdateProductsController);
+
+    app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
+
+    app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), validateProductIdMiddleware, requestLogger, addCommentController);
+
+    app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), validateProductIdMiddleware, requestLogger, addTagToProductController);
+
+    app.post('/products/:productId/chats', validateProductIdMiddleware, requestLogger, createProductChatController);
+
+    app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), requestLogger, addChatMessageController);
+
+    app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), requestLogger, markChatMessagesAsReadController);
+
+    app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), validateProductIdMiddleware, requestLogger, addProductImageController);
+
+    app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, createProductVariantController);
+
+    app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, updateInventoryController);
+
+    app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), validateProductIdMiddleware, requestLogger, addProductReviewController);
+
+    app.post('/users/:userId/wishlist', validateRequiredFieldsMiddleware(['product_id']), requestLogger, addToWishlistController);
+
+    app.post('/products/:productId/attributes', validateRequiredFieldsMiddleware(['attribute_id', 'value']), validateProductIdMiddleware, requestLogger, addProductAttributeController);
+
+    app.post('/attributes', validateRequiredFieldsMiddleware(['name', 'type']), requestLogger, createAttributeController);
+
+    app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, addPriceHistoryController);
+
+    app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), validateProductIdMiddleware, requestLogger, addProductRelationshipController);
+
+    app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), validateProductIdMiddleware, requestLogger, createProductVersionController);
 
     app.get(
         '/products',
@@ -771,8 +789,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
         paginateResults,
+        requestLogger,
         searchProductsController
     );
 
@@ -783,7 +804,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductByIdController
     );
 
@@ -794,8 +819,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
         paginateResults,
+        requestLogger,
         getCategoriesController
     );
 
@@ -806,7 +834,10 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        requestLogger,
         getCategoryTreeController
     );
 
@@ -817,7 +848,12 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
         }),
+        validateProductIdMiddleware,
+        paginateResults,
+        requestLogger,
         getProductCommentsController
     );
 
@@ -828,7 +864,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        paginateResults,
+        requestLogger,
         getProductsByTagController
     );
 
@@ -840,7 +880,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        paginateResults,
+        requestLogger,
         searchProductDocumentsController
     );
 
@@ -851,7 +895,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
         }),
+        paginateResults,
+        requestLogger,
         getUserChatsController
     );
 
@@ -862,7 +910,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
         }),
+        paginateResults,
+        requestLogger,
         getChatMessagesController
     );
 
@@ -873,7 +925,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductAnalyticsController
     );
 
@@ -884,7 +940,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateCategoryMiddleware,
+        requestLogger,
         getCategoryAnalyticsController
     );
 
@@ -895,7 +955,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductRecommendationsController
     );
 
@@ -906,7 +970,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductAttributesController
     );
 
@@ -916,7 +984,12 @@ function apiV1Routers(app) {
             compress: true,
             version: '1',
             cacheKeyPrefix: 'api',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        validateVariantIdMiddleware,
+        requestLogger,
         getProductPriceHistoryController
     );
 
@@ -927,7 +1000,12 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        validateVariantIdMiddleware,
+        requestLogger,
         getProductPriceStatisticsController
     );
 
@@ -938,7 +1016,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductVariantsController
     );
 
@@ -949,7 +1031,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductImagesController
     );
 
@@ -960,7 +1046,11 @@ function apiV1Routers(app) {
             compress: true,
             version: '1',
             cacheKeyPrefix: 'api',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductReviewsController
     );
 
@@ -971,7 +1061,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        paginateResults,
+        requestLogger,
         getWishlistController
     );
 
@@ -982,7 +1076,10 @@ function apiV1Routers(app) {
         enhancedCacheMiddleware('product', 300, {
             compress: true,
             cacheKeyPrefix: 'api',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
         }),
+        requestLogger,
         getPriceTrendsController
     );
 
@@ -993,7 +1090,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductRelationshipsController
     );
 
@@ -1004,10 +1105,15 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 300,
         }),
+        validateProductIdMiddleware,
+        requestLogger,
         getProductVersionsController
     );
 
+    // Category management routes with enhanced middleware
     app.put(
         '/categories/:id',
         validateCategoryMiddleware,
@@ -1016,29 +1122,40 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        requestLogger,
         updateCategoryController
     );
 
     app.delete(
         '/categories/:id',
+        validateCategoryMiddleware,
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
             compress: true,
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        requestLogger,
         deleteCategoryController
     );
 
     app.get(
         '/categories/:id',
+        validateCategoryMiddleware,
         enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
             compress: true,
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        requestLogger,
         getCategoryByIdController
     );
 
@@ -1049,7 +1166,11 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        paginateResults,
+        requestLogger,
         searchCategoriesController
     );
 
@@ -1061,7 +1182,10 @@ function apiV1Routers(app) {
             useMemoryCache: true,
             preloadRelated: true,
             version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 600,
         }),
+        requestLogger,
         bulkUpdateCategoriesController
     );
 }
@@ -1158,8 +1282,16 @@ function addComment(commentData) {
     return pgPool.query(query, [product_id, user_id, comment]);
 }
 
-function getProductComments(product_id) {
-    return pgPool.query('SELECT * FROM product_comments WHERE product_id = $1 ORDER BY created_at DESC', [product_id]);
+function getProductComments(product_id, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
+    const query = `
+        SELECT pc.*, COUNT(*) OVER() as total_count
+        FROM product_comments pc
+        WHERE pc.product_id = $1
+        ORDER BY pc.created_at DESC
+        LIMIT $2 OFFSET $3
+    `;
+    return pgPool.query(query, [product_id, limit, offset]);
 }
 
 function addTagToProduct(product_id, tag_name) {
@@ -1171,14 +1303,17 @@ function addTagToProduct(product_id, tag_name) {
     return pgPool.query(query, [product_id, tag_name]);
 }
 
-function getProductsByTag(tag_name) {
+function getProductsByTag(tag_name, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
     const query = `
-        SELECT p.* 
+        SELECT p.*, COUNT(*) OVER() as total_count
         FROM products p
         JOIN product_tags pt ON p.id = pt.product_id
         WHERE pt.tag_name = $1
+        ORDER BY p.created_at DESC
+        LIMIT $2 OFFSET $3
     `;
-    return pgPool.query(query, [tag_name]);
+    return pgPool.query(query, [tag_name, limit, offset]);
 }
 
 function createProductChat(chatData) {
@@ -1191,21 +1326,16 @@ function createProductChat(chatData) {
     return pgPool.query(query, [product_id, user_id, seller_id]);
 }
 
-function getProductChats(user_id) {
+function getProductChats(user_id, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
     const query = `
-        SELECT pc.*, p.name as product_name, 
-               (SELECT message FROM chat_messages 
-                WHERE chat_id = pc.id 
-                ORDER BY created_at DESC LIMIT 1) as last_message,
-               (SELECT created_at FROM chat_messages 
-                WHERE chat_id = pc.id 
-                ORDER BY created_at DESC LIMIT 1) as last_message_time
+        SELECT pc.*, COUNT(*) OVER() as total_count
         FROM product_chats pc
-        JOIN products p ON pc.product_id = p.id
-        WHERE pc.user_id = $1 OR pc.seller_id = $1
-        ORDER BY pc.updated_at DESC
+        WHERE pc.user_id = $1
+        ORDER BY pc.created_at DESC
+        LIMIT $2 OFFSET $3
     `;
-    return pgPool.query(query, [user_id]);
+    return pgPool.query(query, [user_id, limit, offset]);
 }
 
 function addChatMessage(messageData) {
@@ -1218,13 +1348,16 @@ function addChatMessage(messageData) {
     return pgPool.query(query, [chat_id, sender_id, message]);
 }
 
-function getChatMessages(chat_id) {
+function getChatMessages(chat_id, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
     const query = `
-        SELECT * FROM chat_messages 
-        WHERE chat_id = $1 
-        ORDER BY created_at ASC
+        SELECT cm.*, COUNT(*) OVER() as total_count
+        FROM chat_messages cm
+        WHERE cm.chat_id = $1
+        ORDER BY cm.created_at ASC
+        LIMIT $2 OFFSET $3
     `;
-    return pgPool.query(query, [chat_id]);
+    return pgPool.query(query, [chat_id, limit, offset]);
 }
 
 function markChatMessagesAsRead(chat_id, user_id) {
@@ -1546,8 +1679,17 @@ function addToWishlist(userId, productId) {
     return pgPool.query(query, [userId, productId]);
 }
 
-function getWishlist(user_id) {
-    return pgPool.query('SELECT p.* FROM products p JOIN wishlist pw ON p.id = pw.product_id WHERE pw.user_id = $1', [user_id]);
+function getWishlist(user_id, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
+    const query = `
+        SELECT w.*, p.*, COUNT(*) OVER() as total_count
+        FROM wishlist w
+        JOIN products p ON w.product_id = p.id
+        WHERE w.user_id = $1
+        ORDER BY w.created_at DESC
+        LIMIT $2 OFFSET $3
+    `;
+    return pgPool.query(query, [user_id, limit, offset]);
 }
 
 function shareProduct(shareData) {
@@ -2317,16 +2459,19 @@ async function storeProductDocument(productData) {
     return result.rows[0];
 }
 
-async function searchProductDocuments(searchQuery) {
-    const result = await pgPool.query(
-        `SELECT pd.*, p.name as product_name, c.name as category_name 
-         FROM product_documents pd 
-         JOIN products p ON pd.product_id = p.id 
-         LEFT JOIN categories c ON pd.category_id = c.id 
-         WHERE to_tsvector('english', pd.name || ' ' || COALESCE(pd.description, '')) @@ to_tsquery('english', $1)`,
-        [searchQuery.replace(/\s+/g, ' & ')]
-    );
-    return result.rows;
+async function searchProductDocuments(searchQuery, { page = 1, limit = 10 } = {}) {
+    const offset = (page - 1) * limit;
+    const query = `
+        SELECT pd.*, p.name as product_name, c.name as category_name,
+               COUNT(*) OVER() as total_count
+        FROM product_documents pd
+        JOIN products p ON pd.product_id = p.id
+        LEFT JOIN categories c ON pd.category_id = c.id
+        WHERE to_tsvector('english', pd.name || ' ' || COALESCE(pd.description, '')) @@ to_tsquery('english', $1)
+        ORDER BY pd.created_at DESC
+        LIMIT $2 OFFSET $3
+    `;
+    return pgPool.query(query, [searchQuery.replace(/\s+/g, ' & '), limit, offset]);
 }
 
 async function searchProducts(searchParams) {
@@ -2570,63 +2715,40 @@ async function getCurrentSchemaVersion() {
     return result.rows[0]?.current_version || 0;
 }
 
-async function searchCategories(searchParams) {
-    const { page = 1, limit = 10, name, parent_id, include_deleted = false } = searchParams;
+async function searchCategories(searchParams, { page = 1, limit = 10 } = {}) {
     const offset = (page - 1) * limit;
-
-    // Validate parent_id if provided
-    if (parent_id !== undefined && parent_id !== null) {
-        const parsedParentId = parseInt(parent_id);
-        if (isNaN(parsedParentId)) {
-            throw new Error('Parent ID must be a valid integer');
-        }
-        searchParams.parent_id = parsedParentId;
-    }
-
-    let query = `
-        SELECT c.*, 
-               p.name as parent_name,
-               (SELECT COUNT(*) FROM products WHERE category_id = c.id AND deleted_at IS NULL) as product_count,
-               (SELECT COUNT(*) FROM categories WHERE parent_id = c.id AND deleted_at IS NULL) as subcategory_count
-        FROM categories c
-        LEFT JOIN categories p ON c.parent_id = p.id
-        WHERE 1=1
-    `;
+    const conditions = [];
     const queryParams = [];
     let paramIndex = 1;
 
-    if (name) {
-        query += ` AND c.name ILIKE $${paramIndex}`;
-        queryParams.push(`%${name}%`);
+    if (searchParams.name) {
+        conditions.push(`name ILIKE $${paramIndex}`);
+        queryParams.push(`%${searchParams.name}%`);
         paramIndex++;
     }
 
-    if (parent_id !== undefined) {
-        query += ` AND c.parent_id = $${paramIndex}`;
-        queryParams.push(parent_id);
+    if (searchParams.parent_id) {
+        conditions.push(`parent_id = $${paramIndex}`);
+        queryParams.push(searchParams.parent_id);
         paramIndex++;
     }
 
-    if (!include_deleted) {
-        query += ` AND c.deleted_at IS NULL`;
+    if (!searchParams.include_deleted) {
+        conditions.push('deleted_at IS NULL');
     }
 
-    query += ` ORDER BY c.name LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const query = `
+        SELECT c.*, COUNT(*) OVER() as total_count
+        FROM categories c
+        ${whereClause}
+        ORDER BY c.created_at DESC
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `;
     queryParams.push(limit, offset);
 
-    const result = await pgPool.query(query, queryParams);
-    const countResult = await pgPool.query(
-        `SELECT COUNT(*) FROM categories c WHERE 1=1 ${name ? 'AND c.name ILIKE $1' : ''} ${parent_id !== undefined ? 'AND c.parent_id = $2' : ''} ${!include_deleted ? 'AND c.deleted_at IS NULL' : ''}`,
-        [name ? `%${name}%` : null, parent_id].filter(Boolean)
-    );
-
-    return {
-        items: result.rows,
-        total: parseInt(countResult.rows[0].count),
-        page,
-        limit,
-        pages: Math.ceil(parseInt(countResult.rows[0].count) / limit),
-    };
+    return pgPool.query(query, queryParams);
 }
 
 async function bulkUpdateCategories(categories) {
@@ -3038,8 +3160,16 @@ async function addCommentController(req, res) {
 
 async function getProductCommentsController(req, res) {
     try {
-        const result = await getProductComments(req.params.productId);
-        res.success(result.rows);
+        const result = await getProductComments(req.params.productId, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3058,8 +3188,16 @@ async function addTagToProductController(req, res) {
 
 async function getProductsByTagController(req, res) {
     try {
-        const result = await getProductsByTag(req.params.tagName);
-        res.success(result.rows);
+        const result = await getProductsByTag(req.params.tagName, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3067,8 +3205,16 @@ async function getProductsByTagController(req, res) {
 
 async function searchProductDocumentsController(req, res) {
     try {
-        const result = await searchProductDocuments(req.query.q);
-        res.success(result);
+        const result = await searchProductDocuments(req.query.q, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3176,7 +3322,7 @@ async function getProductVersionsController(req, res) {
 async function getCategoriesController(req, res) {
     try {
         const { page, limit, offset } = req.pagination;
-        
+
         // First get paginated parent categories
         const parentQuery = `
             SELECT c.*, 
@@ -3187,13 +3333,11 @@ async function getCategoriesController(req, res) {
             ORDER BY c.name
             LIMIT $1 OFFSET $2
         `;
-        
+
         const parentResult = await pgPool.query(parentQuery, [limit, offset]);
-        
+
         // Get total count of parent categories for pagination
-        const countResult = await pgPool.query(
-            'SELECT COUNT(*) FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL'
-        );
+        const countResult = await pgPool.query('SELECT COUNT(*) FROM categories WHERE parent_id IS NULL AND deleted_at IS NULL');
         const total = parseInt(countResult.rows[0].count);
 
         // For each parent category, get all its child categories recursively
@@ -3230,24 +3374,26 @@ async function getCategoriesController(req, res) {
             FROM category_tree ct
             ORDER BY ct.parent_path, ct.name
         `;
-        
+
         const childResult = await pgPool.query(childQuery, [parentIds]);
 
         // Organize categories into a hierarchical structure
         const categories = parentResult.rows.map(parent => {
             // Get all children that belong to this parent (direct or indirect)
-            const children = childResult.rows.filter(child => {
-                // Check if this child's parent_path includes the parent's ID
-                return child.parent_path.includes(parent.id);
-            }).map(child => ({
-                ...child,
-                // Remove the parent_path array from the response
-                parent_path: undefined
-            }));
-            
+            const children = childResult.rows
+                .filter(child => {
+                    // Check if this child's parent_path includes the parent's ID
+                    return child.parent_path.includes(parent.id);
+                })
+                .map(child => ({
+                    ...child,
+                    // Remove the parent_path array from the response
+                    parent_path: undefined,
+                }));
+
             return {
                 ...parent,
-                children
+                children,
             };
         });
 
@@ -3341,11 +3487,15 @@ async function addProductReviewController(req, res) {
 
 async function getProductReviewsController(req, res) {
     try {
-        const { page, limit } = req.pagination;
-        const reviews = await getProductReviews(req.params.productId, { page, limit });
+        const result = await getProductReviews(req.params.productId, req.pagination);
         res.success({
-            items: reviews.items,
-            pagination: reviews.pagination,
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
         });
     } catch (error) {
         res.error(error);
@@ -3372,9 +3522,17 @@ async function addToWishlistController(req, res) {
 
 async function getWishlistController(req, res) {
     try {
-        const { userId } = req.params;
-        const result = await getWishlist(userId);
-        res.success(result.rows);
+        const { page = 1, limit = 10 } = req.query;
+        const result = await getWishlist(req.params.userId, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3419,9 +3577,16 @@ async function createProductChatController(req, res) {
 
 async function getUserChatsController(req, res) {
     try {
-        const { userId } = req.params;
-        const result = await getProductChats(userId);
-        res.success(result.rows);
+        const result = await getProductChats(req.params.userId, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3443,8 +3608,16 @@ async function addChatMessageController(req, res) {
 
 async function getChatMessagesController(req, res) {
     try {
-        const result = await getChatMessages(req.params.chatId);
-        res.success(result.rows);
+        const result = await getChatMessages(req.params.chatId, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
@@ -3560,8 +3733,16 @@ async function getCategoryByIdController(req, res) {
 
 async function searchCategoriesController(req, res) {
     try {
-        const result = await searchCategories(req.query);
-        res.success(result);
+        const result = await searchCategories(req.query, req.pagination);
+        res.success({
+            data: result.rows,
+            pagination: {
+                page: req.pagination.page,
+                limit: req.pagination.limit,
+                total: parseInt(result.rows[0]?.total_count || 0),
+                pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+            },
+        });
     } catch (error) {
         res.error(error);
     }
