@@ -5,7 +5,7 @@
             "name": "Initial schema",
             "queries": [
                 "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-                "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(name, slug) WHERE deleted_at IS NULL)",
                 "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, price DECIMAL(10,2), category_id INTEGER REFERENCES categories(id), metadata JSONB, status VARCHAR(20) DEFAULT 'active', featured BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_attributes (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, description TEXT, data_type VARCHAR(50) NOT NULL, is_required BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                 "CREATE TABLE IF NOT EXISTS product_attribute_values (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, attribute_id INTEGER REFERENCES product_attributes(id) ON DELETE CASCADE, value TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, attribute_id))",
@@ -69,6 +69,22 @@
             "name": "Add slug to categories2",
             "queries": [
                 "ALTER TABLE categories ADD COLUMN IF NOT EXISTS slug VARCHAR(255)"
+            ]
+        },
+        {
+            "version": 8,
+            "name": "Add slug to categories3",
+            "queries": [
+                "CREATE UNIQUE INDEX IF NOT EXISTS categories_slug_key ON categories(slug) WHERE deleted_at IS NULL",
+                "CREATE UNIQUE INDEX IF NOT EXISTS categories_name_key ON categories(name) WHERE deleted_at IS NULL"
+            ]
+        },
+        {
+            "version": 9,
+            "name": "Add unique index for name and slug",
+            "queries": [
+                "DROP INDEX IF EXISTS categories_name_slug_key",
+                "CREATE UNIQUE INDEX IF NOT EXISTS categories_name_slug_key ON categories(name, slug) WHERE deleted_at IS NULL"
             ]
         }
     ],

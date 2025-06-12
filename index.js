@@ -1495,7 +1495,15 @@ function createCategory(categoryData) {
     
     const query = `
         INSERT INTO categories (name, slug, parent_id)
-        VALUES ($1, $2, $3)
+        SELECT 
+            $1::VARCHAR(255),
+            $2::VARCHAR(255),
+            $3::INTEGER
+        WHERE NOT EXISTS (
+            SELECT 1 FROM categories 
+            WHERE (name = $1::VARCHAR(255) OR slug = $2::VARCHAR(255))
+            AND deleted_at IS NULL
+        )
         RETURNING *
     `;
     return pgPool.query(query, [name, slug, parent_id]);
@@ -2037,7 +2045,14 @@ function updateCategory(categoryId, categoryData) {
             slug = COALESCE($2, slug),
             parent_id = COALESCE($3, parent_id),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $4 AND deleted_at IS NULL
+        WHERE id = $4 
+        AND deleted_at IS NULL
+        AND NOT EXISTS (
+            SELECT 1 FROM categories c2 
+            WHERE (c2.name = $1 OR c2.slug = $2)
+            AND c2.id != $4 
+            AND c2.deleted_at IS NULL
+        )
         RETURNING *
     `;
     return pgPool.query(query, [name, slug, parent_id, categoryId]);
@@ -3633,7 +3648,9 @@ async function searchProductsController(req, res) {
 async function createCategoryController(req, res) {
     try {
         const result = await createCategory(req.body);
-        //await updateCacheInBackground('UPDATE_CATEGORY', [result.rows[0].id]);
+        if (result.rows.length === 0) {
+            return res.error('A category with this name or slug already exists', 409);
+        }
         res.success(result.rows[0], 'Category created successfully');
     } catch (error) {
         res.error(error);
@@ -4202,26 +4219,13 @@ async function updateCategoryController(req, res) {
     try {
         const result = await updateCategory(req.params.id, req.body);
         if (result.rows.length === 0) {
-            return res.error('Category not found', 404);
+            // Check if the category exists
+            const categoryExists = await getCategoryById(req.params.id);
+            if (categoryExists.rows.length === 0) {
+                return res.error('Category not found', 404);
+            }
+            return res.error('A category with this name or slug already exists', 409);
         }
-
-        // Invalidate all related caches
-        // await Promise.all([
-        //     cacheManager.invalidate(`api:categories:${req.params.id}:*`),
-        //     cacheManager.invalidate('api:categories:tree:*'),
-        //     cacheManager.invalidate('api:categories:search:*')
-        // ]);
-
-        // // Increment cache version
-        // await cacheManager.incrementVersion();
-
-        // // Warm up the specific category cache with fresh data
-        // await cacheManager.set(
-        //     `api:categories:${req.params.id}:details`,
-        //     result.rows[0],
-        //     CACHE_TTL.CATEGORY
-        // );
-
         res.success(result.rows[0], 'Category updated successfully');
     } catch (error) {
         res.error(error);
