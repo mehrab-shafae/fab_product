@@ -58,6 +58,213 @@ const CACHE_PATTERNS = {
     },
 };
 
+class CacheManager {
+    constructor(redisClient) {
+        this.redis = redisClient;
+        this.versionKey = 'cache:version';
+        this.version = null;
+        this.initialized = false;
+        this.typePatterns = {
+            'products': [
+                'api:products:search:*',
+                'api:products:list:*'
+            ],
+            'categories': [
+                'api:categories:tree:*',
+                'api:categories:search:*'
+            ],
+            'all': [
+                'api:products:search:*',
+                'api:products:list:*',
+                'api:categories:tree:*',
+                'api:categories:search:*'
+            ]
+        };
+    }
+
+    async initialize() {
+        if (this.initialized) return;
+        
+        // Get or create cache version
+        this.version = await this.redis.get(this.versionKey) || '1';
+        if (!await this.redis.get(this.versionKey)) {
+            await this.redis.set(this.versionKey, this.version);
+        }
+        
+        this.initialized = true;
+    }
+
+    async incrementVersion() {
+        this.version = (parseInt(this.version) + 1).toString();
+        await this.redis.set(this.versionKey, this.version);
+        return this.version;
+    }
+
+    getCacheKey(key) {
+        return `${key}:v${this.version}`;
+    }
+
+    async get(key) {
+        await this.initialize();
+        const versionedKey = this.getCacheKey(key);
+        const data = await this.redis.get(versionedKey);
+        return data ? JSON.parse(data) : null;
+    }
+
+    async set(key, value, ttl) {
+        await this.initialize();
+        const versionedKey = this.getCacheKey(key);
+        await this.redis.setEx(versionedKey, ttl, JSON.stringify(value));
+    }
+
+    async invalidate(pattern) {
+        await this.initialize();
+        const keys = await this.redis.keys(pattern);
+        if (keys.length > 0) {
+            await this.redis.del(keys);
+        }
+    }
+
+    async invalidateAndWarm(pattern, fetchData, ttl) {
+        await this.invalidate(pattern);
+        const data = await fetchData();
+        await this.set(pattern, data, ttl);
+        return data;
+    }
+
+    async warmCache(patterns) {
+        await this.initialize();
+        for (const pattern of patterns) {
+            const data = await this.redis.get(pattern);
+            if (!data) {
+                const fetchData = this.getFetchFunction(pattern);
+                if (fetchData) {
+                    await this.invalidateAndWarm(pattern, fetchData, CACHE_TTL[pattern.split(':')[1]] || 3600);
+                }
+            }
+        }
+    }
+
+    async warmCacheForType(type) {
+        await this.initialize();
+        const patterns = this.typePatterns[type] || [];
+        
+        if (patterns.length === 0) {
+            logger.warn('No patterns found for cache warm-up type', { type });
+            return;
+        }
+
+        logger.info('Starting cache warm-up for type', { type });
+
+        try {
+            switch (type) {
+                case 'products':
+                    const products = await searchProducts({ limit: 100 });
+                    if (products.items) {
+                        for (const product of products.items) {
+                            await this.set(`api:products:${product.id}:details`, product, CACHE_TTL.PRODUCT);
+                        }
+                    }
+                    break;
+
+                case 'categories':
+                    const categories = await getCategoryTree();
+                    if (categories.rows) {
+                        await this.set('api:categories:tree:all', categories.rows, CACHE_TTL.CATEGORY);
+                    }
+                    break;
+
+                case 'all':
+                    await this.warmCache(patterns);
+                    break;
+            }
+
+            logger.info('Cache warm-up completed for type', { type });
+        } catch (error) {
+            logger.error('Cache warm-up failed', {
+                error: error.message,
+                type
+            });
+            throw error;
+        }
+    }
+
+    getFetchFunction(pattern) {
+        const [_, type, id, subType] = pattern.split(':');
+        switch (type) {
+            case 'products':
+                if (id && subType) {
+                    return async () => {
+                        const result = await getProductById(id);
+                        return result.rows[0];
+                    };
+                }
+                return async () => {
+                    const result = await searchProducts({ limit: 100 });
+                    return result.items;
+                };
+            case 'categories':
+                if (id) {
+                    return async () => {
+                        const result = await getCategoryById(id);
+                        return result.rows[0];
+                    };
+                }
+                return async () => {
+                    const result = await getCategoryTree();
+                    return result.rows;
+                };
+            default:
+                return null;
+        }
+    }
+
+    createMiddleware(prefix, ttl, options = {}) {
+        const { staleWhileRevalidate = true } = options;
+        
+        return async (req, res, next) => {
+            const key = `${prefix}:${req.originalUrl}`;
+            
+            try {
+                const cachedData = await this.get(key);
+                
+                if (cachedData) {
+                    res.json(cachedData);
+                    
+                    if (staleWhileRevalidate) {
+                        // Refresh cache in background
+                        const fetchData = this.getFetchFunction(prefix);
+                        if (fetchData) {
+                            this.invalidateAndWarm(key, fetchData, ttl)
+                                .catch(error => logger.error('Background cache refresh failed', { error }));
+                        }
+                    }
+                    return;
+                }
+                
+                // Store original res.json
+                const originalJson = res.json;
+                res.json = (data) => {
+                    this.set(key, data, ttl)
+                        .catch(error => logger.error('Cache set failed', { error }));
+                    return originalJson.call(res, data);
+                };
+                
+                next();
+            } catch (error) {
+                logger.error('Cache middleware error', { error });
+                next();
+            }
+        };
+    }
+}
+
+// Initialize cache manager
+let cacheManager;
+
+// Create middleware function
+const enhancedCacheMiddleware = (prefix, ttl, options) => cacheManager.createMiddleware(prefix, ttl, options);
+
 const { combine, timestamp, printf, colorize } = format;
 
 const DB_ERROR_CODES = {
@@ -676,7 +883,12 @@ async function init() {
     const app = express();
     const apiV1Router = express.Router();
 
+    // Initialize Redis first
     await initializeRedis();
+    
+    // Create CacheManager instance after Redis is initialized
+    cacheManager = new CacheManager(redisClient);
+    await cacheManager.initialize();
 
     app.use(helmet());
     app.use(
@@ -2238,7 +2450,7 @@ async function warmCache() {
     const warmUpTasks = [
         {
             name: 'Product Search',
-            pattern: CACHE_PATTERNS.PRODUCT.SEARCH,
+            pattern: 'api:products:search:*',
             fetchData: async () => {
                 const result = await searchProducts({ limit: 100 });
                 return result.items || [];
@@ -2246,7 +2458,7 @@ async function warmCache() {
         },
         {
             name: 'Category Tree',
-            pattern: CACHE_PATTERNS.CATEGORY.TREE,
+            pattern: 'api:categories:tree:*',
             fetchData: async () => {
                 const result = await getCategoryTree();
                 return result.rows || [];
@@ -2259,31 +2471,12 @@ async function warmCache() {
     for (const task of warmUpTasks) {
         try {
             logger.debug(`Warming up ${task.name} cache`);
-
-            await invalidateCachePattern(task.pattern);
-
-            const data = await task.fetchData();
-            if (!data || !Array.isArray(data)) {
-                logger.warn(`No data returned for ${task.name}, skipping cache warm-up`);
-                continue;
-            }
-
-            const key = task.pattern.replace('*', 'warm');
-            const ttl = CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || CACHE_TTL.PRODUCT;
-
-            await redisClient.setEx(key, ttl, JSON.stringify(data));
-
-            await redisClient.hSet(`${key}:meta`, {
-                created: Date.now().toString(),
-                size: JSON.stringify(data).length.toString(),
-                compressed: 'false',
-            });
-            await redisClient.expire(`${key}:meta`, ttl);
-
-            logger.info(`${task.name} cache warmed up successfully`, {
-                key,
-                dataSize: data.length,
-            });
+            await cacheManager.invalidateAndWarm(
+                task.pattern,
+                task.fetchData,
+                CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || 3600
+            );
+            logger.info(`${task.name} cache warmed up successfully`);
         } catch (error) {
             logger.error(`Failed to warm up ${task.name} cache`, {
                 error: error.message,
@@ -2293,6 +2486,33 @@ async function warmCache() {
     }
 
     logger.info('Cache warm-up completed');
+}
+
+async function warmCacheForType(type) {
+    const typePatterns = {
+        'products': [
+            'api:products:search:*',
+            'api:products:list:*'
+        ],
+        'categories': [
+            'api:categories:tree:*',
+            'api:categories:search:*'
+        ],
+        'all': [
+            'api:products:search:*',
+            'api:products:list:*',
+            'api:categories:tree:*',
+            'api:categories:search:*'
+        ]
+    };
+
+    const patterns = typePatterns[type] || [];
+    if (patterns.length === 0) {
+        logger.warn('No patterns found for cache warm-up type', { type });
+        return;
+    }
+
+    await cacheManager.warmCache(patterns);
 }
 
 async function processBulkProductUpdate(products) {
@@ -2370,24 +2590,20 @@ cacheQueue.process(async (job) => {
     
     try {
         switch (operation) {
-            case 'check_and_update':
+            case 'invalidate_and_warm':
                 for (const pattern of patterns) {
-                    const keys = await redisClient.keys(pattern);
-                    for (const key of keys) {
-                        const cachedData = await redisClient.get(key);
-                        if (cachedData) {
-                            const parsedData = JSON.parse(cachedData);
-                            // Only update if the data is different
-                            if (JSON.stringify(parsedData) !== JSON.stringify(data)) {
-                                await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data));
-                                logger.debug('Cache updated for key', { key });
-                            }
-                        }
+                    const fetchData = cacheManager.getFetchFunction(pattern);
+                    if (fetchData) {
+                        await cacheManager.invalidateAndWarm(
+                            pattern,
+                            fetchData,
+                            CACHE_TTL[pattern.split(':')[1]] || 3600
+                        );
                     }
                 }
                 break;
-            case 'invalidate':
-                await invalidateCachePatterns(patterns);
+            case 'increment_version':
+                await cacheManager.incrementVersion();
                 break;
             default:
                 throw new Error(`Unknown cache operation: ${operation}`);
@@ -2430,56 +2646,16 @@ async function updateCacheInBackground(operationType, affectedIds) {
                 'api:categories:tree:*',
                 'api:categories:search:*',
                 ...affectedIds.map(id => `api:categories:${id}:*`)
-            ],
-            'UPDATE_INVENTORY': [
-                ...affectedIds.map(id => `api:products:${id}:inventory:*`)
-            ],
-            'UPDATE_PRICE': [
-                ...affectedIds.map(id => `api:products:${id}:price:*`),
-                ...affectedIds.map(id => `api:products:${id}:analytics:*`)
-            ],
-            'UPDATE_REVIEWS': [
-                ...affectedIds.map(id => `api:products:${id}:reviews:*`),
-                ...affectedIds.map(id => `api:products:${id}:analytics:*`)
             ]
         };
 
         const patterns = cachePatterns[operationType] || [];
         
-        // For delete operations, just invalidate the cache
-        if (operationType === 'DELETE_PRODUCT') {
-            await cacheQueue.add('invalidate', {
-                operation: 'invalidate',
-                patterns
-            });
-            return;
-        }
-
-        // For other operations, check and update existing cache entries
-        for (const id of affectedIds) {
-            try {
-                let data;
-                if (operationType.includes('PRODUCT')) {
-                    data = await getProductById(id);
-                } else if (operationType.includes('CATEGORY')) {
-                    data = await getCategoryById(id);
-                }
-
-                if (data?.rows?.[0]) {
-                    await cacheQueue.add('check_and_update', {
-                        operation: 'check_and_update',
-                        patterns: patterns.filter(p => p.includes(id.toString())),
-                        data: data.rows[0]
-                    });
-                }
-            } catch (error) {
-                logger.error('Failed to update cache', {
-                    error: error.message,
-                    operationType,
-                    id
-                });
-            }
-        }
+        // Add job to queue for cache operations
+        await cacheQueue.add('invalidate_and_warm', {
+            operation: 'invalidate_and_warm',
+            patterns
+        });
 
         logger.info('Background cache update completed', { operationType, affectedIdsCount: affectedIds.length });
     } catch (error) {
@@ -3128,166 +3304,166 @@ async function applySchemaMigration(version, name, queries) {
 // ======================================================================
 // Middleware
 
-function enhancedCacheMiddleware(prefix, ttl, options = {}) {
-    const { compress = true, version = '1', maxRetries = 2, retryDelay = 100, compressionThreshold = 1024, cacheKeyPrefix = 'cache', maxCacheSize = 10 * 1024 * 1024, staleWhileRevalidate = false, staleTTL = 60 } = options;
+// function enhancedCacheMiddleware(prefix, ttl, options = {}) {
+//     const { compress = true, version = '1', maxRetries = 2, retryDelay = 100, compressionThreshold = 1024, cacheKeyPrefix = 'cache', maxCacheSize = 10 * 1024 * 1024, staleWhileRevalidate = false, staleTTL = 60 } = options;
 
-    return async function (req, res, next) {
-        if (req.method !== 'GET') {
-            return next();
-        }
+//     return async function (req, res, next) {
+//         if (req.method !== 'GET') {
+//             return next();
+//         }
 
-        if (!redisConnected) {
-            logger.warn('Redis not connected, skipping cache', {
-                path: req.originalUrl,
-                method: req.method,
-            });
-            return next();
-        }
+//         if (!redisConnected) {
+//             logger.warn('Redis not connected, skipping cache', {
+//                 path: req.originalUrl,
+//                 method: req.method,
+//             });
+//             return next();
+//         }
 
-        const key = `${cacheKeyPrefix}:${prefix}:${version}:${req.originalUrl}`;
-        let retryCount = 0;
+//         const key = `${cacheKeyPrefix}:${prefix}:${version}:${req.originalUrl}`;
+//         let retryCount = 0;
 
-        const getFromCache = async () => {
-            try {
-                if (!redisClient.isOpen) {
-                    logger.warn('Redis client is closed, skipping cache', { key });
-                    return null;
-                }
+//         const getFromCache = async () => {
+//             try {
+//                 if (!redisClient.isOpen) {
+//                     logger.warn('Redis client is closed, skipping cache', { key });
+//                     return null;
+//                 }
 
-                const cachedData = await redisClient.get(key);
-                if (!cachedData) return null;
+//                 const cachedData = await redisClient.get(key);
+//                 if (!cachedData) return null;
 
-                const metadata = await redisClient.hGetAll(`${key}:meta`);
+//                 const metadata = await redisClient.hGetAll(`${key}:meta`);
 
-                let data;
-                if (metadata.compressed === 'true') {
-                    data = await decompressData(cachedData);
-                } else {
-                    data = cachedData;
-                }
+//                 let data;
+//                 if (metadata.compressed === 'true') {
+//                     data = await decompressData(cachedData);
+//                 } else {
+//                     data = cachedData;
+//                 }
 
-                const result = {
-                    data: JSON.parse(data),
-                    metadata: {
-                        created: parseInt(metadata.created) || Date.now(),
-                        size: parseInt(metadata.size) || 0,
-                        compressed: metadata.compressed === 'true',
-                        isStale: staleWhileRevalidate && Date.now() - parseInt(metadata.created) > ttl * 1000,
-                    },
-                };
+//                 const result = {
+//                     data: JSON.parse(data),
+//                     metadata: {
+//                         created: parseInt(metadata.created) || Date.now(),
+//                         size: parseInt(metadata.size) || 0,
+//                         compressed: metadata.compressed === 'true',
+//                         isStale: staleWhileRevalidate && Date.now() - parseInt(metadata.created) > ttl * 1000,
+//                     },
+//                 };
 
-                if (result.metadata.isStale && staleWhileRevalidate) {
-                    setInCache(result.data).catch(error => {
-                        logger.error('Background cache refresh error', {
-                            error: error.message,
-                            key,
-                        });
-                    });
-                }
+//                 if (result.metadata.isStale && staleWhileRevalidate) {
+//                     setInCache(result.data).catch(error => {
+//                         logger.error('Background cache refresh error', {
+//                             error: error.message,
+//                             key,
+//                         });
+//                     });
+//                 }
 
-                return result;
-            } catch (error) {
-                logger.error('Cache retrieval error', {
-                    error: error.message,
-                    key,
-                    retryCount,
-                });
-                return null;
-            }
-        };
+//                 return result;
+//             } catch (error) {
+//                 logger.error('Cache retrieval error', {
+//                     error: error.message,
+//                     key,
+//                     retryCount,
+//                 });
+//                 return null;
+//             }
+//         };
 
-        const setInCache = async data => {
-            try {
-                if (!redisClient.isOpen) {
-                    logger.warn('Redis client is closed, skipping cache set', { key });
-                    return;
-                }
+//         const setInCache = async data => {
+//             try {
+//                 if (!redisClient.isOpen) {
+//                     logger.warn('Redis client is closed, skipping cache set', { key });
+//                     return;
+//                 }
 
-                const dataStr = JSON.stringify(data);
-                let finalData = dataStr;
-                let isCompressed = false;
+//                 const dataStr = JSON.stringify(data);
+//                 let finalData = dataStr;
+//                 let isCompressed = false;
 
-                if (Buffer.byteLength(dataStr) > maxCacheSize) {
-                    logger.warn('Data too large for caching', {
-                        key,
-                        size: Buffer.byteLength(dataStr),
-                        maxSize: maxCacheSize,
-                    });
-                    return;
-                }
+//                 if (Buffer.byteLength(dataStr) > maxCacheSize) {
+//                     logger.warn('Data too large for caching', {
+//                         key,
+//                         size: Buffer.byteLength(dataStr),
+//                         maxSize: maxCacheSize,
+//                     });
+//                     return;
+//                 }
 
-                if (compress && dataStr.length > compressionThreshold) {
-                    finalData = await compressData(dataStr);
-                    isCompressed = true;
-                }
+//                 if (compress && dataStr.length > compressionThreshold) {
+//                     finalData = await compressData(dataStr);
+//                     isCompressed = true;
+//                 }
 
-                const multi = redisClient.multi();
+//                 const multi = redisClient.multi();
 
-                multi.setEx(key, ttl, finalData);
+//                 multi.setEx(key, ttl, finalData);
 
-                multi.hSet(`${key}:meta`, {
-                    created: Date.now().toString(),
-                    size: finalData.length.toString(),
-                    compressed: isCompressed.toString(),
-                });
-                multi.expire(`${key}:meta`, ttl);
+//                 multi.hSet(`${key}:meta`, {
+//                     created: Date.now().toString(),
+//                     size: finalData.length.toString(),
+//                     compressed: isCompressed.toString(),
+//                 });
+//                 multi.expire(`${key}:meta`, ttl);
 
-                await multi.exec();
+//                 await multi.exec();
 
-                logger.debug('Data cached successfully', {
-                    key,
-                    size: finalData.length,
-                    compressed: isCompressed,
-                });
-            } catch (error) {
-                logger.error('Cache storage error', {
-                    error: error.message,
-                    key,
-                    stack: error.stack,
-                });
-            }
-        };
+//                 logger.debug('Data cached successfully', {
+//                     key,
+//                     size: finalData.length,
+//                     compressed: isCompressed,
+//                 });
+//             } catch (error) {
+//                 logger.error('Cache storage error', {
+//                     error: error.message,
+//                     key,
+//                     stack: error.stack,
+//                 });
+//             }
+//         };
 
-        while (retryCount <= maxRetries) {
-            const cachedResult = await getFromCache();
-            if (cachedResult) {
-                if (cachedResult.metadata.isStale && staleWhileRevalidate) {
-                    logger.debug('Returning stale data while revalidating', {
-                        key,
-                        age: Date.now() - cachedResult.metadata.created,
-                    });
-                }
-                return res.json(cachedResult.data);
-            }
+//         while (retryCount <= maxRetries) {
+//             const cachedResult = await getFromCache();
+//             if (cachedResult) {
+//                 if (cachedResult.metadata.isStale && staleWhileRevalidate) {
+//                     logger.debug('Returning stale data while revalidating', {
+//                         key,
+//                         age: Date.now() - cachedResult.metadata.created,
+//                     });
+//                 }
+//                 return res.json(cachedResult.data);
+//             }
 
-            if (retryCount < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retryCount)));
-                retryCount++;
-            } else {
-                break;
-            }
-        }
+//             if (retryCount < maxRetries) {
+//                 await new Promise(resolve => setTimeout(resolve, retryDelay * Math.pow(2, retryCount)));
+//                 retryCount++;
+//             } else {
+//                 break;
+//             }
+//         }
 
-        res.sendResponse = res.json;
-        res.json = async function (body) {
-            try {
-                setInCache(body).catch(error => {
-                    logger.error('Async cache storage error', {
-                        error: error.message,
-                        key,
-                    });
-                });
-            } catch (error) {
-                logger.error('Cache middleware error', {
-                    error: error.message,
-                    key,
-                });
-            }
-            res.sendResponse(body);
-        };
-        next();
-    };
-}
+//         res.sendResponse = res.json;
+//         res.json = async function (body) {
+//             try {
+//                 setInCache(body).catch(error => {
+//                     logger.error('Async cache storage error', {
+//                         error: error.message,
+//                         key,
+//                     });
+//                 });
+//             } catch (error) {
+//                 logger.error('Cache middleware error', {
+//                     error: error.message,
+//                     key,
+//                 });
+//             }
+//             res.sendResponse(body);
+//         };
+//         next();
+//     };
+// }
 
 function validateProductIdMiddleware(req, res, next) {
     const productId = req.params.id || req.params.productId;
@@ -3372,10 +3548,19 @@ async function createProductController(req, res) {
 
 async function getProductByIdController(req, res) {
     try {
+        const key = `api:products:${req.params.id}:*`;
+        const cachedData = await cacheManager.get(key);
+        
+        if (cachedData) {
+            return res.success(cachedData);
+        }
+        
         const result = await getProductById(req.params.id);
-        if (!result.rows.length) {
+        if (result.rows.length === 0) {
             return res.error('Product not found', 404);
         }
+        
+        await cacheManager.set(key, result.rows[0], CACHE_TTL.PRODUCT);
         res.success(result.rows[0]);
     } catch (error) {
         res.error(error);
@@ -4005,7 +4190,16 @@ async function updateCategoryController(req, res) {
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
-        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*'), invalidateCachePattern(`api:categories:${req.params.id}:*`)]);
+        
+        // Increment cache version to invalidate all category caches
+        await cacheManager.incrementVersion();
+        
+        // Warm up frequently accessed caches
+        await cacheManager.warmCache([
+            'api:categories:tree:*',
+            `api:categories:${req.params.id}:*`
+        ]);
+        
         res.success(result.rows[0], 'Category updated successfully');
     } catch (error) {
         res.error(error);
@@ -4018,7 +4212,10 @@ async function deleteCategoryController(req, res) {
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
-        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*'), invalidateCachePattern(`api:categories:${req.params.id}:*`)]);
+        
+        // Increment cache version to invalidate all category caches
+        await cacheManager.incrementVersion();
+        
         res.success(result.rows[0], 'Category deleted successfully');
     } catch (error) {
         res.error(error);
@@ -4027,10 +4224,19 @@ async function deleteCategoryController(req, res) {
 
 async function getCategoryByIdController(req, res) {
     try {
+        const key = `api:categories:${req.params.id}:*`;
+        const cachedData = await cacheManager.get(key);
+        
+        if (cachedData) {
+            return res.success(cachedData);
+        }
+        
         const result = await getCategoryById(req.params.id);
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
+        
+        await cacheManager.set(key, result.rows[0], CACHE_TTL.CATEGORY);
         res.success(result.rows[0]);
     } catch (error) {
         res.error(error);
@@ -4057,7 +4263,16 @@ async function searchCategoriesController(req, res) {
 async function bulkUpdateCategoriesController(req, res) {
     try {
         const result = await bulkUpdateCategories(req.body.categories);
-        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*')]);
+        
+        // Increment cache version to invalidate all category caches
+        await cacheManager.incrementVersion();
+        
+        // Warm up frequently accessed caches
+        await cacheManager.warmCache([
+            'api:categories:tree:*',
+            'api:categories:search:*'
+        ]);
+        
         res.success(result, 'Categories updated successfully');
     } catch (error) {
         res.error(error);
@@ -4072,8 +4287,16 @@ async function updateProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        // Update cache immediately
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.id]);
+        
+        // Increment cache version to invalidate all product caches
+        await cacheManager.incrementVersion();
+        
+        // Warm up frequently accessed caches
+        await cacheManager.warmCache([
+            'api:products:search:*',
+            `api:products:${req.params.id}:*`
+        ]);
+        
         res.success(result.rows[0], 'Product updated successfully');
     } catch (error) {
         res.error(error);
@@ -4088,9 +4311,11 @@ async function deleteProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        // Update cache immediately
-        await updateCacheInBackground('DELETE_PRODUCT', [req.params.id]);
-        res.success(null, 'Product deleted successfully');
+        
+        // Increment cache version to invalidate all product caches
+        await cacheManager.incrementVersion();
+        
+        res.success(result.rows[0], 'Product deleted successfully');
     } catch (error) {
         res.error(error);
     }
@@ -4139,9 +4364,9 @@ async function getProductStatisticsController(req, res) {
 // ======================================================================
 // run on the times
 
-function scheduleCacheWarming() {
-    setInterval(warmCache, 4 * 60 * 60 * 1000);
-}
+// function scheduleCacheWarming() {
+//     setInterval(warmCache, 4 * 60 * 60 * 1000);
+// }
 
 function scheduleMaterializedViewRefresh() {
     setInterval(refreshMaterializedViews, 60 * 60 * 1000);
@@ -4155,6 +4380,23 @@ async function main() {
 main();
 // ======================================================================
 
+// async function flushCacheController(req, res) {
+//     try {
+//         await cacheManager.incrementVersion();
+//         res.success({ message: 'Cache flushed successfully' });
+//     } catch (error) {
+//         logger.error('Cache flush failed', {
+//             error: error.message,
+//             stack: error.stack,
+//             body: req.body
+//         });
+//         res.error(error.message);
+//     }
+// }
+
+
+
+
 async function flushCacheController(req, res) {
     try {
         const { patterns, type } = req.body;
@@ -4166,22 +4408,7 @@ async function flushCacheController(req, res) {
         let cachePatterns = [];
         
         if (type) {
-            // Define cache patterns based on type
-            const typePatterns = {
-                'products': [
-                    'api:products:*',
-                    'api:categories:tree:*'
-                ],
-                'categories': [
-                    'api:categories:*',
-                    'api:products:search:*'
-                ],
-                'all': [
-                    'api:*'
-                ]
-            };
-
-            cachePatterns = typePatterns[type] || [];
+            cachePatterns = cacheManager.typePatterns[type] || [];
         } else if (patterns) {
             cachePatterns = Array.isArray(patterns) ? patterns : [patterns];
         }
@@ -4190,12 +4417,12 @@ async function flushCacheController(req, res) {
             return res.error('No valid cache patterns provided', 400);
         }
 
-        // Invalidate cache patterns
-        await invalidateCachePatterns(cachePatterns);
+        // Increment cache version to invalidate all related caches
+        await cacheManager.incrementVersion();
 
         // If type is provided, warm up the cache
         if (type) {
-            await warmCacheForType(type);
+            await cacheManager.warmCacheForType(type);
         }
 
         res.success({
@@ -4213,43 +4440,13 @@ async function flushCacheController(req, res) {
     }
 }
 
-async function warmCacheForType(type) {
-    try {
-        logger.info('Starting cache warm-up for type', { type });
-
-        switch (type) {
-            case 'products':
-                // Warm up product search cache
-                const products = await searchProducts({ limit: 100 });
-                if (products.items) {
-                    for (const product of products.items) {
-                        const key = `api:products:${product.id}:details`;
-                        await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(product));
-                    }
-                }
-                break;
-
-            case 'categories':
-                // Warm up category tree cache
-                const categories = await getCategoryTree();
-                if (categories.rows) {
-                    const key = 'api:categories:tree:all';
-                    await redisClient.setEx(key, CACHE_TTL.CATEGORY, JSON.stringify(categories.rows));
-                }
-                break;
-
-            case 'all':
-                // Warm up all caches
-                await warmCache();
-                break;
+// Schedule cache warming
+function scheduleCacheWarming() {
+    setInterval(async () => {
+        try {
+            await cacheManager.warmCacheForType('all');
+        } catch (error) {
+            logger.error('Scheduled cache warming failed', { error });
         }
-
-        logger.info('Cache warm-up completed for type', { type });
-    } catch (error) {
-        logger.error('Cache warm-up failed', {
-            error: error.message,
-            type
-        });
-        throw error;
-    }
+    }, 4 * 60 * 60 * 1000); // Every 4 hours
 }
