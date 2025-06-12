@@ -258,9 +258,42 @@ const speedLimiter = slowDown({
     windowMs: 15 * 60 * 1000,
     delayAfter: 50,
     delayMs: (used, req) => {
-        const delayAfter = req.slowDown.limit;
-        return (used - delayAfter) * 500;
+        // Base delay calculation
+        const baseDelay = (used - req.slowDown.limit) * 500;
+
+        // Adjust delay based on HTTP method
+        const methodMultiplier =
+            {
+                GET: 0.5, // Less delay for GET requests
+                POST: 2.0, // More delay for POST requests
+                PUT: 1.5, // Moderate delay for PUT requests
+                DELETE: 1.5, // Moderate delay for DELETE requests
+                PATCH: 1.5, // Moderate delay for PATCH requests
+            }[req.method] || 1.0;
+
+        // Check if the route has caching
+        const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
+
+        // Adjust delay based on caching status
+        const cacheMultiplier = hasCaching ? 0.3 : 1.0;
+
+        // Calculate final delay
+        const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
+
+        // Ensure minimum delay for non-cached routes
+        return hasCaching ? finalDelay : Math.max(finalDelay, 200);
     },
+    keyGenerator: req => {
+        // Generate key based on IP and route pattern
+        const routePattern = req.originalUrl.split('/')[1]; // Get first part of route
+        return `${req.ip}:${routePattern}`;
+    },
+    // skip: (req) => {
+    //     // Skip rate limiting for certain paths or conditions
+    //     return req.path.startsWith('/health') ||
+    //            req.path.startsWith('/metrics') ||
+    //            req.path.startsWith('/docs');
+    // }
 });
 
 const CACHE_PREFIXES = {
@@ -645,7 +678,12 @@ async function init() {
     await initializeRedis();
 
     app.use(helmet());
-    app.use(cors());
+    app.use(
+        cors({
+            origin: [`http://localhost:${PORT}`],
+            credentials: true,
+        })
+    );
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
     app.use(limiter);
