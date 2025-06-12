@@ -751,6 +751,18 @@ function apiV1Routers(app) {
 
     app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
 
+    app.get(
+        '/products/statistics',
+        enhancedCacheMiddleware('products:statistics', 300, {
+            compress: true,
+            version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
+        }),
+        requestLogger,
+        getProductStatisticsController
+    );
+
     app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), validateProductIdMiddleware, requestLogger, addCommentController);
 
     app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), validateProductIdMiddleware, requestLogger, addTagToProductController);
@@ -1195,18 +1207,6 @@ function apiV1Routers(app) {
     app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
 
     app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
-
-    app.get(
-        '/products/statistics',
-        enhancedCacheMiddleware('products:statistics', 300, {
-            compress: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
-        requestLogger,
-        getProductStatisticsController
-    );
 }
 
 function executeLinuxCommand(command) {
@@ -3089,7 +3089,7 @@ function enhancedCacheMiddleware(prefix, ttl, options = {}) {
 }
 
 function validateProductIdMiddleware(req, res, next) {
-    const productId = req.params.id;
+    const productId = req.params.id || req.params.productId;
     if (!productId || isNaN(parseInt(productId))) {
         return res.status(400).json({
             error: 'Invalid product ID. Must be a valid integer.',
