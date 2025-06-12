@@ -2960,143 +2960,60 @@ paths:
           content:
             application/json:
               schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Category'
-
-  /categories/bulk-update:
-    post:
-      summary: Bulk update categories
-      tags: [Categories]
-      description: |
-        Update multiple categories simultaneously
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - categories
-              properties:
-                categories:
-                  type: array
-                  items:
-                    type: object
-                    required:
-                      - id
-                    properties:
-                      id:
-                        type: integer
-                        description: Category ID
-                      name:
-                        type: string
-                        description: New category name
-                      parent_id:
-                        type: integer
-                        description: New parent category ID
-      responses:
-        '200':
-          description: Categories updated successfully
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /products/{id}/status:
-    patch:
-      summary: Update product status
-      tags: [Products]
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-          description: Product ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - status
-              properties:
-                status:
-                  type: string
-                  enum: [active, inactive, draft, archived]
-                  description: New product status
-      responses:
-        '200':
-          description: Product status updated successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Product'
-        '404':
-          description: Product not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /products/bulk-status:
-    patch:
-      summary: Bulk update product status
-      tags: [Products]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - productIds
-                - status
-              properties:
-                productIds:
-                  type: array
-                  items:
-                    type: integer
-                  description: Array of product IDs
-                status:
-                  type: string
-                  enum: [active, inactive, draft, archived]
-                  description: New product status
-      responses:
-        '200':
-          description: Product statuses updated successfully
-          content:
-            application/json:
-              schema:
                 type: object
                 properties:
-                  updated:
-                    type: integer
-                    description: Number of products updated
-                  failed:
-                    type: integer
-                    description: Number of products that failed to update
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        description: Current page number
+                      limit:
+                        type: integer
+                        description: Items per page
+                      total:
+                        type: integer
+                        description: Total number of items
+                      pages:
+                        type: integer
+                        description: Total number of pages
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/slug/{slug}:
+    get:
+      summary: Get category by slug
+      tags: [Categories]
+      description: |
+        Get detailed information about a specific category using its slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+          description: Category slug
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
@@ -3161,4 +3078,5 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/Error' 
                 $ref: '#/components/schemas/Error' 

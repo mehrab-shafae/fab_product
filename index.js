@@ -1422,6 +1422,9 @@ function apiV1Routers(app) {
     app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
 
     app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
+
+    // Add new route for slug-based category access
+    app.get('/categories/slug/:slug', requestLogger, getCategoryBySlugController);
 }
 
 function executeLinuxCommand(command) {
@@ -1479,14 +1482,23 @@ function getProductById(id) {
     return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
 }
 
+function generateSlug(name) {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+}
+
 function createCategory(categoryData) {
     const { name, parent_id } = categoryData;
+    const slug = generateSlug(name);
+    
     const query = `
-        INSERT INTO categories (name, parent_id)
-        VALUES ($1, $2)
+        INSERT INTO categories (name, slug, parent_id)
+        VALUES ($1, $2, $3)
         RETURNING *
     `;
-    return pgPool.query(query, [name, parent_id]);
+    return pgPool.query(query, [name, slug, parent_id]);
 }
 
 function getCategoryTree() {
@@ -2017,15 +2029,18 @@ function requestLogger(req, res, next) {
 
 function updateCategory(categoryId, categoryData) {
     const { name, parent_id } = categoryData;
+    const slug = name ? generateSlug(name) : undefined;
+    
     const query = `
         UPDATE categories 
         SET name = COALESCE($1, name),
-            parent_id = COALESCE($2, parent_id),
+            slug = COALESCE($2, slug),
+            parent_id = COALESCE($3, parent_id),
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = $3 AND deleted_at IS NULL
+        WHERE id = $4 AND deleted_at IS NULL
         RETURNING *
     `;
-    return pgPool.query(query, [name, parent_id, categoryId]);
+    return pgPool.query(query, [name, slug, parent_id, categoryId]);
 }
 
 function deleteCategory(categoryId) {
@@ -2049,6 +2064,19 @@ function getCategoryById(categoryId) {
         WHERE c.id = $1 AND c.deleted_at IS NULL
     `;
     return pgPool.query(query, [categoryId]);
+}
+
+function getCategoryBySlug(slug) {
+    const query = `
+        SELECT c.*, 
+               p.name as parent_name,
+               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
+               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count
+        FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
+        WHERE c.slug = $1 AND c.deleted_at IS NULL
+    `;
+    return pgPool.query(query, [slug]);
 }
 
 function errorLogger(err, req, res, next) {
@@ -3145,39 +3173,63 @@ async function getCurrentSchemaVersion() {
 }
 
 async function searchCategories(searchParams, { page = 1, limit = 10 } = {}) {
+    const { name, slug, parent_id, include_deleted = false } = searchParams;
     const offset = (page - 1) * limit;
-    const conditions = [];
-    const queryParams = [];
+    
+    let conditions = [];
+    let params = [];
     let paramIndex = 1;
-
-    if (searchParams.name) {
-        conditions.push(`name ILIKE $${paramIndex}`);
-        queryParams.push(`%${searchParams.name}%`);
+    
+    if (name) {
+        conditions.push(`c.name ILIKE $${paramIndex}`);
+        params.push(`%${name}%`);
         paramIndex++;
     }
-
-    if (searchParams.parent_id) {
-        conditions.push(`parent_id = $${paramIndex}`);
-        queryParams.push(searchParams.parent_id);
+    
+    if (slug) {
+        conditions.push(`c.slug ILIKE $${paramIndex}`);
+        params.push(`%${slug}%`);
         paramIndex++;
     }
-
-    if (!searchParams.include_deleted) {
-        conditions.push('deleted_at IS NULL');
+    
+    if (parent_id) {
+        conditions.push(`c.parent_id = $${paramIndex}`);
+        params.push(parent_id);
+        paramIndex++;
     }
-
+    
+    if (!include_deleted) {
+        conditions.push('c.deleted_at IS NULL');
+    }
+    
     const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
+    
     const query = `
-        SELECT c.*, COUNT(*) OVER() as total_count
+        SELECT c.*, 
+               p.name as parent_name,
+               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
+               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count,
+               COUNT(*) OVER() as total_count
         FROM categories c
+        LEFT JOIN categories p ON c.parent_id = p.id
         ${whereClause}
-        ORDER BY c.created_at DESC
+        ORDER BY c.name
         LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
-    queryParams.push(limit, offset);
-
-    return pgPool.query(query, queryParams);
+    
+    params.push(limit, offset);
+    
+    const result = await pgPool.query(query, params);
+    
+    return {
+        items: result.rows,
+        pagination: {
+            page,
+            limit,
+            total: parseInt(result.rows[0]?.total_count || 0),
+            pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / limit)
+        }
+    };
 }
 
 async function bulkUpdateCategories(categories) {
@@ -3501,7 +3553,7 @@ async function createProductController(req, res) {
     try {
         const result = await createProduct(req.body);
         // Update cache immediately
-        await updateCacheInBackground('CREATE_PRODUCT', [result.rows[0].id]);
+        //await updateCacheInBackground('CREATE_PRODUCT', [result.rows[0].id]);
         res.success(result.rows[0], 'Product created successfully');
     } catch (error) {
         res.error(error);
@@ -3581,7 +3633,7 @@ async function searchProductsController(req, res) {
 async function createCategoryController(req, res) {
     try {
         const result = await createCategory(req.body);
-        await updateCacheInBackground('UPDATE_CATEGORY', [result.rows[0].id]);
+        //await updateCacheInBackground('UPDATE_CATEGORY', [result.rows[0].id]);
         res.success(result.rows[0], 'Category created successfully');
     } catch (error) {
         res.error(error);
@@ -3604,7 +3656,7 @@ async function addCommentController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addComment(commentData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Comment added successfully');
     } catch (error) {
         res.error(error);
@@ -3632,7 +3684,7 @@ async function addTagToProductController(req, res) {
     try {
         const { tag_name } = req.body;
         const result = await addTagToProduct(req.params.productId, tag_name);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Tag added successfully');
     } catch (error) {
         res.error(error);
@@ -3719,7 +3771,7 @@ async function addPriceHistoryController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addPriceHistory(priceData);
-        await updateCacheInBackground('UPDATE_PRICE', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRICE', [req.params.productId]);
         res.success(result.rows[0], 'Price history added successfully');
     } catch (error) {
         res.error(error);
@@ -3733,7 +3785,7 @@ async function addProductRelationshipController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductRelationship(relationshipData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product relationship added successfully');
     } catch (error) {
         res.error(error);
@@ -3756,7 +3808,7 @@ async function createProductVersionController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductVersion(versionData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product version created successfully');
     } catch (error) {
         res.error(error);
@@ -3871,7 +3923,7 @@ async function createProductVariantController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductVariant(variantData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product variant created successfully');
     } catch (error) {
         res.error(error);
@@ -3894,7 +3946,7 @@ async function addProductImageController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductImage(imageData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product image added successfully');
     } catch (error) {
         res.error(error);
@@ -3917,7 +3969,7 @@ async function updateInventoryController(req, res) {
             product_id: req.params.productId,
         };
         const result = await updateInventory(inventoryData);
-        await updateCacheInBackground('UPDATE_INVENTORY', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_INVENTORY', [req.params.productId]);
         res.success(result.rows[0], 'Inventory updated successfully');
     } catch (error) {
         res.error(error);
@@ -3931,7 +3983,7 @@ async function addProductReviewController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductReview(reviewData);
-        await updateCacheInBackground('UPDATE_REVIEWS', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_REVIEWS', [req.params.productId]);
         res.success(result.rows[0], 'Product review added successfully');
     } catch (error) {
         res.error(error);
@@ -3998,7 +4050,7 @@ async function addProductAttributeController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductAttributeValue(attributeData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product attribute added successfully');
     } catch (error) {
         res.error(error);
@@ -4021,7 +4073,7 @@ async function createProductChatController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductChat(chatData);
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product chat created successfully');
     } catch (error) {
         res.error(error);
@@ -4307,7 +4359,7 @@ async function updateProductStatusController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.id]);
+        //await updateCacheInBackground('UPDATE_PRODUCT', [req.params.id]);
         res.success(result.rows[0], 'Product status updated successfully');
     } catch (error) {
         res.error(error);
@@ -4323,7 +4375,7 @@ async function bulkUpdateProductStatusController(req, res) {
             });
         }
         const result = await bulkUpdateProductStatus(productIds, status);
-        await updateCacheInBackground('UPDATE_PRODUCT', productIds);
+        //await updateCacheInBackground('UPDATE_PRODUCT', productIds);
         res.success(result.rows, 'Product statuses updated successfully');
     } catch (error) {
         res.error(error);
@@ -4425,3 +4477,15 @@ main();
 //         }
 //     }, 4 * 60 * 60 * 1000); // Every 4 hours
 // }
+
+async function getCategoryBySlugController(req, res) {
+    try {
+        const result = await getCategoryBySlug(req.params.slug);
+        if (result.rows.length === 0) {
+            return res.error('Category not found', 404);
+        }
+        res.success(result.rows[0]);
+    } catch (error) {
+        res.error(error);
+    }
+}
