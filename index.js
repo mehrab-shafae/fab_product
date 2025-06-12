@@ -5,11 +5,11 @@ import { execSync } from 'child_process';
 import { Pool } from 'pg';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import { createClient } from 'redis';
+// import { createClient } from 'redis';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import Bull from 'bull';
-import { gzip, gunzip } from 'zlib';
+// import { gzip, gunzip } from 'zlib';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -26,245 +26,245 @@ const PORT = process.env.PORT || 3000;
 const POSTGRES_URI =
     process.env.POSTGRES_URI ||
     `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
-const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
+// const REDIS_URI = process.env.REDIS_URI || 'redis://localhost:6379';
 
 let redisClient = null;
-let redisConnected = false;
+// let redisConnected = false;
 
-const CACHE_VERSION = 'v1';
-const CACHE_PATTERNS = {
-    PRODUCT: {
-        SEARCH: 'api:products:search:*',
-        DETAILS: 'api:products:${id}:*',
-        REVIEWS: 'api:products:${id}:reviews:*',
-        PRICE: 'api:products:${id}:price:*',
-        ANALYTICS: 'api:products:${id}:analytics:*',
-        VARIANTS: 'api:products:${id}:variants:*',
-        IMAGES: 'api:products:${id}:images:*',
-        INVENTORY: 'api:products:${id}:inventory:*',
-        ATTRIBUTES: 'api:products:${id}:attributes:*',
-        RELATIONSHIPS: 'api:products:${id}:relationships:*',
-        VERSIONS: 'api:products:${id}:versions:*',
-    },
-    CATEGORY: {
-        TREE: 'api:categories:tree:*',
-        DETAILS: 'api:categories:${id}:*',
-    },
-    USER: {
-        WISHLIST: 'api:users:${id}:wishlist:*',
-    },
-    CHAT: {
-        MESSAGES: 'api:chats:${id}:messages:*',
-    },
-};
+// const CACHE_VERSION = 'v1';
+// const CACHE_PATTERNS = {
+//     PRODUCT: {
+//         SEARCH: 'api:products:search:*',
+//         DETAILS: 'api:products:${id}:*',
+//         REVIEWS: 'api:products:${id}:reviews:*',
+//         PRICE: 'api:products:${id}:price:*',
+//         ANALYTICS: 'api:products:${id}:analytics:*',
+//         VARIANTS: 'api:products:${id}:variants:*',
+//         IMAGES: 'api:products:${id}:images:*',
+//         INVENTORY: 'api:products:${id}:inventory:*',
+//         ATTRIBUTES: 'api:products:${id}:attributes:*',
+//         RELATIONSHIPS: 'api:products:${id}:relationships:*',
+//         VERSIONS: 'api:products:${id}:versions:*',
+//     },
+//     CATEGORY: {
+//         TREE: 'api:categories:tree:*',
+//         DETAILS: 'api:categories:${id}:*',
+//     },
+//     USER: {
+//         WISHLIST: 'api:users:${id}:wishlist:*',
+//     },
+//     CHAT: {
+//         MESSAGES: 'api:chats:${id}:messages:*',
+//     },
+// };
 
-class CacheManager {
-    constructor(redisClient) {
-        this.redis = redisClient;
-        this.versionKey = 'cache:version';
-        this.version = null;
-        this.initialized = false;
-        this.typePatterns = {
-            'products': [
-                'api:products:search:*',
-                'api:products:list:*'
-            ],
-            'categories': [
-                'api:categories:tree:*',
-                'api:categories:search:*'
-            ],
-            'all': [
-                'api:products:search:*',
-                'api:products:list:*',
-                'api:categories:tree:*',
-                'api:categories:search:*'
-            ]
-        };
-    }
+// class CacheManager {
+//     constructor(redisClient) {
+//         this.redis = redisClient;
+//         this.versionKey = 'cache:version';
+//         this.version = null;
+//         this.initialized = false;
+//         this.typePatterns = {
+//             'products': [
+//                 'api:products:search:*',
+//                 'api:products:list:*'
+//             ],
+//             'categories': [
+//                 'api:categories:tree:*',
+//                 'api:categories:search:*'
+//             ],
+//             'all': [
+//                 'api:products:search:*',
+//                 'api:products:list:*',
+//                 'api:categories:tree:*',
+//                 'api:categories:search:*'
+//             ]
+//         };
+//     }
 
-    async initialize() {
-        if (this.initialized) return;
-        
-        // Get or create cache version
-        this.version = await this.redis.get(this.versionKey) || '1';
-        if (!await this.redis.get(this.versionKey)) {
-            await this.redis.set(this.versionKey, this.version);
-        }
-        
-        this.initialized = true;
-    }
+//     async initialize() {
+//         if (this.initialized) return;
 
-    async incrementVersion() {
-        this.version = (parseInt(this.version) + 1).toString();
-        await this.redis.set(this.versionKey, this.version);
-        return this.version;
-    }
+//         // Get or create cache version
+//         this.version = await this.redis.get(this.versionKey) || '1';
+//         if (!await this.redis.get(this.versionKey)) {
+//             await this.redis.set(this.versionKey, this.version);
+//         }
 
-    getCacheKey(key) {
-        return `${key}:v${this.version}`;
-    }
+//         this.initialized = true;
+//     }
 
-    async get(key) {
-        await this.initialize();
-        const versionedKey = this.getCacheKey(key);
-        const data = await this.redis.get(versionedKey);
-        return data ? JSON.parse(data) : null;
-    }
+//     async incrementVersion() {
+//         this.version = (parseInt(this.version) + 1).toString();
+//         await this.redis.set(this.versionKey, this.version);
+//         return this.version;
+//     }
 
-    async set(key, value, ttl) {
-        await this.initialize();
-        const versionedKey = this.getCacheKey(key);
-        await this.redis.setEx(versionedKey, ttl, JSON.stringify(value));
-    }
+//     getCacheKey(key) {
+//         return `${key}:v${this.version}`;
+//     }
 
-    async invalidate(pattern) {
-        await this.initialize();
-        const keys = await this.redis.keys(pattern);
-        if (keys.length > 0) {
-            await this.redis.del(keys);
-        }
-    }
+//     async get(key) {
+//         await this.initialize();
+//         const versionedKey = this.getCacheKey(key);
+//         const data = await this.redis.get(versionedKey);
+//         return data ? JSON.parse(data) : null;
+//     }
 
-    async invalidateAndWarm(pattern, fetchData, ttl) {
-        await this.invalidate(pattern);
-        const data = await fetchData();
-        await this.set(pattern, data, ttl);
-        return data;
-    }
+//     async set(key, value, ttl) {
+//         await this.initialize();
+//         const versionedKey = this.getCacheKey(key);
+//         await this.redis.setEx(versionedKey, ttl, JSON.stringify(value));
+//     }
 
-    async warmCache(patterns) {
-        await this.initialize();
-        for (const pattern of patterns) {
-            const data = await this.redis.get(pattern);
-            if (!data) {
-                const fetchData = this.getFetchFunction(pattern);
-                if (fetchData) {
-                    await this.invalidateAndWarm(pattern, fetchData, CACHE_TTL[pattern.split(':')[1]] || 3600);
-                }
-            }
-        }
-    }
+//     async invalidate(pattern) {
+//         await this.initialize();
+//         const keys = await this.redis.keys(pattern);
+//         if (keys.length > 0) {
+//             await this.redis.del(keys);
+//         }
+//     }
 
-    async warmCacheForType(type) {
-        await this.initialize();
-        const patterns = this.typePatterns[type] || [];
-        
-        if (patterns.length === 0) {
-            logger.warn('No patterns found for cache warm-up type', { type });
-            return;
-        }
+//     async invalidateAndWarm(pattern, fetchData, ttl) {
+//         await this.invalidate(pattern);
+//         const data = await fetchData();
+//         await this.set(pattern, data, ttl);
+//         return data;
+//     }
 
-        logger.info('Starting cache warm-up for type', { type });
+//     async warmCache(patterns) {
+//         await this.initialize();
+//         for (const pattern of patterns) {
+//             const data = await this.redis.get(pattern);
+//             if (!data) {
+//                 const fetchData = this.getFetchFunction(pattern);
+//                 if (fetchData) {
+//                     await this.invalidateAndWarm(pattern, fetchData, CACHE_TTL[pattern.split(':')[1]] || 3600);
+//                 }
+//             }
+//         }
+//     }
 
-        try {
-            switch (type) {
-                case 'products':
-                    const products = await searchProducts({ limit: 100 });
-                    if (products.items) {
-                        for (const product of products.items) {
-                            await this.set(`api:products:${product.id}:details`, product, CACHE_TTL.PRODUCT);
-                        }
-                    }
-                    break;
+//     async warmCacheForType(type) {
+//         await this.initialize();
+//         const patterns = this.typePatterns[type] || [];
 
-                case 'categories':
-                    const categories = await getCategoryTree();
-                    if (categories.rows) {
-                        await this.set('api:categories:tree:all', categories.rows, CACHE_TTL.CATEGORY);
-                    }
-                    break;
+//         if (patterns.length === 0) {
+//             logger.warn('No patterns found for cache warm-up type', { type });
+//             return;
+//         }
 
-                case 'all':
-                    await this.warmCache(patterns);
-                    break;
-            }
+//         logger.info('Starting cache warm-up for type', { type });
 
-            logger.info('Cache warm-up completed for type', { type });
-        } catch (error) {
-            logger.error('Cache warm-up failed', {
-                error: error.message,
-                type
-            });
-            throw error;
-        }
-    }
+//         try {
+//             switch (type) {
+//                 case 'products':
+//                     const products = await searchProducts({ limit: 100 });
+//                     if (products.items) {
+//                         for (const product of products.items) {
+//                             await this.set(`api:products:${product.id}:details`, product, CACHE_TTL.PRODUCT);
+//                         }
+//                     }
+//                     break;
 
-    getFetchFunction(pattern) {
-        const [_, type, id, subType] = pattern.split(':');
-        switch (type) {
-            case 'products':
-                if (id && subType) {
-                    return async () => {
-                        const result = await getProductById(id);
-                        return result.rows[0];
-                    };
-                }
-                return async () => {
-                    const result = await searchProducts({ limit: 100 });
-                    return result.items;
-                };
-            case 'categories':
-                if (id) {
-                    return async () => {
-                        const result = await getCategoryById(id);
-                        return result.rows[0];
-                    };
-                }
-                return async () => {
-                    const result = await getCategoryTree();
-                    return result.rows;
-                };
-            default:
-                return null;
-        }
-    }
+//                 case 'categories':
+//                     const categories = await getCategoryTree();
+//                     if (categories.rows) {
+//                         await this.set('api:categories:tree:all', categories.rows, CACHE_TTL.CATEGORY);
+//                     }
+//                     break;
 
-    createMiddleware(prefix, ttl, options = {}) {
-        const { staleWhileRevalidate = true } = options;
-        
-        return async (req, res, next) => {
-            // Create a consistent cache key based on the request
-            const key = `api:${prefix}:${req.params.id || 'list'}:${req.query ? JSON.stringify(req.query) : 'all'}`;
-            
-            try {
-                const cachedData = await this.get(key);
-                
-                if (cachedData) {
-                    res.json(cachedData);
-                    
-                    if (staleWhileRevalidate) {
-                        // Refresh cache in background
-                        const fetchData = this.getFetchFunction(prefix);
-                        if (fetchData) {
-                            this.invalidateAndWarm(key, fetchData, ttl)
-                                .catch(error => logger.error('Background cache refresh failed', { error }));
-                        }
-                    }
-                    return;
-                }
-                
-                // Store original res.json
-                const originalJson = res.json;
-                res.json = (data) => {
-                    this.set(key, data, ttl)
-                        .catch(error => logger.error('Cache set failed', { error }));
-                    return originalJson.call(res, data);
-                };
-                
-                next();
-            } catch (error) {
-                logger.error('Cache middleware error', { error });
-                next();
-            }
-        };
-    }
-}
+//                 case 'all':
+//                     await this.warmCache(patterns);
+//                     break;
+//             }
+
+//             logger.info('Cache warm-up completed for type', { type });
+//         } catch (error) {
+//             logger.error('Cache warm-up failed', {
+//                 error: error.message,
+//                 type
+//             });
+//             throw error;
+//         }
+//     }
+
+//     getFetchFunction(pattern) {
+//         const [_, type, id, subType] = pattern.split(':');
+//         switch (type) {
+//             case 'products':
+//                 if (id && subType) {
+//                     return async () => {
+//                         const result = await getProductById(id);
+//                         return result.rows[0];
+//                     };
+//                 }
+//                 return async () => {
+//                     const result = await searchProducts({ limit: 100 });
+//                     return result.items;
+//                 };
+//             case 'categories':
+//                 if (id) {
+//                     return async () => {
+//                         const result = await getCategoryById(id);
+//                         return result.rows[0];
+//                     };
+//                 }
+//                 return async () => {
+//                     const result = await getCategoryTree();
+//                     return result.rows;
+//                 };
+//             default:
+//                 return null;
+//         }
+//     }
+
+//     createMiddleware(prefix, ttl, options = {}) {
+//         const { staleWhileRevalidate = true } = options;
+
+//         return async (req, res, next) => {
+//             // Create a consistent cache key based on the request
+//             const key = `api:${prefix}:${req.params.id || 'list'}:${req.query ? JSON.stringify(req.query) : 'all'}`;
+
+//             try {
+//                 const cachedData = await this.get(key);
+
+//                 if (cachedData) {
+//                     res.json(cachedData);
+
+//                     if (staleWhileRevalidate) {
+//                         // Refresh cache in background
+//                         const fetchData = this.getFetchFunction(prefix);
+//                         if (fetchData) {
+//                             this.invalidateAndWarm(key, fetchData, ttl)
+//                                 .catch(error => logger.error('Background cache refresh failed', { error }));
+//                         }
+//                     }
+//                     return;
+//                 }
+
+//                 // Store original res.json
+//                 const originalJson = res.json;
+//                 res.json = (data) => {
+//                     this.set(key, data, ttl)
+//                         .catch(error => logger.error('Cache set failed', { error }));
+//                     return originalJson.call(res, data);
+//                 };
+
+//                 next();
+//             } catch (error) {
+//                 logger.error('Cache middleware error', { error });
+//                 next();
+//             }
+//         };
+//     }
+// }
 
 // Initialize cache manager
-let cacheManager;
+// let cacheManager;
 
 // Create middleware function
-const enhancedCacheMiddleware = (prefix, ttl, options) => cacheManager.createMiddleware(prefix, ttl, options);
+// const enhancedCacheMiddleware = (prefix, ttl, options) => cacheManager.createMiddleware(prefix, ttl, options);
 
 const { combine, timestamp, printf, colorize } = format;
 
@@ -461,7 +461,7 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: isDevelopment ? 0 : 250, // 0 means no limit in development
-    message: 'Too many requests from this IP, please try again later.'
+    message: 'Too many requests from this IP, please try again later.',
 });
 
 const speedLimiter = slowDown({
@@ -470,15 +470,16 @@ const speedLimiter = slowDown({
     delayMs: (used, req) => {
         // Base delay calculation
         const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500); // Half the delay in development
-        
+
         // Adjust delay based on HTTP method
-        const methodMultiplier = {
-            GET: 0.5, // Less delay for GET requests
-            POST: 2.0, // More delay for POST requests
-            PUT: 1.5, // Moderate delay for PUT requests
-            DELETE: 1.5, // Moderate delay for DELETE requests
-            PATCH: 1.5, // Moderate delay for PATCH requests
-        }[req.method] || 1.0;
+        const methodMultiplier =
+            {
+                GET: 0.5, // Less delay for GET requests
+                POST: 2.0, // More delay for POST requests
+                PUT: 1.5, // Moderate delay for PUT requests
+                DELETE: 1.5, // Moderate delay for DELETE requests
+                PATCH: 1.5, // Moderate delay for PATCH requests
+            }[req.method] || 1.0;
 
         // Check if the route has caching
         const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
@@ -505,24 +506,24 @@ const speedLimiter = slowDown({
     // }
 });
 
-const CACHE_PREFIXES = {
-    PRODUCT: 'product:',
-    CATEGORY: 'category:',
-    TAG: 'tag:',
-    COMMENT: 'comment:',
-    CHAT: 'chat:',
-    ANALYTICS: 'analytics:',
-};
+// const CACHE_PREFIXES = {
+//     PRODUCT: 'product:',
+//     CATEGORY: 'category:',
+//     TAG: 'tag:',
+//     COMMENT: 'comment:',
+//     CHAT: 'chat:',
+//     ANALYTICS: 'analytics:',
+// };
 
-const CACHE_TTL = {
-    PRODUCT: 3600,
-    CATEGORY: 7200,
-    USER: 1800,
-    CHAT: 300,
-    TAG: 3600,
-    COMMENT: 1800,
-    ANALYTICS: 3600,
-};
+// const CACHE_TTL = {
+//     PRODUCT: 3600,
+//     CATEGORY: 7200,
+//     USER: 1800,
+//     CHAT: 300,
+//     TAG: 3600,
+//     COMMENT: 1800,
+//     ANALYTICS: 3600,
+// };
 
 const swaggerDocument = YAML.parse(readFileSync(join(__dirname, 'swagger.yaml'), 'utf8'));
 
@@ -530,13 +531,13 @@ const pgPool = new Pool({
     connectionString: POSTGRES_URI,
 });
 
-const CACHE_COMPRESSION_THRESHOLD = 1024;
-const BATCH_SIZE = 1000;
-const MAX_CONCURRENT_JOBS = 5;
+// const CACHE_COMPRESSION_THRESHOLD = 1024;
+// const BATCH_SIZE = 1000;
+// const MAX_CONCURRENT_JOBS = 5;
 
-const productUpdateQueue = new Bull('product-updates', REDIS_URI);
-const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
-const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
+// const productUpdateQueue = new Bull('product-updates', REDIS_URI);
+// const cacheWarmingQueue = new Bull('cache-warming', REDIS_URI);
+// const bulkOperationQueue = new Bull('bulk-operations', REDIS_URI);
 
 const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
@@ -563,198 +564,198 @@ swaggerDocument.info.title = 'Product Microservice API';
 swaggerDocument.info.description = 'API for managing products and related features';
 swaggerDocument.servers[0].description = 'Development server';
 
-cacheWarmingQueue.process('warm-products', async job => {
-    const { limit } = job.data;
-    const client = await pgPool.connect();
+// cacheWarmingQueue.process('warm-products', async job => {
+//     const { limit } = job.data;
+//     const client = await pgPool.connect();
 
-    try {
-        const products = await client.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
+//     try {
+//         const products = await client.query('SELECT id FROM products ORDER BY created_at DESC LIMIT $1', [limit]);
 
-        for (const product of products.rows) {
-            const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
-            const data = await getProductById(product.id);
+//         for (const product of products.rows) {
+//             const key = `${CACHE_PREFIXES.PRODUCT}${product.id}`;
+//             const data = await getProductById(product.id);
 
-            if (data?.rows?.[0]) {
-                const dataToCache = JSON.stringify(data.rows[0]);
+//             if (data?.rows?.[0]) {
+//                 const dataToCache = JSON.stringify(data.rows[0]);
 
-                const multi = redisClient.multi();
-                multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
+//                 const multi = redisClient.multi();
+//                 multi.setEx(key, CACHE_TTL.PRODUCT, dataToCache);
 
-                multi.hSet(`${key}:meta`, {
-                    created: Date.now(),
-                    size: dataToCache.length,
-                    type: 'product',
-                });
-                multi.expire(`${key}:meta`, CACHE_TTL.PRODUCT);
+//                 multi.hSet(`${key}:meta`, {
+//                     created: Date.now(),
+//                     size: dataToCache.length,
+//                     type: 'product',
+//                 });
+//                 multi.expire(`${key}:meta`, CACHE_TTL.PRODUCT);
 
-                await multi.exec();
-            }
-        }
+//                 await multi.exec();
+//             }
+//         }
 
-        logger.info('Products cache warmed', {
-            count: products.rows.length,
-        });
-    } catch (error) {
-        logger.error('Product cache warming error', {
-            error: error.message,
-            stack: error.stack,
-        });
-        throw error;
-    } finally {
-        client.release();
-    }
-});
+//         logger.info('Products cache warmed', {
+//             count: products.rows.length,
+//         });
+//     } catch (error) {
+//         logger.error('Product cache warming error', {
+//             error: error.message,
+//             stack: error.stack,
+//         });
+//         throw error;
+//     } finally {
+//         client.release();
+//     }
+// });
 
-cacheWarmingQueue.process('preload-related', async job => {
-    const { productId, types } = job.data;
+// cacheWarmingQueue.process('preload-related', async job => {
+//     const { productId, types } = job.data;
 
-    for (const type of types) {
-        const key = `${CACHE_PREFIXES.PRODUCT}${productId}:${type}`;
-        let data;
+//     for (const type of types) {
+//         const key = `${CACHE_PREFIXES.PRODUCT}${productId}:${type}`;
+//         let data;
 
-        switch (type) {
-            case 'variants':
-                data = await getProductVariants(productId);
-                break;
-            case 'images':
-                data = await getProductImages(productId);
-                break;
-            case 'reviews':
-                data = await getProductReviews(productId);
-                break;
-        }
+//         switch (type) {
+//             case 'variants':
+//                 data = await getProductVariants(productId);
+//                 break;
+//             case 'images':
+//                 data = await getProductImages(productId);
+//                 break;
+//             case 'reviews':
+//                 data = await getProductReviews(productId);
+//                 break;
+//         }
 
-        if (data && redisConnected) {
-            await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows));
-        }
-    }
-});
+//         if (data && redisConnected) {
+//             await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data.rows));
+//         }
+//     }
+// });
 
-bulkOperationQueue.process('update-products', async job => {
-    const { products } = job.data;
-    const client = await pgPool.connect();
+// bulkOperationQueue.process('update-products', async job => {
+//     const { products } = job.data;
+//     const client = await pgPool.connect();
 
-    try {
-        await client.query('BEGIN');
+//     try {
+//         await client.query('BEGIN');
 
-        for (const product of products) {
-            await client.query(
-                `UPDATE products 
-                 SET name = $1, description = $2, price = $3, 
-                     category_id = $4, metadata = $5, updated_at = NOW()
-                 WHERE id = $6`,
-                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
-            );
-        }
+//         for (const product of products) {
+//             await client.query(
+//                 `UPDATE products
+//                  SET name = $1, description = $2, price = $3,
+//                      category_id = $4, metadata = $5, updated_at = NOW()
+//                  WHERE id = $6`,
+//                 [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
+//             );
+//         }
 
-        await client.query('COMMIT');
+//         await client.query('COMMIT');
 
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+//         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
 
-        return { success: true, count: products.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
+//         return { success: true, count: products.length };
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         throw error;
+//     } finally {
+//         client.release();
+//     }
+// });
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
+// bulkOperationQueue.process(BULK_OPERATION_TYPES.UPDATE, async job => {
+//     const { batch, options } = job.data;
+//     const client = await pgPool.connect();
 
-    try {
-        await client.query('BEGIN');
+//     try {
+//         await client.query('BEGIN');
 
-        for (const product of batch) {
-            await client.query(
-                `UPDATE products 
-                 SET name = $1, description = $2, price = $3, 
-                     category_id = $4, metadata = $5, updated_at = NOW()
-                 WHERE id = $6`,
-                [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
-            );
-        }
+//         for (const product of batch) {
+//             await client.query(
+//                 `UPDATE products
+//                  SET name = $1, description = $2, price = $3,
+//                      category_id = $4, metadata = $5, updated_at = NOW()
+//                  WHERE id = $6`,
+//                 [product.name, product.description, product.price, product.category_id, product.metadata, product.id]
+//             );
+//         }
 
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+//         await client.query('COMMIT');
+//         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
 
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
+//         return { success: true, count: batch.length };
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         throw error;
+//     } finally {
+//         client.release();
+//     }
+// });
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
+// bulkOperationQueue.process(BULK_OPERATION_TYPES.PRICE_UPDATE, async job => {
+//     const { batch, options } = job.data;
+//     const client = await pgPool.connect();
 
-    try {
-        await client.query('BEGIN');
+//     try {
+//         await client.query('BEGIN');
 
-        for (const update of batch) {
-            await client.query(
-                `UPDATE products 
-                 SET price = $1, updated_at = NOW()
-                 WHERE id = $2`,
-                [update.price, update.product_id]
-            );
+//         for (const update of batch) {
+//             await client.query(
+//                 `UPDATE products
+//                  SET price = $1, updated_at = NOW()
+//                  WHERE id = $2`,
+//                 [update.price, update.product_id]
+//             );
 
-            await client.query(
-                `INSERT INTO price_history 
-                 (product_id, variant_id, price, change_type, created_at)
-                 VALUES ($1, $2, $3, $4, NOW())`,
-                [update.product_id, update.variant_id, update.price, update.change_type]
-            );
-        }
+//             await client.query(
+//                 `INSERT INTO price_history
+//                  (product_id, variant_id, price, change_type, created_at)
+//                  VALUES ($1, $2, $3, $4, NOW())`,
+//                 [update.product_id, update.variant_id, update.price, update.change_type]
+//             );
+//         }
 
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+//         await client.query('COMMIT');
+//         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
 
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
+//         return { success: true, count: batch.length };
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         throw error;
+//     } finally {
+//         client.release();
+//     }
+// });
 
-bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
-    const { batch, options } = job.data;
-    const client = await pgPool.connect();
+// bulkOperationQueue.process(BULK_OPERATION_TYPES.INVENTORY_UPDATE, async job => {
+//     const { batch, options } = job.data;
+//     const client = await pgPool.connect();
 
-    try {
-        await client.query('BEGIN');
+//     try {
+//         await client.query('BEGIN');
 
-        for (const update of batch) {
-            await client.query(
-                `INSERT INTO inventory_updates 
-                 (product_id, variant_id, quantity_change, location, created_at)
-                 VALUES ($1, $2, $3, $4, NOW())
-                 ON CONFLICT (product_id, variant_id, location) 
-                 DO UPDATE SET 
-                    quantity = inventory_updates.quantity + $3,
-                    updated_at = NOW()`,
-                [update.product_id, update.variant_id, update.quantity_change, update.location]
-            );
-        }
+//         for (const update of batch) {
+//             await client.query(
+//                 `INSERT INTO inventory_updates
+//                  (product_id, variant_id, quantity_change, location, created_at)
+//                  VALUES ($1, $2, $3, $4, NOW())
+//                  ON CONFLICT (product_id, variant_id, location)
+//                  DO UPDATE SET
+//                     quantity = inventory_updates.quantity + $3,
+//                     updated_at = NOW()`,
+//                 [update.product_id, update.variant_id, update.quantity_change, update.location]
+//             );
+//         }
 
-        await client.query('COMMIT');
-        await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
+//         await client.query('COMMIT');
+//         await invalidateCachePattern(`${CACHE_PREFIXES.PRODUCT}*`);
 
-        return { success: true, count: batch.length };
-    } catch (error) {
-        await client.query('ROLLBACK');
-        throw error;
-    } finally {
-        client.release();
-    }
-});
+//         return { success: true, count: batch.length };
+//     } catch (error) {
+//         await client.query('ROLLBACK');
+//         throw error;
+//     } finally {
+//         client.release();
+//     }
+// });
 
 process.on('beforeExit', free);
 process.on('SIGINT', free);
@@ -763,120 +764,120 @@ process.on('SIGQUIT', free);
 
 // ======================================================================
 
-class SimpleNeuralNetwork {
-    constructor(inputSize, hiddenSize, outputSize) {
-        this.weights1 = Array(inputSize)
-            .fill()
-            .map(() =>
-                Array(hiddenSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.weights2 = Array(hiddenSize)
-            .fill()
-            .map(() =>
-                Array(outputSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-    }
+// class SimpleNeuralNetwork {
+//     constructor(inputSize, hiddenSize, outputSize) {
+//         this.weights1 = Array(inputSize)
+//             .fill()
+//             .map(() =>
+//                 Array(hiddenSize)
+//                     .fill()
+//                     .map(() => Math.random() * 2 - 1)
+//             );
+//         this.weights2 = Array(hiddenSize)
+//             .fill()
+//             .map(() =>
+//                 Array(outputSize)
+//                     .fill()
+//                     .map(() => Math.random() * 2 - 1)
+//             );
+//     }
 
-    sigmoid(x) {
-        return 1 / (1 + Math.exp(-x));
-    }
+//     sigmoid(x) {
+//         return 1 / (1 + Math.exp(-x));
+//     }
 
-    sigmoidDerivative(x) {
-        return x * (1 - x);
-    }
+//     sigmoidDerivative(x) {
+//         return x * (1 - x);
+//     }
 
-    forward(input) {
-        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0)));
-        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0)));
-    }
+//     forward(input) {
+//         this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0)));
+//         return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0)));
+//     }
 
-    train(input, target, learningRate = 0.1) {
-        const output = this.forward(input);
-        const outputError = target.map((t, i) => t - output[i]);
-        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
+//     train(input, target, learningRate = 0.1) {
+//         const output = this.forward(input);
+//         const outputError = target.map((t, i) => t - output[i]);
+//         const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
 
-        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
-        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
+//         const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
+//         const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
 
-        for (let i = 0; i < this.weights1.length; i++) {
-            for (let j = 0; j < this.weights1[i].length; j++) {
-                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
-            }
-        }
+//         for (let i = 0; i < this.weights1.length; i++) {
+//             for (let j = 0; j < this.weights1[i].length; j++) {
+//                 this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
+//             }
+//         }
 
-        for (let i = 0; i < this.weights2.length; i++) {
-            for (let j = 0; j < this.weights2[i].length; j++) {
-                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
-            }
-        }
-    }
-}
+//         for (let i = 0; i < this.weights2.length; i++) {
+//             for (let j = 0; j < this.weights2[i].length; j++) {
+//                 this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
+//             }
+//         }
+//     }
+// }
 
-class EnhancedNeuralNetwork {
-    constructor(inputSize, hiddenSize, outputSize) {
-        this.weights1 = Array(inputSize)
-            .fill()
-            .map(() =>
-                Array(hiddenSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.weights2 = Array(hiddenSize)
-            .fill()
-            .map(() =>
-                Array(outputSize)
-                    .fill()
-                    .map(() => Math.random() * 2 - 1)
-            );
-        this.bias1 = Array(hiddenSize)
-            .fill()
-            .map(() => Math.random() * 2 - 1);
-        this.bias2 = Array(outputSize)
-            .fill()
-            .map(() => Math.random() * 2 - 1);
-    }
+// class EnhancedNeuralNetwork {
+//     constructor(inputSize, hiddenSize, outputSize) {
+//         this.weights1 = Array(inputSize)
+//             .fill()
+//             .map(() =>
+//                 Array(hiddenSize)
+//                     .fill()
+//                     .map(() => Math.random() * 2 - 1)
+//             );
+//         this.weights2 = Array(hiddenSize)
+//             .fill()
+//             .map(() =>
+//                 Array(outputSize)
+//                     .fill()
+//                     .map(() => Math.random() * 2 - 1)
+//             );
+//         this.bias1 = Array(hiddenSize)
+//             .fill()
+//             .map(() => Math.random() * 2 - 1);
+//         this.bias2 = Array(outputSize)
+//             .fill()
+//             .map(() => Math.random() * 2 - 1);
+//     }
 
-    sigmoid(x) {
-        return 1 / (1 + Math.exp(-x));
-    }
+//     sigmoid(x) {
+//         return 1 / (1 + Math.exp(-x));
+//     }
 
-    sigmoidDerivative(x) {
-        return x * (1 - x);
-    }
+//     sigmoidDerivative(x) {
+//         return x * (1 - x);
+//     }
 
-    forward(input) {
-        this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0) + this.bias1));
-        return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0) + this.bias2));
-    }
+//     forward(input) {
+//         this.hidden = input.map(x => this.sigmoid(this.weights1.reduce((sum, w, i) => sum + w * x[i], 0) + this.bias1));
+//         return this.hidden.map(h => this.sigmoid(this.weights2.reduce((sum, w, i) => sum + w * h[i], 0) + this.bias2));
+//     }
 
-    train(input, target, learningRate = 0.1) {
-        const output = this.forward(input);
-        const outputError = target.map((t, i) => t - output[i]);
-        const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
+//     train(input, target, learningRate = 0.1) {
+//         const output = this.forward(input);
+//         const outputError = target.map((t, i) => t - output[i]);
+//         const outputDelta = outputError.map((e, i) => e * this.sigmoidDerivative(output[i]));
 
-        const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
-        const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
+//         const hiddenError = this.weights2.map(w => w.reduce((sum, weight, i) => sum + weight * outputDelta[i], 0));
+//         const hiddenDelta = hiddenError.map((e, i) => e * this.sigmoidDerivative(this.hidden[i]));
 
-        for (let i = 0; i < this.weights1.length; i++) {
-            for (let j = 0; j < this.weights1[i].length; j++) {
-                this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
-            }
-        }
+//         for (let i = 0; i < this.weights1.length; i++) {
+//             for (let j = 0; j < this.weights1[i].length; j++) {
+//                 this.weights1[i][j] += learningRate * input[i] * hiddenDelta[j];
+//             }
+//         }
 
-        for (let i = 0; i < this.weights2.length; i++) {
-            for (let j = 0; j < this.weights2[i].length; j++) {
-                this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
-            }
-        }
+//         for (let i = 0; i < this.weights2.length; i++) {
+//             for (let j = 0; j < this.weights2[i].length; j++) {
+//                 this.weights2[i][j] += learningRate * this.hidden[i] * outputDelta[j];
+//             }
+//         }
 
-        this.bias1 = this.bias1.map((b, i) => b + learningRate * hiddenDelta[i]);
-        this.bias2 = this.bias2.map((b, i) => b + learningRate * outputDelta[i]);
-    }
-}
+//         this.bias1 = this.bias1.map((b, i) => b + learningRate * hiddenDelta[i]);
+//         this.bias2 = this.bias2.map((b, i) => b + learningRate * outputDelta[i]);
+//     }
+// }
 
 // ======================================================================
 
@@ -885,11 +886,11 @@ async function init() {
     const apiV1Router = express.Router();
 
     // Initialize Redis first
-    await initializeRedis();
-    
+    // await initializeRedis();
+
     // Create CacheManager instance after Redis is initialized
-    cacheManager = new CacheManager(redisClient);
-    await cacheManager.initialize();
+    // cacheManager = new CacheManager(redisClient);
+    // await cacheManager.initialize();
 
     app.use(helmet());
     app.use(
@@ -900,8 +901,8 @@ async function init() {
     );
     app.use(express.json({ limit: '1mb' }));
     app.use(express.urlencoded({ limit: '1mb', extended: true }));
-    app.use(limiter);
-    app.use(speedLimiter);
+    // app.use(limiter);
+    // app.use(speedLimiter);
     app.use(requestLogger);
     app.use(errorLogger);
 
@@ -952,12 +953,12 @@ async function init() {
     app.use(responseHandler);
 
     app.get('/health', healthCheckController);
-    app.post('/flush', flushCacheController);
+    // app.post('/flush', flushCacheController);
 
     try {
         await createDatabaseSchema();
 
-        if (false) optimizeSystemForService();
+        // if (false) optimizeSystemForService();
 
         await createMaterializedViews();
         await createMaterializedViewIndexes();
@@ -966,8 +967,8 @@ async function init() {
         await createOptimizedIndexes();
 
         scheduleMaterializedViewRefresh();
-        scheduleCacheWarming();
-        await warmCache();
+        // scheduleCacheWarming();
+        // await warmCache();
 
         console.log('Database initialization completed successfully');
     } catch (error) {
@@ -978,7 +979,7 @@ async function init() {
     apiV1Routers(apiV1Router);
 
     app.use('/api/product/v1', apiV1Router);
-    app.get('/jobs/:jobId/status', getJobStatusController);
+    // app.get('/jobs/:jobId/status', getJobStatusController);
 
     app.use((err, req, res, next) => {
         logger.error('Unhandled error', {
@@ -1000,18 +1001,18 @@ async function init() {
 function apiV1Routers(app) {
     app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), requestLogger, createProductController);
 
-    app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), requestLogger, bulkUpdateProductsController);
+    // app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), requestLogger, bulkUpdateProductsController);
 
     app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
 
     app.get(
         '/products/statistics',
-        enhancedCacheMiddleware('products:statistics', 300, {
-            compress: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware('products:statistics', 300, {
+        //     compress: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         requestLogger,
         getProductStatisticsController
     );
@@ -1048,14 +1049,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         paginateResults,
         requestLogger,
         searchProductsController
@@ -1063,14 +1064,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:id',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductByIdController
@@ -1078,14 +1079,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/categories',
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 600,
+        // }),
         paginateResults,
         requestLogger,
         getCategoriesController
@@ -1093,28 +1094,28 @@ function apiV1Routers(app) {
 
     app.get(
         '/categories/tree',
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 600,
+        // }),
         requestLogger,
         getCategoryTreeController
     );
 
     app.get(
         '/products/:productId/comments',
-        enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.COMMENT, CACHE_TTL.COMMENT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         validateProductIdMiddleware,
         paginateResults,
         requestLogger,
@@ -1123,14 +1124,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/tags/:tagName',
-        enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.TAG, CACHE_TTL.TAG, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         paginateResults,
         requestLogger,
         getProductsByTagController
@@ -1139,14 +1140,14 @@ function apiV1Routers(app) {
     app.get(
         '/products/search/document',
         validateRequiredFieldsMiddleware(['q']),
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         paginateResults,
         requestLogger,
         searchProductDocumentsController
@@ -1154,14 +1155,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/users/:userId/chats',
-        enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         paginateResults,
         requestLogger,
         getUserChatsController
@@ -1169,14 +1170,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/chats/:chatId/messages',
-        enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CHAT, CACHE_TTL.CHAT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         paginateResults,
         requestLogger,
         getChatMessagesController
@@ -1184,14 +1185,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/analytics',
-        enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductAnalyticsController
@@ -1199,44 +1200,44 @@ function apiV1Routers(app) {
 
     app.get(
         '/categories/:categoryId/analytics',
-        enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.ANALYTICS, CACHE_TTL.ANALYTICS, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateCategoryMiddleware,
         requestLogger,
         getCategoryAnalyticsController
     );
 
-    app.get(
-        '/products/:productId/recommendations',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
-        validateProductIdMiddleware,
-        requestLogger,
-        getProductRecommendationsController
-    );
+    // app.get(
+    //     '/products/:productId/recommendations',
+    //     //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+    //     //     compress: true,
+    //     //     useMemoryCache: true,
+    //     //     preloadRelated: true,
+    //     //     version: '1',
+    //     //     staleWhileRevalidate: true,
+    //     //     staleTTL: 300,
+    //     // }),
+    //     validateProductIdMiddleware,
+    //     requestLogger,
+    //     getProductRecommendationsController
+    // );
 
     app.get(
         '/products/:productId/attributes',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductAttributesController
@@ -1244,13 +1245,13 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/price-history',
-        enhancedCacheMiddleware('products:price-history', 1800, {
-            compress: true,
-            version: '1',
-            cacheKeyPrefix: 'api',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware('products:price-history', 1800, {
+        //     compress: true,
+        //     version: '1',
+        //     cacheKeyPrefix: 'api',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         validateVariantIdMiddleware,
         requestLogger,
@@ -1259,14 +1260,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/price-statistics',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         validateVariantIdMiddleware,
         requestLogger,
@@ -1275,14 +1276,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/variants',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductVariantsController
@@ -1290,14 +1291,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/images',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductImagesController
@@ -1306,13 +1307,13 @@ function apiV1Routers(app) {
     app.get(
         '/products/:productId/reviews',
         paginateResults,
-        enhancedCacheMiddleware('products:reviews', 300, {
-            compress: true,
-            version: '1',
-            cacheKeyPrefix: 'api',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware('products:reviews', 300, {
+        //     compress: true,
+        //     version: '1',
+        //     cacheKeyPrefix: 'api',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductReviewsController
@@ -1320,14 +1321,14 @@ function apiV1Routers(app) {
 
     app.get(
         '/users/:userId/wishlist',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         paginateResults,
         requestLogger,
         getWishlistController
@@ -1337,26 +1338,26 @@ function apiV1Routers(app) {
         '/products/:id/price-trends',
         validateProductIdMiddleware,
         validateVariantIdMiddleware,
-        enhancedCacheMiddleware('product', 300, {
-            compress: true,
-            cacheKeyPrefix: 'api',
-            staleWhileRevalidate: true,
-            staleTTL: 180,
-        }),
+        //enhancedCacheMiddleware('product', 300, {
+        //     compress: true,
+        //     cacheKeyPrefix: 'api',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 180,
+        // }),
         requestLogger,
         getPriceTrendsController
     );
 
     app.get(
         '/products/:productId/relationships',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductRelationshipsController
@@ -1364,70 +1365,55 @@ function apiV1Routers(app) {
 
     app.get(
         '/products/:productId/versions',
-        enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 300,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.PRODUCT, CACHE_TTL.PRODUCT, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 300,
+        // }),
         validateProductIdMiddleware,
         requestLogger,
         getProductVersionsController
     );
 
     // Category management routes with enhanced middleware
-    app.put(
-        '/categories/:id',
-        validateCategoryMiddleware,
-        requestLogger,
-        updateCategoryController
-    );
+    app.put('/categories/:id', validateCategoryMiddleware, requestLogger, updateCategoryController);
 
-    app.delete(
-        '/categories/:id',
-        validateCategoryMiddleware,
-        requestLogger,
-        deleteCategoryController
-    );
+    app.delete('/categories/:id', validateCategoryMiddleware, requestLogger, deleteCategoryController);
 
     app.get(
         '/categories/:id',
         validateCategoryMiddleware,
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 600,
+        // }),
         requestLogger,
         getCategoryByIdController
     );
 
     app.get(
         '/categories/search',
-        enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
-            compress: true,
-            useMemoryCache: true,
-            preloadRelated: true,
-            version: '1',
-            staleWhileRevalidate: true,
-            staleTTL: 600,
-        }),
+        //enhancedCacheMiddleware(CACHE_PREFIXES.CATEGORY, CACHE_TTL.CATEGORY, {
+        //     compress: true,
+        //     useMemoryCache: true,
+        //     preloadRelated: true,
+        //     version: '1',
+        //     staleWhileRevalidate: true,
+        //     staleTTL: 600,
+        // }),
         paginateResults,
         requestLogger,
         searchCategoriesController
     );
 
-    app.post(
-        '/categories/bulk-update',
-        validateCategoryMiddleware,
-        requestLogger,
-        bulkUpdateCategoriesController
-    );
+    app.post('/categories/bulk-update', validateCategoryMiddleware, requestLogger, bulkUpdateCategoriesController);
 
     app.put('/products/:id', validateRequiredFieldsMiddleware(['name', 'price', 'description']), validateProductIdMiddleware, requestLogger, updateProductController);
 
@@ -1436,7 +1422,6 @@ function apiV1Routers(app) {
     app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
 
     app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
-
 }
 
 function executeLinuxCommand(command) {
@@ -2132,392 +2117,392 @@ function getProductVersions(product_id) {
 function free() {
     console.log('\nCore free...');
 
-    try {
-        clearCorruptedCache();
-    } catch (_) {
-    } finally {
-        console.log('Cache cleared');
-    }
+    // try {
+    //     clearCorruptedCache();
+    // } catch (_) {
+    // } finally {
+    //     console.log('Cache cleared');
+    // }
 
     setTimeout(() => {
         process.exit(0);
-    }, 2 * 1000);
+    }, 1000);
 }
 
 // ======================================================================
-async function initializeRedis() {
-    const ONE_HOUR = 60 * 60 * 1000;
-    let retryTimer = null;
-    let isReconnecting = false;
+// async function initializeRedis() {
+//     const ONE_HOUR = 60 * 60 * 1000;
+//     let retryTimer = null;
+//     let isReconnecting = false;
 
-    const connectToRedis = async () => {
-        if (isReconnecting) return false;
-        isReconnecting = true;
+//     const connectToRedis = async () => {
+//         if (isReconnecting) return false;
+//         isReconnecting = true;
 
-        try {
-            logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
-            redisClient = createClient({
-                url: REDIS_URI,
-                socket: {
-                    reconnectStrategy: retries => {
-                        if (retries > 3) {
-                            logger.error('Redis max retries reached');
-                            return new Error('Redis max retries reached');
-                        }
-                        return Math.min(retries * 100, 3000);
-                    },
-                },
-            });
+//         try {
+//             logger.info('Attempting to connect to Redis', { uri: REDIS_URI });
+//             redisClient = createClient({
+//                 url: REDIS_URI,
+//                 socket: {
+//                     reconnectStrategy: retries => {
+//                         if (retries > 3) {
+//                             logger.error('Redis max retries reached');
+//                             return new Error('Redis max retries reached');
+//                         }
+//                         return Math.min(retries * 100, 3000);
+//                     },
+//                 },
+//             });
 
-            redisClient.on('error', err => {
-                logger.error('Redis connection error', { error: err.message });
-                redisConnected = false;
-                if (!retryTimer) {
-                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
-                }
-            });
+//             redisClient.on('error', err => {
+//                 logger.error('Redis connection error', { error: err.message });
+//                 redisConnected = false;
+//                 if (!retryTimer) {
+//                     retryTimer = setInterval(connectToRedis, ONE_HOUR);
+//                 }
+//             });
 
-            redisClient.on('connect', () => {
-                logger.info('Successfully connected to Redis');
-                redisConnected = true;
-                if (retryTimer) {
-                    clearInterval(retryTimer);
-                    retryTimer = null;
-                }
-            });
+//             redisClient.on('connect', () => {
+//                 logger.info('Successfully connected to Redis');
+//                 redisConnected = true;
+//                 if (retryTimer) {
+//                     clearInterval(retryTimer);
+//                     retryTimer = null;
+//                 }
+//             });
 
-            redisClient.on('end', () => {
-                logger.info('Redis connection ended');
-                redisConnected = false;
-                if (!retryTimer) {
-                    retryTimer = setInterval(connectToRedis, ONE_HOUR);
-                }
-            });
+//             redisClient.on('end', () => {
+//                 logger.info('Redis connection ended');
+//                 redisConnected = false;
+//                 if (!retryTimer) {
+//                     retryTimer = setInterval(connectToRedis, ONE_HOUR);
+//                 }
+//             });
 
-            await redisClient.connect();
-            isReconnecting = false;
-            return true;
-        } catch (error) {
-            logger.error('Failed to connect to Redis', { error: error.message });
-            redisConnected = false;
-            if (!retryTimer) {
-                retryTimer = setInterval(connectToRedis, ONE_HOUR);
-            }
-            isReconnecting = false;
-            return false;
-        }
-    };
+//             await redisClient.connect();
+//             isReconnecting = false;
+//             return true;
+//         } catch (error) {
+//             logger.error('Failed to connect to Redis', { error: error.message });
+//             redisConnected = false;
+//             if (!retryTimer) {
+//                 retryTimer = setInterval(connectToRedis, ONE_HOUR);
+//             }
+//             isReconnecting = false;
+//             return false;
+//         }
+//     };
 
-    return connectToRedis();
-}
+//     return connectToRedis();
+// }
 
-async function clearCorruptedCache() {
-    try {
-        logger.info('Clearing corrupted cache');
-        if (redisClient) {
-            await redisClient.flushAll();
-            logger.debug('Redis cache cleared');
-        }
-        logger.debug('Memory cache cleared');
-        logger.info('Cache cleared successfully');
-    } catch (error) {
-        logger.error('Error clearing cache', {
-            error: error.message,
-            stack: error.stack,
-        });
-    }
-}
+// async function clearCorruptedCache() {
+//     try {
+//         logger.info('Clearing corrupted cache');
+//         if (redisClient) {
+//             await redisClient.flushAll();
+//             logger.debug('Redis cache cleared');
+//         }
+//         logger.debug('Memory cache cleared');
+//         logger.info('Cache cleared successfully');
+//     } catch (error) {
+//         logger.error('Error clearing cache', {
+//             error: error.message,
+//             stack: error.stack,
+//         });
+//     }
+// }
 
-async function compressData(data) {
-    return new Promise((resolve, reject) => {
-        if (!data || typeof data !== 'string') {
-            reject(new Error('Invalid data format for compression'));
-            return;
-        }
+// async function compressData(data) {
+//     return new Promise((resolve, reject) => {
+//         if (!data || typeof data !== 'string') {
+//             reject(new Error('Invalid data format for compression'));
+//             return;
+//         }
 
-        const buffer = Buffer.from(data);
-        if (buffer.length < CACHE_COMPRESSION_THRESHOLD) {
-            resolve(data);
-            return;
-        }
+//         const buffer = Buffer.from(data);
+//         if (buffer.length < CACHE_COMPRESSION_THRESHOLD) {
+//             resolve(data);
+//             return;
+//         }
 
-        gzip(
-            buffer,
-            {
-                level: 6,
-                memLevel: 8,
-                windowBits: 15,
-            },
-            (err, result) => {
-                if (err) {
-                    logger.error('Compression error', {
-                        error: err.message,
-                        originalSize: buffer.length,
-                    });
-                    resolve(data);
-                } else {
-                    resolve(result.toString('base64'));
-                }
-            }
-        );
-    });
-}
+//         gzip(
+//             buffer,
+//             {
+//                 level: 6,
+//                 memLevel: 8,
+//                 windowBits: 15,
+//             },
+//             (err, result) => {
+//                 if (err) {
+//                     logger.error('Compression error', {
+//                         error: err.message,
+//                         originalSize: buffer.length,
+//                     });
+//                     resolve(data);
+//                 } else {
+//                     resolve(result.toString('base64'));
+//                 }
+//             }
+//         );
+//     });
+// }
 
-async function decompressData(data) {
-    return new Promise((resolve, reject) => {
-        try {
-            if (!data) {
-                reject(new Error('Empty data for decompression'));
-                return;
-            }
+// async function decompressData(data) {
+//     return new Promise((resolve, reject) => {
+//         try {
+//             if (!data) {
+//                 reject(new Error('Empty data for decompression'));
+//                 return;
+//             }
 
-            const isCompressed = data.startsWith('H4sI');
-            if (!isCompressed) {
-                resolve(data);
-                return;
-            }
+//             const isCompressed = data.startsWith('H4sI');
+//             if (!isCompressed) {
+//                 resolve(data);
+//                 return;
+//             }
 
-            const buffer = Buffer.from(data, 'base64');
-            gunzip(
-                buffer,
-                {
-                    windowBits: 15,
-                },
-                (err, result) => {
-                    if (err) {
-                        logger.error('Decompression error', {
-                            error: err.message,
-                            dataLength: data.length,
-                        });
-                        reject(err);
-                    } else {
-                        resolve(result.toString('utf8'));
-                    }
-                }
-            );
-        } catch (error) {
-            logger.error('Decompression preparation error', {
-                error: error.message,
-                dataLength: data?.length,
-            });
-            reject(error);
-        }
-    });
-}
+//             const buffer = Buffer.from(data, 'base64');
+//             gunzip(
+//                 buffer,
+//                 {
+//                     windowBits: 15,
+//                 },
+//                 (err, result) => {
+//                     if (err) {
+//                         logger.error('Decompression error', {
+//                             error: err.message,
+//                             dataLength: data.length,
+//                         });
+//                         reject(err);
+//                     } else {
+//                         resolve(result.toString('utf8'));
+//                     }
+//                 }
+//             );
+//         } catch (error) {
+//             logger.error('Decompression preparation error', {
+//                 error: error.message,
+//                 dataLength: data?.length,
+//             });
+//             reject(error);
+//         }
+//     });
+// }
 
-async function getCachedData(key, fetchData, ttl) {
-    try {
-        if (!redisConnected) {
-            logger.debug('Redis not connected, fetching data directly', { key });
-            return await fetchData();
-        }
+// async function getCachedData(key, fetchData, ttl) {
+//     try {
+//         if (!redisConnected) {
+//             logger.debug('Redis not connected, fetching data directly', { key });
+//             return await fetchData();
+//         }
 
-        const cachedData = await redisClient.get(key);
-        if (cachedData) {
-            logger.debug('Cache hit', { key });
-            return JSON.parse(cachedData);
-        }
+//         const cachedData = await redisClient.get(key);
+//         if (cachedData) {
+//             logger.debug('Cache hit', { key });
+//             return JSON.parse(cachedData);
+//         }
 
-        logger.debug('Cache miss, fetching data', { key });
-        const data = await fetchData();
-        if (redisConnected) {
-            await redisClient.setEx(key, ttl, JSON.stringify(data));
-            logger.debug('Data cached', { key, ttl });
-        }
-        return data;
-    } catch (error) {
-        logger.error('Cache error', {
-            error: error.message,
-            stack: error.stack,
-            key,
-        });
-        return fetchData();
-    }
-}
+//         logger.debug('Cache miss, fetching data', { key });
+//         const data = await fetchData();
+//         if (redisConnected) {
+//             await redisClient.setEx(key, ttl, JSON.stringify(data));
+//             logger.debug('Data cached', { key, ttl });
+//         }
+//         return data;
+//     } catch (error) {
+//         logger.error('Cache error', {
+//             error: error.message,
+//             stack: error.stack,
+//             key,
+//         });
+//         return fetchData();
+//     }
+// }
 
-async function invalidateCachePattern(pattern, options = {}) {
-    const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
+// async function invalidateCachePattern(pattern, options = {}) {
+//     const { maxRetries = 3, retryDelay = 1000, batchSize = 100 } = options;
 
-    if (!redisConnected || !redisClient.isOpen) {
-        logger.warn('Redis not connected, skipping cache invalidation', { pattern });
-        return;
-    }
+//     if (!redisConnected || !redisClient.isOpen) {
+//         logger.warn('Redis not connected, skipping cache invalidation', { pattern });
+//         return;
+//     }
 
-    let retries = 0;
-    while (retries < maxRetries) {
-        try {
-            const keys = await redisClient.keys(pattern);
-            if (keys.length === 0) {
-                logger.debug('No cache keys found to invalidate', { pattern });
-                return;
-            }
+//     let retries = 0;
+//     while (retries < maxRetries) {
+//         try {
+//             const keys = await redisClient.keys(pattern);
+//             if (keys.length === 0) {
+//                 logger.debug('No cache keys found to invalidate', { pattern });
+//                 return;
+//             }
 
-            for (let i = 0; i < keys.length; i += batchSize) {
-                const batch = keys.slice(i, i + batchSize);
-                const multi = redisClient.multi();
+//             for (let i = 0; i < keys.length; i += batchSize) {
+//                 const batch = keys.slice(i, i + batchSize);
+//                 const multi = redisClient.multi();
 
-                batch.forEach(key => {
-                    multi.del(key);
+//                 batch.forEach(key => {
+//                     multi.del(key);
 
-                    multi.del(`${key}:meta`);
-                });
+//                     multi.del(`${key}:meta`);
+//                 });
 
-                await multi.exec();
+//                 await multi.exec();
 
-                logger.debug('Cache batch invalidated', {
-                    pattern,
-                    batchSize: batch.length,
-                    totalProcessed: Math.min(i + batchSize, keys.length),
-                    totalKeys: keys.length,
-                });
-            }
+//                 logger.debug('Cache batch invalidated', {
+//                     pattern,
+//                     batchSize: batch.length,
+//                     totalProcessed: Math.min(i + batchSize, keys.length),
+//                     totalKeys: keys.length,
+//                 });
+//             }
 
-            logger.info('Cache invalidated successfully', {
-                pattern,
-                keysCount: keys.length,
-            });
-            return;
-        } catch (error) {
-            retries++;
-            if (retries === maxRetries) {
-                logger.error('Failed to invalidate cache after maximum retries', {
-                    pattern,
-                    error: error.message,
-                    retries,
-                });
-                throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
-            }
+//             logger.info('Cache invalidated successfully', {
+//                 pattern,
+//                 keysCount: keys.length,
+//             });
+//             return;
+//         } catch (error) {
+//             retries++;
+//             if (retries === maxRetries) {
+//                 logger.error('Failed to invalidate cache after maximum retries', {
+//                     pattern,
+//                     error: error.message,
+//                     retries,
+//                 });
+//                 throw new Error(`Failed to invalidate cache after ${maxRetries} attempts: ${error.message}`);
+//             }
 
-            logger.warn('Cache invalidation attempt failed, retrying', {
-                pattern,
-                error: error.message,
-                attempt: retries,
-                nextAttemptIn: retryDelay,
-            });
+//             logger.warn('Cache invalidation attempt failed, retrying', {
+//                 pattern,
+//                 error: error.message,
+//                 attempt: retries,
+//                 nextAttemptIn: retryDelay,
+//             });
 
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-    }
-}
+//             await new Promise(resolve => setTimeout(resolve, retryDelay));
+//         }
+//     }
+// }
 
-async function invalidateCachePatterns(patterns, options = {}) {
-    if (!Array.isArray(patterns) || patterns.length === 0) {
-        logger.warn('No patterns provided for cache invalidation');
-        return;
-    }
+// async function invalidateCachePatterns(patterns, options = {}) {
+//     if (!Array.isArray(patterns) || patterns.length === 0) {
+//         logger.warn('No patterns provided for cache invalidation');
+//         return;
+//     }
 
-    try {
-        await Promise.all(patterns.map(pattern => invalidateCachePattern(pattern, options)));
-        logger.info('Multiple cache patterns invalidated successfully', { patterns });
-    } catch (error) {
-        logger.error('Failed to invalidate multiple cache patterns', {
-            patterns,
-            error: error.message,
-        });
-        throw error;
-    }
-}
+//     try {
+//         await Promise.all(patterns.map(pattern => invalidateCachePattern(pattern, options)));
+//         logger.info('Multiple cache patterns invalidated successfully', { patterns });
+//     } catch (error) {
+//         logger.error('Failed to invalidate multiple cache patterns', {
+//             patterns,
+//             error: error.message,
+//         });
+//         throw error;
+//     }
+// }
 
-async function warmCache() {
-    if (!redisConnected || !redisClient.isOpen) {
-        logger.warn('Redis not connected, skipping cache warm-up');
-        return;
-    }
+// async function warmCache() {
+//     if (!redisConnected || !redisClient.isOpen) {
+//         logger.warn('Redis not connected, skipping cache warm-up');
+//         return;
+//     }
 
-    const warmUpTasks = [
-        {
-            name: 'Product Search',
-            pattern: 'api:products:search:*',
-            fetchData: async () => {
-                const result = await searchProducts({ limit: 100 });
-                return result.items || [];
-            },
-        },
-        {
-            name: 'Category Tree',
-            pattern: 'api:categories:tree:*',
-            fetchData: async () => {
-                const result = await getCategoryTree();
-                return result.rows || [];
-            },
-        },
-    ];
+//     const warmUpTasks = [
+//         {
+//             name: 'Product Search',
+//             pattern: 'api:products:search:*',
+//             fetchData: async () => {
+//                 const result = await searchProducts({ limit: 100 });
+//                 return result.items || [];
+//             },
+//         },
+//         {
+//             name: 'Category Tree',
+//             pattern: 'api:categories:tree:*',
+//             fetchData: async () => {
+//                 const result = await getCategoryTree();
+//                 return result.rows || [];
+//             },
+//         },
+//     ];
 
-    logger.info('Starting cache warm-up');
+//     logger.info('Starting cache warm-up');
 
-    for (const task of warmUpTasks) {
-        try {
-            logger.debug(`Warming up ${task.name} cache`);
-            await cacheManager.invalidateAndWarm(
-                task.pattern,
-                task.fetchData,
-                CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || 3600
-            );
-            logger.info(`${task.name} cache warmed up successfully`);
-        } catch (error) {
-            logger.error(`Failed to warm up ${task.name} cache`, {
-                error: error.message,
-                stack: error.stack,
-            });
-        }
-    }
+//     for (const task of warmUpTasks) {
+//         try {
+//             logger.debug(`Warming up ${task.name} cache`);
+//             await cacheManager.invalidateAndWarm(
+//                 task.pattern,
+//                 task.fetchData,
+//                 CACHE_TTL[task.name.split(' ')[0].toUpperCase()] || 3600
+//             );
+//             logger.info(`${task.name} cache warmed up successfully`);
+//         } catch (error) {
+//             logger.error(`Failed to warm up ${task.name} cache`, {
+//                 error: error.message,
+//                 stack: error.stack,
+//             });
+//         }
+//     }
 
-    logger.info('Cache warm-up completed');
-}
+//     logger.info('Cache warm-up completed');
+// }
 
-async function warmCacheForType(type) {
-    const typePatterns = {
-        'products': [
-            'api:products:search:*',
-            'api:products:list:*'
-        ],
-        'categories': [
-            'api:categories:tree:*',
-            'api:categories:search:*'
-        ],
-        'all': [
-            'api:products:search:*',
-            'api:products:list:*',
-            'api:categories:tree:*',
-            'api:categories:search:*'
-        ]
-    };
+// async function warmCacheForType(type) {
+//     const typePatterns = {
+//         'products': [
+//             'api:products:search:*',
+//             'api:products:list:*'
+//         ],
+//         'categories': [
+//             'api:categories:tree:*',
+//             'api:categories:search:*'
+//         ],
+//         'all': [
+//             'api:products:search:*',
+//             'api:products:list:*',
+//             'api:categories:tree:*',
+//             'api:categories:search:*'
+//         ]
+//     };
 
-    const patterns = typePatterns[type] || [];
-    if (patterns.length === 0) {
-        logger.warn('No patterns found for cache warm-up type', { type });
-        return;
-    }
+//     const patterns = typePatterns[type] || [];
+//     if (patterns.length === 0) {
+//         logger.warn('No patterns found for cache warm-up type', { type });
+//         return;
+//     }
 
-    await cacheManager.warmCache(patterns);
-}
+//     await cacheManager.warmCache(patterns);
+// }
 
-async function processBulkProductUpdate(products) {
-    const chunks = [];
-    for (let i = 0; i < products.length; i += BATCH_SIZE) {
-        chunks.push(products.slice(i, i + BATCH_SIZE));
-    }
+// async function processBulkProductUpdate(products) {
+//     const chunks = [];
+//     for (let i = 0; i < products.length; i += BATCH_SIZE) {
+//         chunks.push(products.slice(i, i + BATCH_SIZE));
+//     }
 
-    const results = [];
-    for (const chunk of chunks) {
-        const result = await bulkOperationQueue.add(
-            'update-products',
-            {
-                products: chunk,
-            },
-            {
-                attempts: 3,
-                backoff: {
-                    type: 'exponential',
-                    delay: 1000,
-                },
-            }
-        );
-        results.push(result);
-    }
+//     const results = [];
+//     for (const chunk of chunks) {
+//         const result = await bulkOperationQueue.add(
+//             'update-products',
+//             {
+//                 products: chunk,
+//             },
+//             {
+//                 attempts: 3,
+//                 backoff: {
+//                     type: 'exponential',
+//                     delay: 1000,
+//                 },
+//             }
+//         );
+//         results.push(result);
+//     }
 
-    return results;
-}
+//     return results;
+// }
 
 async function createMaterializedViewIndexes() {
     const client = await pgPool.connect();
@@ -2545,292 +2530,292 @@ async function createMaterializedViewIndexes() {
     }
 }
 
-const cacheQueue = new Bull('cache-operations', {
-    redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: process.env.REDIS_PORT || 6379,
-    },
-    defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-            type: 'exponential',
-            delay: 1000,
-        },
-        removeOnComplete: true,
-        removeOnFail: false,
-    },
-});
+// const cacheQueue = new Bull('cache-operations', {
+//     redis: {
+//         host: process.env.REDIS_HOST || 'localhost',
+//         port: process.env.REDIS_PORT || 6379,
+//     },
+//     defaultJobOptions: {
+//         attempts: 3,
+//         backoff: {
+//             type: 'exponential',
+//             delay: 1000,
+//         },
+//         removeOnComplete: true,
+//         removeOnFail: false,
+//     },
+// });
 
 // Process cache operations
-cacheQueue.process(async (job) => {
-    const { operation, patterns, data } = job.data;
-    
-    try {
-        switch (operation) {
-            case 'invalidate_and_warm':
-                for (const pattern of patterns) {
-                    const fetchData = cacheManager.getFetchFunction(pattern);
-                    if (fetchData) {
-                        await cacheManager.invalidateAndWarm(
-                            pattern,
-                            fetchData,
-                            CACHE_TTL[pattern.split(':')[1]] || 3600
-                        );
-                    }
-                }
-                break;
-            case 'increment_version':
-                await cacheManager.incrementVersion();
-                break;
-            default:
-                throw new Error(`Unknown cache operation: ${operation}`);
-        }
-        
-        return { success: true };
-    } catch (error) {
-        logger.error('Cache operation failed', {
-            error: error.message,
-            operation,
-            patterns,
-        });
-        throw error;
-    }
-});
+// cacheQueue.process(async (job) => {
+//     const { operation, patterns, data } = job.data;
+
+//     try {
+//         switch (operation) {
+//             case 'invalidate_and_warm':
+//                 for (const pattern of patterns) {
+//                     const fetchData = cacheManager.getFetchFunction(pattern);
+//                     if (fetchData) {
+//                         await cacheManager.invalidateAndWarm(
+//                             pattern,
+//                             fetchData,
+//                             CACHE_TTL[pattern.split(':')[1]] || 3600
+//                         );
+//                     }
+//                 }
+//                 break;
+//             case 'increment_version':
+//                 await cacheManager.incrementVersion();
+//                 break;
+//             default:
+//                 throw new Error(`Unknown cache operation: ${operation}`);
+//         }
+
+//         return { success: true };
+//     } catch (error) {
+//         logger.error('Cache operation failed', {
+//             error: error.message,
+//             operation,
+//             patterns,
+//         });
+//         throw error;
+//     }
+// });
 
 // Enhanced cache update function
-async function updateCacheInBackground(operationType, affectedIds) {
-    try {
-        logger.info('Starting background cache update', { operationType, affectedIdsCount: affectedIds.length });
-        
-        // Define cache patterns to check based on operation type
-        const cachePatterns = {
-            'CREATE_PRODUCT': [
-                'api:products:search:*',
-                'api:products:list:*',
-                'api:categories:tree:*'
-            ],
-            'UPDATE_PRODUCT': [
-                'api:products:search:*',
-                'api:products:list:*',
-                ...affectedIds.map(id => `api:products:${id}:*`)
-            ],
-            'DELETE_PRODUCT': [
-                'api:products:search:*',
-                'api:products:list:*',
-                ...affectedIds.map(id => `api:products:${id}:*`)
-            ],
-            'UPDATE_CATEGORY': [
-                'api:categories:tree:*',
-                'api:categories:search:*',
-                ...affectedIds.map(id => `api:categories:${id}:*`)
-            ]
-        };
+// async function updateCacheInBackground(operationType, affectedIds) {
+//     try {
+//         logger.info('Starting background cache update', { operationType, affectedIdsCount: affectedIds.length });
 
-        const patterns = cachePatterns[operationType] || [];
-        
-        // Add job to queue for cache operations
-        await cacheQueue.add('invalidate_and_warm', {
-            operation: 'invalidate_and_warm',
-            patterns
-        });
+//         // Define cache patterns to check based on operation type
+//         const cachePatterns = {
+//             'CREATE_PRODUCT': [
+//                 'api:products:search:*',
+//                 'api:products:list:*',
+//                 'api:categories:tree:*'
+//             ],
+//             'UPDATE_PRODUCT': [
+//                 'api:products:search:*',
+//                 'api:products:list:*',
+//                 ...affectedIds.map(id => `api:products:${id}:*`)
+//             ],
+//             'DELETE_PRODUCT': [
+//                 'api:products:search:*',
+//                 'api:products:list:*',
+//                 ...affectedIds.map(id => `api:products:${id}:*`)
+//             ],
+//             'UPDATE_CATEGORY': [
+//                 'api:categories:tree:*',
+//                 'api:categories:search:*',
+//                 ...affectedIds.map(id => `api:categories:${id}:*`)
+//             ]
+//         };
 
-        logger.info('Background cache update completed', { operationType, affectedIdsCount: affectedIds.length });
-    } catch (error) {
-        logger.error('Background cache update failed', {
-            error: error.message,
-            operationType,
-            affectedIdsCount: affectedIds.length
-        });
-    }
-}
+//         const patterns = cachePatterns[operationType] || [];
 
-async function processBulkOperation(type, data, options = {}) {
-    const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
+//         // Add job to queue for cache operations
+//         await cacheQueue.add('invalidate_and_warm', {
+//             operation: 'invalidate_and_warm',
+//             patterns
+//         });
 
-    logger.info('Starting bulk operation', {
-        type,
-        dataLength: data.length,
-        batchSize,
-        concurrency,
-        retryAttempts,
-    });
+//         logger.info('Background cache update completed', { operationType, affectedIdsCount: affectedIds.length });
+//     } catch (error) {
+//         logger.error('Background cache update failed', {
+//             error: error.message,
+//             operationType,
+//             affectedIdsCount: affectedIds.length
+//         });
+//     }
+// }
 
-    const batches = [];
-    for (let i = 0; i < data.length; i += batchSize) {
-        batches.push(data.slice(i, i + batchSize));
-    }
+// async function processBulkOperation(type, data, options = {}) {
+//     const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
 
-    logger.debug('Data split into batches', {
-        type,
-        batchCount: batches.length,
-        batchSize,
-    });
+//     logger.info('Starting bulk operation', {
+//         type,
+//         dataLength: data.length,
+//         batchSize,
+//         concurrency,
+//         retryAttempts,
+//     });
 
-    const results = [];
-    const activeJobs = new Set();
-    const affectedIds = new Set();
+//     const batches = [];
+//     for (let i = 0; i < data.length; i += batchSize) {
+//         batches.push(data.slice(i, i + batchSize));
+//     }
 
-    for (const batch of batches) {
-        while (activeJobs.size >= concurrency) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
+//     logger.debug('Data split into batches', {
+//         type,
+//         batchCount: batches.length,
+//         batchSize,
+//     });
 
-        const jobId = Date.now().toString();
-        activeJobs.add(jobId);
+//     const results = [];
+//     const activeJobs = new Set();
+//     const affectedIds = new Set();
 
-        try {
-            logger.debug('Adding job to queue', {
-                type,
-                jobId,
-                batchSize: batch.length,
-            });
+//     for (const batch of batches) {
+//         while (activeJobs.size >= concurrency) {
+//             await new Promise(resolve => setTimeout(resolve, 100));
+//         }
 
-            const result = await bulkOperationQueue.add(
-                type,
-                {
-                    batch,
-                    options: {
-                        retryAttempts,
-                        retryDelay,
-                    },
-                },
-                {
-                    attempts: retryAttempts,
-                    backoff: {
-                        type: 'exponential',
-                        delay: retryDelay,
-                    },
-                    removeOnComplete: true,
-                    removeOnFail: false,
-                }
-            );
+//         const jobId = Date.now().toString();
+//         activeJobs.add(jobId);
 
-            // Collect affected IDs
-            batch.forEach(item => {
-                if (item.id) affectedIds.add(item.id);
-            });
+//         try {
+//             logger.debug('Adding job to queue', {
+//                 type,
+//                 jobId,
+//                 batchSize: batch.length,
+//             });
 
-            results.push(result);
-            logger.debug('Job added successfully', {
-                type,
-                jobId,
-                result,
-            });
-        } catch (error) {
-            logger.error('Failed to add job to queue', {
-                error: error.message,
-                stack: error.stack,
-                type,
-                jobId,
-            });
-            throw error;
-        } finally {
-            activeJobs.delete(jobId);
-        }
-    }
+//             const result = await bulkOperationQueue.add(
+//                 type,
+//                 {
+//                     batch,
+//                     options: {
+//                         retryAttempts,
+//                         retryDelay,
+//                     },
+//                 },
+//                 {
+//                     attempts: retryAttempts,
+//                     backoff: {
+//                         type: 'exponential',
+//                         delay: retryDelay,
+//                     },
+//                     removeOnComplete: true,
+//                     removeOnFail: false,
+//                 }
+//             );
 
-    // Trigger background cache update
-    if (affectedIds.size > 0) {
-        updateCacheInBackground(type, Array.from(affectedIds)).catch(error => {
-            logger.error('Background cache update failed', {
-                error: error.message,
-                type,
-                affectedIdsCount: affectedIds.size
-            });
-        });
-    }
+//             // Collect affected IDs
+//             batch.forEach(item => {
+//                 if (item.id) affectedIds.add(item.id);
+//             });
 
-    logger.info('Bulk operation completed', {
-        type,
-        totalJobs: results.length,
-        successCount: results.filter(r => r.status === 'completed').length,
-    });
+//             results.push(result);
+//             logger.debug('Job added successfully', {
+//                 type,
+//                 jobId,
+//                 result,
+//             });
+//         } catch (error) {
+//             logger.error('Failed to add job to queue', {
+//                 error: error.message,
+//                 stack: error.stack,
+//                 type,
+//                 jobId,
+//             });
+//             throw error;
+//         } finally {
+//             activeJobs.delete(jobId);
+//         }
+//     }
 
-    return results;
-}
+//     // Trigger background cache update
+//     if (affectedIds.size > 0) {
+//         // updateCacheInBackground(type, Array.from(affectedIds)).catch(error => {
+//         //     logger.error('Background cache update failed', {
+//         //         error: error.message,
+//         //         type,
+//         //         affectedIdsCount: affectedIds.size
+//         //     });
+//         // });
+//     }
 
-async function getProductRecommendations(productId) {
-    try {
-        const product = await getProductById(productId);
-        if (!product.rows.length) {
-            throw new Error('Product not found');
-        }
+//     logger.info('Bulk operation completed', {
+//         type,
+//         totalJobs: results.length,
+//         successCount: results.filter(r => r.status === 'completed').length,
+//     });
 
-        const model = await trainRecommendationModel();
+//     return results;
+// }
 
-        const result = await pgPool.query(
-            `
-            SELECT 
-                p.*,
-                COUNT(DISTINCT pt.tag_name) as tag_count,
-                COUNT(DISTINCT pc.user_id) as view_count
-            FROM products p
-            LEFT JOIN product_tags pt ON p.id = pt.product_id
-            LEFT JOIN product_comments pc ON p.id = pc.product_id
-            WHERE p.id != $1
-            GROUP BY p.id
-            HAVING COUNT(DISTINCT pt.tag_name) > 0
-            ORDER BY 
-                CASE WHEN p.category_id = $2 THEN 1 ELSE 0 END DESC,
-                tag_count DESC,
-                view_count DESC
-            LIMIT 10
-        `,
-            [productId, product.rows[0].category_id]
-        );
+// async function getProductRecommendations(productId) {
+//     try {
+//         const product = await getProductById(productId);
+//         if (!product.rows.length) {
+//             throw new Error('Product not found');
+//         }
 
-        const scoredProducts = result.rows.map(row => {
-            const input = [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.price / 1000];
-            const score = model.forward(input)[0];
-            return { ...row, score };
-        });
+//         const model = await trainRecommendationModel();
 
-        return scoredProducts.sort((a, b) => b.score - a.score);
-    } catch (error) {
-        console.error('Error getting product recommendations:', error);
-        throw error;
-    }
-}
+//         const result = await pgPool.query(
+//             `
+//             SELECT
+//                 p.*,
+//                 COUNT(DISTINCT pt.tag_name) as tag_count,
+//                 COUNT(DISTINCT pc.user_id) as view_count
+//             FROM products p
+//             LEFT JOIN product_tags pt ON p.id = pt.product_id
+//             LEFT JOIN product_comments pc ON p.id = pc.product_id
+//             WHERE p.id != $1
+//             GROUP BY p.id
+//             HAVING COUNT(DISTINCT pt.tag_name) > 0
+//             ORDER BY
+//                 CASE WHEN p.category_id = $2 THEN 1 ELSE 0 END DESC,
+//                 tag_count DESC,
+//                 view_count DESC
+//             LIMIT 10
+//         `,
+//             [productId, product.rows[0].category_id]
+//         );
 
-async function trainRecommendationModel() {
-    try {
-        const result = await pgPool.query(`
-            SELECT 
-                p.id as product_id,
-                p.category_id,
-                COUNT(DISTINCT pc.user_id) as view_count,
-                COUNT(DISTINCT pt.tag_name) as tag_count,
-                AVG(p.price) as avg_price
-            FROM products p
-            LEFT JOIN product_comments pc ON p.id = pc.product_id
-            LEFT JOIN product_tags pt ON p.id = pt.product_id
-            GROUP BY p.id, p.category_id
-        `);
+//         const scoredProducts = result.rows.map(row => {
+//             const input = [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.price / 1000];
+//             const score = model.forward(input)[0];
+//             return { ...row, score };
+//         });
 
-        const trainingData = result.rows.map(row => ({
-            input: [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.avg_price / 1000],
-            output: [row.view_count > 10 ? 1 : 0],
-        }));
+//         return scoredProducts.sort((a, b) => b.score - a.score);
+//     } catch (error) {
+//         console.error('Error getting product recommendations:', error);
+//         throw error;
+//     }
+// }
 
-        const nn = new SimpleNeuralNetwork(4, 8, 1);
-        for (let i = 0; i < 1000; i++) {
-            trainingData.forEach(data => {
-                nn.train(data.input, data.output);
-            });
-        }
+// async function trainRecommendationModel() {
+//     try {
+//         const result = await pgPool.query(`
+//             SELECT
+//                 p.id as product_id,
+//                 p.category_id,
+//                 COUNT(DISTINCT pc.user_id) as view_count,
+//                 COUNT(DISTINCT pt.tag_name) as tag_count,
+//                 AVG(p.price) as avg_price
+//             FROM products p
+//             LEFT JOIN product_comments pc ON p.id = pc.product_id
+//             LEFT JOIN product_tags pt ON p.id = pt.product_id
+//             GROUP BY p.id, p.category_id
+//         `);
 
-        return nn;
-    } catch (error) {
-        console.error('Error training recommendation model:', error);
-        throw error;
-    }
-}
+//         const trainingData = result.rows.map(row => ({
+//             input: [row.category_id / 100, row.view_count / 1000, row.tag_count / 10, row.avg_price / 1000],
+//             output: [row.view_count > 10 ? 1 : 0],
+//         }));
 
-async function storeProductDocument(productData) {
-    const { product_id, name, description, category_id, document_data } = productData;
-    const result = await pgPool.query('INSERT INTO product_documents (product_id, name, description, category_id, document_data) VALUES ($1, $2, $3, $4, $5) RETURNING *', [product_id, name, description, category_id, document_data]);
-    return result.rows[0];
-}
+//         const nn = new SimpleNeuralNetwork(4, 8, 1);
+//         for (let i = 0; i < 1000; i++) {
+//             trainingData.forEach(data => {
+//                 nn.train(data.input, data.output);
+//             });
+//         }
+
+//         return nn;
+//     } catch (error) {
+//         console.error('Error training recommendation model:', error);
+//         throw error;
+//     }
+// }
+
+// async function storeProductDocument(productData) {
+//     const { product_id, name, description, category_id, document_data } = productData;
+//     const result = await pgPool.query('INSERT INTO product_documents (product_id, name, description, category_id, document_data) VALUES ($1, $2, $3, $4, $5) RETURNING *', [product_id, name, description, category_id, document_data]);
+//     return result.rows[0];
+// }
 
 async function searchProductDocuments(searchQuery, { page = 1, limit = 10 } = {}) {
     const offset = (page - 1) * limit;
@@ -3502,8 +3487,8 @@ async function healthCheckController(req, res) {
             uptime: process.uptime(),
             message: 'OK',
             timestamp: Date.now(),
-            postgres: pool ? 'connected' : 'disconnected',
-            redis: redisClient ? 'connected' : 'disconnected',
+            postgres: pgPool ? 'connected' : 'disconnected',
+            // redis: redisClient ? 'connected' : 'disconnected',
         };
         res.json(health);
     } catch (error) {
@@ -3525,19 +3510,19 @@ async function createProductController(req, res) {
 
 async function getProductByIdController(req, res) {
     try {
-        const key = `api:products:${req.params.id}:*`;
-        const cachedData = await cacheManager.get(key);
-        
-        if (cachedData) {
-            return res.success(cachedData);
-        }
-        
+        // const key = `api:products:${req.params.id}:*`;
+        // const cachedData = await cacheManager.get(key);
+
+        // if (cachedData) {
+        //     return res.success(cachedData);
+        // }
+
         const result = await getProductById(req.params.id);
         if (result.rows.length === 0) {
             return res.error('Product not found', 404);
         }
-        
-        await cacheManager.set(key, result.rows[0], CACHE_TTL.PRODUCT);
+
+        // await cacheManager.set(key, result.rows[0], CACHE_TTL.PRODUCT);
         res.success(result.rows[0]);
     } catch (error) {
         res.error(error);
@@ -3561,37 +3546,37 @@ async function searchProductsController(req, res) {
     }
 }
 
-async function bulkUpdateProductsController(req, res) {
-    try {
-        const { type, data, options } = req.body;
-        if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
-            return res.error('Invalid operation type', 400);
-        }
-        if (!Array.isArray(data) || data.length === 0) {
-            return res.error('Invalid data array', 400);
-        }
+// async function bulkUpdateProductsController(req, res) {
+//     try {
+//         const { type, data, options } = req.body;
+//         if (!BULK_OPERATION_TYPES[type.toUpperCase()]) {
+//             return res.error('Invalid operation type', 400);
+//         }
+//         if (!Array.isArray(data) || data.length === 0) {
+//             return res.error('Invalid data array', 400);
+//         }
 
-        // Process the bulk operation
-        const results = await processBulkOperation(type, data, options);
+//         // Process the bulk operation
+//         const results = await processBulkOperation(type, data, options);
 
-        // Return success immediately with job IDs
-        res.success(
-            {
-                jobIds: results.map(r => r.id),
-                message: 'Bulk operation queued successfully. Cache will be updated in the background.'
-            },
-            'Bulk operation queued successfully'
-        );
-    } catch (error) {
-        logger.error('Bulk update failed', {
-            error: error.message,
-            stack: error.stack,
-            type: req.body.type,
-            dataLength: req.body.data?.length
-        });
-        res.error(error.message);
-    }
-}
+//         // Return success immediately with job IDs
+//         res.success(
+//             {
+//                 jobIds: results.map(r => r.id),
+//                 message: 'Bulk operation queued successfully. Cache will be updated in the background.',
+//             },
+//             'Bulk operation queued successfully'
+//         );
+//     } catch (error) {
+//         logger.error('Bulk update failed', {
+//             error: error.message,
+//             stack: error.stack,
+//             type: req.body.type,
+//             dataLength: req.body.data?.length,
+//         });
+//         res.error(error.message);
+//     }
+// }
 
 async function createCategoryController(req, res) {
     try {
@@ -3688,31 +3673,31 @@ async function searchProductDocumentsController(req, res) {
     }
 }
 
-async function getJobStatusController(req, res) {
-    try {
-        const job = await bulkOperationQueue.getJob(req.params.jobId);
-        if (!job) {
-            return res.error('Job not found', 404);
-        }
+// async function getJobStatusController(req, res) {
+//     try {
+//         const job = await bulkOperationQueue.getJob(req.params.jobId);
+//         if (!job) {
+//             return res.error('Job not found', 404);
+//         }
 
-        const state = await job.getState();
-        const progress = job._progress;
-        const result = job.returnvalue;
+//         const state = await job.getState();
+//         const progress = job._progress;
+//         const result = job.returnvalue;
 
-        res.success({
-            id: job.id,
-            state,
-            progress,
-            result,
-            attemptsMade: job.attemptsMade,
-            timestamp: job.timestamp,
-            processedOn: job.processedOn,
-            finishedOn: job.finishedOn,
-        });
-    } catch (error) {
-        res.error(error.message);
-    }
-}
+//         res.success({
+//             id: job.id,
+//             state,
+//             progress,
+//             result,
+//             attemptsMade: job.attemptsMade,
+//             timestamp: job.timestamp,
+//             processedOn: job.processedOn,
+//             finishedOn: job.finishedOn,
+//         });
+//     } catch (error) {
+//         res.error(error.message);
+//     }
+// }
 
 async function getPriceTrendsController(req, res) {
     try {
@@ -4125,14 +4110,14 @@ async function getCategoryAnalyticsController(req, res) {
     }
 }
 
-async function getProductRecommendationsController(req, res) {
-    try {
-        const result = await getProductRecommendations(req.params.productId);
-        res.success(result);
-    } catch (error) {
-        res.error(error);
-    }
-}
+// async function getProductRecommendationsController(req, res) {
+//     try {
+//         const result = await getProductRecommendations(req.params.productId);
+//         res.success(result);
+//     } catch (error) {
+//         res.error(error);
+//     }
+// }
 
 async function getProductAttributesController(req, res) {
     try {
@@ -4167,24 +4152,24 @@ async function updateCategoryController(req, res) {
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
-        
+
         // Invalidate all related caches
-        await Promise.all([
-            cacheManager.invalidate(`api:categories:${req.params.id}:*`),
-            cacheManager.invalidate('api:categories:tree:*'),
-            cacheManager.invalidate('api:categories:search:*')
-        ]);
-        
-        // Increment cache version
-        await cacheManager.incrementVersion();
-        
-        // Warm up the specific category cache with fresh data
-        await cacheManager.set(
-            `api:categories:${req.params.id}:details`,
-            result.rows[0],
-            CACHE_TTL.CATEGORY
-        );
-        
+        // await Promise.all([
+        //     cacheManager.invalidate(`api:categories:${req.params.id}:*`),
+        //     cacheManager.invalidate('api:categories:tree:*'),
+        //     cacheManager.invalidate('api:categories:search:*')
+        // ]);
+
+        // // Increment cache version
+        // await cacheManager.incrementVersion();
+
+        // // Warm up the specific category cache with fresh data
+        // await cacheManager.set(
+        //     `api:categories:${req.params.id}:details`,
+        //     result.rows[0],
+        //     CACHE_TTL.CATEGORY
+        // );
+
         res.success(result.rows[0], 'Category updated successfully');
     } catch (error) {
         res.error(error);
@@ -4197,17 +4182,17 @@ async function deleteCategoryController(req, res) {
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
-        
+
         // Invalidate all related caches
-        await Promise.all([
-            cacheManager.invalidate(`api:categories:${req.params.id}:*`),
-            cacheManager.invalidate('api:categories:tree:*'),
-            cacheManager.invalidate('api:categories:search:*')
-        ]);
-        
-        // Increment cache version
-        await cacheManager.incrementVersion();
-        
+        // await Promise.all([
+        //     cacheManager.invalidate(`api:categories:${req.params.id}:*`),
+        //     cacheManager.invalidate('api:categories:tree:*'),
+        //     cacheManager.invalidate('api:categories:search:*')
+        // ]);
+
+        // // Increment cache version
+        // await cacheManager.incrementVersion();
+
         res.success(result.rows[0], 'Category deleted successfully');
     } catch (error) {
         res.error(error);
@@ -4216,20 +4201,20 @@ async function deleteCategoryController(req, res) {
 
 async function getCategoryByIdController(req, res) {
     try {
-        const key = `api:categories:${req.params.id}:details`;
-        const cachedData = await cacheManager.get(key);
-        
-        if (cachedData) {
-            return res.success(cachedData);
-        }
-        
+        // const key = `api:categories:${req.params.id}:details`;
+        // const cachedData = await cacheManager.get(key);
+
+        // if (cachedData) {
+        //     return res.success(cachedData);
+        // }
+
         const result = await getCategoryById(req.params.id);
         if (result.rows.length === 0) {
             return res.error('Category not found', 404);
         }
-        
+
         // Set cache with the specific key pattern
-        await cacheManager.set(key, result.rows[0], CACHE_TTL.CATEGORY);
+        // await cacheManager.set(key, result.rows[0], CACHE_TTL.CATEGORY);
         res.success(result.rows[0]);
     } catch (error) {
         res.error(error);
@@ -4256,16 +4241,16 @@ async function searchCategoriesController(req, res) {
 async function bulkUpdateCategoriesController(req, res) {
     try {
         const result = await bulkUpdateCategories(req.body.categories);
-        
+
         // Increment cache version to invalidate all category caches
-        await cacheManager.incrementVersion();
-        
-        // Warm up frequently accessed caches
-        await cacheManager.warmCache([
-            'api:categories:tree:*',
-            'api:categories:search:*'
-        ]);
-        
+        // await cacheManager.incrementVersion();
+
+        // // Warm up frequently accessed caches
+        // await cacheManager.warmCache([
+        //     'api:categories:tree:*',
+        //     'api:categories:search:*'
+        // ]);
+
         res.success(result, 'Categories updated successfully');
     } catch (error) {
         res.error(error);
@@ -4280,16 +4265,16 @@ async function updateProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        
+
         // Increment cache version to invalidate all product caches
-        await cacheManager.incrementVersion();
-        
-        // Warm up frequently accessed caches
-        await cacheManager.warmCache([
-            'api:products:search:*',
-            `api:products:${req.params.id}:*`
-        ]);
-        
+        // await cacheManager.incrementVersion();
+
+        // // Warm up frequently accessed caches
+        // await cacheManager.warmCache([
+        //     'api:products:search:*',
+        //     `api:products:${req.params.id}:*`
+        // ]);
+
         res.success(result.rows[0], 'Product updated successfully');
     } catch (error) {
         res.error(error);
@@ -4304,10 +4289,10 @@ async function deleteProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        
+
         // Increment cache version to invalidate all product caches
-        await cacheManager.incrementVersion();
-        
+        // await cacheManager.incrementVersion();
+
         res.success(result.rows[0], 'Product deleted successfully');
     } catch (error) {
         res.error(error);
@@ -4367,7 +4352,7 @@ function scheduleMaterializedViewRefresh() {
 
 // ======================================================================
 async function main() {
-    await clearCorruptedCache();
+    // await clearCorruptedCache();
     init();
 }
 main();
@@ -4387,59 +4372,56 @@ main();
 //     }
 // }
 
+// async function flushCacheController(req, res) {
+//     try {
+//         const { patterns, type } = req.body;
 
+//         if (!patterns && !type) {
+//             return res.error('Either patterns or type must be provided', 400);
+//         }
 
+//         let cachePatterns = [];
 
-async function flushCacheController(req, res) {
-    try {
-        const { patterns, type } = req.body;
-        
-        if (!patterns && !type) {
-            return res.error('Either patterns or type must be provided', 400);
-        }
+//         if (type) {
+//             cachePatterns = cacheManager.typePatterns[type] || [];
+//         } else if (patterns) {
+//             cachePatterns = Array.isArray(patterns) ? patterns : [patterns];
+//         }
 
-        let cachePatterns = [];
-        
-        if (type) {
-            cachePatterns = cacheManager.typePatterns[type] || [];
-        } else if (patterns) {
-            cachePatterns = Array.isArray(patterns) ? patterns : [patterns];
-        }
+//         if (cachePatterns.length === 0) {
+//             return res.error('No valid cache patterns provided', 400);
+//         }
 
-        if (cachePatterns.length === 0) {
-            return res.error('No valid cache patterns provided', 400);
-        }
+//         // Increment cache version to invalidate all related caches
+//         await cacheManager.incrementVersion();
 
-        // Increment cache version to invalidate all related caches
-        await cacheManager.incrementVersion();
+//         // If type is provided, warm up the cache
+//         if (type) {
+//             await cacheManager.warmCacheForType(type);
+//         }
 
-        // If type is provided, warm up the cache
-        if (type) {
-            await cacheManager.warmCacheForType(type);
-        }
-
-        res.success({
-            message: 'Cache flushed successfully',
-            patterns: cachePatterns,
-            type
-        });
-    } catch (error) {
-        logger.error('Cache flush failed', {
-            error: error.message,
-            stack: error.stack,
-            body: req.body
-        });
-        res.error(error.message);
-    }
-}
+//         res.success({
+//             message: 'Cache flushed successfully',
+//             patterns: cachePatterns,
+//             type
+//         });
+//     } catch (error) {
+//         logger.error('Cache flush failed', {
+//             error: error.message,
+//             stack: error.stack,
+//             body: req.body
+//         });
+//         res.error(error.message);
+//     }
+// }
 
 // Schedule cache warming
-function scheduleCacheWarming() {
-    setInterval(async () => {
-        try {
-            await cacheManager.warmCacheForType('all');
-        } catch (error) {
-            logger.error('Scheduled cache warming failed', { error });
-        }
-    }, 4 * 60 * 60 * 1000); // Every 4 hours
-}
+// function scheduleCacheWarming() {
+//     setInterval(async () => {
+//         try {
+//             await cacheManager.warmCacheForType('all');
+//         } catch (error) {
+//             logger.error('Scheduled cache warming failed', { error });
+//         }
+//     }, 4 * 60 * 60 * 1000); // Every 4 hours
+// }
