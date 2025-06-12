@@ -3121,15 +3121,18 @@ function validateRequiredFieldsMiddleware(requiredFields) {
 }
 
 function validateCategoryMiddleware(req, res, next) {
-    const { name, parent_id } = req.body;
+    // Only validate body for POST and PUT requests
+    if (req.method === 'POST' || req.method === 'PUT') {
+        const { name, parent_id } = req.body;
 
-    if (!name) {
-        return res.error('Category name is required', 400);
-    }
+        if (!name) {
+            return res.error('Category name is required', 400);
+        }
 
-    if (parent_id !== undefined && parent_id !== null) {
-        if (!Number.isInteger(Number(parent_id)) || Number(parent_id) <= 0) {
-            return res.error('Parent ID must be a positive integer', 400);
+        if (parent_id !== undefined && parent_id !== null) {
+            if (!Number.isInteger(Number(parent_id)) || Number(parent_id) <= 0) {
+                return res.error('Parent ID must be a positive integer', 400);
+            }
         }
     }
 
