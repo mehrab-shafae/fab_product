@@ -705,6 +705,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    put:
+      summary: Update product
+      tags: [Products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - price
+                - description
+              properties:
+                name:
+                  type: string
+                  description: Product name
+                price:
+                  type: number
+                  description: Product price
+                description:
+                  type: string
+                  description: Product description
+                category_id:
+                  type: integer
+                  description: Category ID
+                metadata:
+                  type: object
+                  description: Additional product metadata
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      summary: Delete product
+      tags: [Products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      responses:
+        '200':
+          description: Product deleted successfully
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /products/bulk-update:
     post:
       summary: Bulk update products
@@ -982,6 +1064,10 @@ paths:
       responses:
         '200':
           description: Version created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVersion'
         '500':
           description: Server error
           content:
@@ -1007,15 +1093,7 @@ paths:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    version_number:
-                      type: integer
-                    changes:
-                      type: object
-                    created_at:
-                      type: string
-                      format: date-time
+                  $ref: '#/components/schemas/ProductVersion'
         '500':
           description: Server error
           content:
@@ -2859,6 +2937,153 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/{id}/status:
+    patch:
+      summary: Update product status
+      tags: [Products]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [active, inactive, draft, archived]
+                  description: New product status
+      responses:
+        '200':
+          description: Product status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/bulk-status:
+    patch:
+      summary: Bulk update product status
+      tags: [Products]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productIds
+                - status
+              properties:
+                productIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array of product IDs
+                status:
+                  type: string
+                  enum: [active, inactive, draft, archived]
+                  description: New product status
+      responses:
+        '200':
+          description: Product statuses updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                    description: Number of products updated
+                  failed:
+                    type: integer
+                    description: Number of products that failed to update
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /products/statistics:
+    get:
+      summary: Get product statistics
+      tags: [Products]
+      description: |
+        Get overall product statistics with caching
+      responses:
+        '200':
+          description: Product statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_products:
+                    type: integer
+                    description: Total number of products
+                  active_products:
+                    type: integer
+                    description: Number of active products
+                  average_price:
+                    type: number
+                    description: Average product price
+                  price_range:
+                    type: object
+                    properties:
+                      min:
+                        type: number
+                        description: Minimum product price
+                      max:
+                        type: number
+                        description: Maximum product price
+                  category_distribution:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                    description: Number of products per category
+                  status_distribution:
+                    type: object
+                    properties:
+                      active:
+                        type: integer
+                        description: Number of active products
+                      inactive:
+                        type: integer
+                        description: Number of inactive products
+                      draft:
+                        type: integer
+                        description: Number of draft products
+                      archived:
+                        type: integer
+                        description: Number of archived products
         '500':
           description: Server error
           content:

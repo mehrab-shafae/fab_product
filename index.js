@@ -745,7 +745,6 @@ async function init() {
 }
 
 function apiV1Routers(app) {
-
     app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), requestLogger, createProductController);
 
     app.post('/products/bulk-update', validateRequiredFieldsMiddleware(['type', 'data']), requestLogger, bulkUpdateProductsController);
@@ -1187,6 +1186,26 @@ function apiV1Routers(app) {
         }),
         requestLogger,
         bulkUpdateCategoriesController
+    );
+
+    app.put('/products/:id', validateRequiredFieldsMiddleware(['name', 'price', 'description']), validateProductIdMiddleware, requestLogger, updateProductController);
+
+    app.delete('/products/:id', validateProductIdMiddleware, requestLogger, deleteProductController);
+
+    app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
+
+    app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
+
+    app.get(
+        '/products/statistics',
+        enhancedCacheMiddleware('products:statistics', 300, {
+            compress: true,
+            version: '1',
+            staleWhileRevalidate: true,
+            staleTTL: 180,
+        }),
+        requestLogger,
+        getProductStatisticsController
     );
 }
 
@@ -2626,7 +2645,78 @@ async function createMaterializedViews() {
         client.release();
     }
 }
+async function updateProductStatus(id, status) {
+    const validStatuses = ['active', 'inactive', 'draft', 'archived'];
+    if (!validStatuses.includes(status)) {
+        throw new Error('Invalid product status');
+    }
 
+    const query = `
+        UPDATE products 
+        SET status = $1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $2 AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [status, id]);
+}
+async function updateProduct(id, productData) {
+    const { name, price, description, category_id, metadata } = productData;
+    const query = `
+        UPDATE products 
+        SET name = $1, 
+            price = $2, 
+            description = $3, 
+            category_id = $4, 
+            metadata = $5,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $6 AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [name, price, description, category_id, metadata, id]);
+}
+
+async function deleteProduct(id) {
+    const query = `
+        UPDATE products 
+        SET deleted_at = CURRENT_TIMESTAMP
+        WHERE id = $1 AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [id]);
+}
+async function bulkUpdateProductStatus(productIds, status) {
+    const validStatuses = ['active', 'inactive', 'draft', 'archived'];
+    if (!validStatuses.includes(status)) {
+        throw new Error('Invalid product status');
+    }
+
+    const query = `
+        UPDATE products 
+        SET status = $1,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ANY($2) AND deleted_at IS NULL
+        RETURNING *
+    `;
+    return pgPool.query(query, [status, productIds]);
+}
+
+async function getProductStatistics() {
+    const query = `
+        SELECT 
+            COUNT(*) as total_products,
+            COUNT(CASE WHEN status = 'active' THEN 1 END) as active_products,
+            COUNT(CASE WHEN status = 'inactive' THEN 1 END) as inactive_products,
+            COUNT(CASE WHEN status = 'draft' THEN 1 END) as draft_products,
+            COUNT(CASE WHEN status = 'archived' THEN 1 END) as archived_products,
+            COUNT(CASE WHEN deleted_at IS NOT NULL THEN 1 END) as deleted_products,
+            AVG(price) as average_price,
+            MIN(price) as min_price,
+            MAX(price) as max_price
+        FROM products
+    `;
+    return pgPool.query(query);
+}
 async function refreshMaterializedViews() {
     const client = await pgPool.connect();
     try {
@@ -3753,6 +3843,76 @@ async function bulkUpdateCategoriesController(req, res) {
         const result = await bulkUpdateCategories(req.body.categories);
         await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:categories:search:*')]);
         res.success(result, 'Categories updated successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function updateProductController(req, res) {
+    try {
+        const result = await updateProduct(req.params.id, req.body);
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Product not found or already deleted',
+            });
+        }
+        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
+        res.success(result.rows[0], 'Product updated successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function deleteProductController(req, res) {
+    try {
+        const result = await deleteProduct(req.params.id);
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Product not found or already deleted',
+            });
+        }
+        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
+        res.success(result.rows[0], 'Product deleted successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function updateProductStatusController(req, res) {
+    try {
+        const result = await updateProductStatus(req.params.id, req.body.status);
+        if (result.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Product not found or already deleted',
+            });
+        }
+        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*')]);
+        res.success(result.rows[0], 'Product status updated successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function bulkUpdateProductStatusController(req, res) {
+    try {
+        const { productIds, status } = req.body;
+        if (!Array.isArray(productIds) || productIds.length === 0) {
+            return res.status(400).json({
+                error: 'Invalid product IDs array',
+            });
+        }
+        const result = await bulkUpdateProductStatus(productIds, status);
+        await invalidateCachePattern('api:products:search:*');
+        res.success(result.rows, 'Product statuses updated successfully');
+    } catch (error) {
+        res.error(error);
+    }
+}
+
+async function getProductStatisticsController(req, res) {
+    try {
+        const result = await getProductStatistics();
+        res.success(result.rows[0], 'Product statistics retrieved successfully');
     } catch (error) {
         res.error(error);
     }
