@@ -546,6 +546,78 @@ paths:
                           status:
                             type: string
                             description: Cache warming status
+
+  /flush:
+    post:
+      summary: Flush system cache
+      tags: [System]
+      description: |
+        Flush all cached data from the system. Either patterns or type must be provided.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              oneOf:
+                - type: object
+                  required:
+                    - patterns
+                  properties:
+                    patterns:
+                      type: array
+                      items:
+                        type: string
+                      description: Array of cache patterns to flush
+                - type: object
+                  required:
+                    - type
+                  properties:
+                    type:
+                      type: string
+                      enum: [products, categories, all]
+                      description: Type of cache to flush
+      responses:
+        '200':
+          description: Cache flushed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    description: Success message
+                  patterns:
+                    type: array
+                    items:
+                      type: string
+                    description: Patterns that were flushed
+                  type:
+                    type: string
+                    description: Type of cache that was flushed
+        '400':
+          description: Bad request - missing required parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [error]
+                  message:
+                    type: string
+                    description: Error message
+                  data:
+                    type: null
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /jobs/{jobId}/status:
     get:
       summary: Get job status

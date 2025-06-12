@@ -736,7 +736,10 @@ async function init() {
 
     app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
 
+    app.use(responseHandler);
+
     app.get('/health', healthCheckController);
+    app.post('/flush', flushCacheController);
 
     try {
         await createDatabaseSchema();
@@ -758,8 +761,6 @@ async function init() {
         console.error('Initialization failed:', error);
         process.exit(1);
     }
-
-    app.use(responseHandler);
 
     apiV1Routers(apiV1Router);
 
@@ -1246,6 +1247,7 @@ function apiV1Routers(app) {
     app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
 
     app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
+
 }
 
 function executeLinuxCommand(command) {
@@ -2346,6 +2348,149 @@ async function createMaterializedViewIndexes() {
     }
 }
 
+const cacheQueue = new Bull('cache-operations', {
+    redis: {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+    },
+    defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 1000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+    },
+});
+
+// Process cache operations
+cacheQueue.process(async (job) => {
+    const { operation, patterns, data } = job.data;
+    
+    try {
+        switch (operation) {
+            case 'check_and_update':
+                for (const pattern of patterns) {
+                    const keys = await redisClient.keys(pattern);
+                    for (const key of keys) {
+                        const cachedData = await redisClient.get(key);
+                        if (cachedData) {
+                            const parsedData = JSON.parse(cachedData);
+                            // Only update if the data is different
+                            if (JSON.stringify(parsedData) !== JSON.stringify(data)) {
+                                await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(data));
+                                logger.debug('Cache updated for key', { key });
+                            }
+                        }
+                    }
+                }
+                break;
+            case 'invalidate':
+                await invalidateCachePatterns(patterns);
+                break;
+            default:
+                throw new Error(`Unknown cache operation: ${operation}`);
+        }
+        
+        return { success: true };
+    } catch (error) {
+        logger.error('Cache operation failed', {
+            error: error.message,
+            operation,
+            patterns,
+        });
+        throw error;
+    }
+});
+
+// Enhanced cache update function
+async function updateCacheInBackground(operationType, affectedIds) {
+    try {
+        logger.info('Starting background cache update', { operationType, affectedIdsCount: affectedIds.length });
+        
+        // Define cache patterns to check based on operation type
+        const cachePatterns = {
+            'CREATE_PRODUCT': [
+                'api:products:search:*',
+                'api:products:list:*',
+                'api:categories:tree:*'
+            ],
+            'UPDATE_PRODUCT': [
+                'api:products:search:*',
+                'api:products:list:*',
+                ...affectedIds.map(id => `api:products:${id}:*`)
+            ],
+            'DELETE_PRODUCT': [
+                'api:products:search:*',
+                'api:products:list:*',
+                ...affectedIds.map(id => `api:products:${id}:*`)
+            ],
+            'UPDATE_CATEGORY': [
+                'api:categories:tree:*',
+                'api:categories:search:*',
+                ...affectedIds.map(id => `api:categories:${id}:*`)
+            ],
+            'UPDATE_INVENTORY': [
+                ...affectedIds.map(id => `api:products:${id}:inventory:*`)
+            ],
+            'UPDATE_PRICE': [
+                ...affectedIds.map(id => `api:products:${id}:price:*`),
+                ...affectedIds.map(id => `api:products:${id}:analytics:*`)
+            ],
+            'UPDATE_REVIEWS': [
+                ...affectedIds.map(id => `api:products:${id}:reviews:*`),
+                ...affectedIds.map(id => `api:products:${id}:analytics:*`)
+            ]
+        };
+
+        const patterns = cachePatterns[operationType] || [];
+        
+        // For delete operations, just invalidate the cache
+        if (operationType === 'DELETE_PRODUCT') {
+            await cacheQueue.add('invalidate', {
+                operation: 'invalidate',
+                patterns
+            });
+            return;
+        }
+
+        // For other operations, check and update existing cache entries
+        for (const id of affectedIds) {
+            try {
+                let data;
+                if (operationType.includes('PRODUCT')) {
+                    data = await getProductById(id);
+                } else if (operationType.includes('CATEGORY')) {
+                    data = await getCategoryById(id);
+                }
+
+                if (data?.rows?.[0]) {
+                    await cacheQueue.add('check_and_update', {
+                        operation: 'check_and_update',
+                        patterns: patterns.filter(p => p.includes(id.toString())),
+                        data: data.rows[0]
+                    });
+                }
+            } catch (error) {
+                logger.error('Failed to update cache', {
+                    error: error.message,
+                    operationType,
+                    id
+                });
+            }
+        }
+
+        logger.info('Background cache update completed', { operationType, affectedIdsCount: affectedIds.length });
+    } catch (error) {
+        logger.error('Background cache update failed', {
+            error: error.message,
+            operationType,
+            affectedIdsCount: affectedIds.length
+        });
+    }
+}
+
 async function processBulkOperation(type, data, options = {}) {
     const { batchSize = BATCH_SIZE, concurrency = MAX_CONCURRENT_JOBS, retryAttempts = 3, retryDelay = 1000 } = options;
 
@@ -2370,6 +2515,7 @@ async function processBulkOperation(type, data, options = {}) {
 
     const results = [];
     const activeJobs = new Set();
+    const affectedIds = new Set();
 
     for (const batch of batches) {
         while (activeJobs.size >= concurrency) {
@@ -2406,6 +2552,11 @@ async function processBulkOperation(type, data, options = {}) {
                 }
             );
 
+            // Collect affected IDs
+            batch.forEach(item => {
+                if (item.id) affectedIds.add(item.id);
+            });
+
             results.push(result);
             logger.debug('Job added successfully', {
                 type,
@@ -2423,6 +2574,17 @@ async function processBulkOperation(type, data, options = {}) {
         } finally {
             activeJobs.delete(jobId);
         }
+    }
+
+    // Trigger background cache update
+    if (affectedIds.size > 0) {
+        updateCacheInBackground(type, Array.from(affectedIds)).catch(error => {
+            logger.error('Background cache update failed', {
+                error: error.message,
+                type,
+                affectedIdsCount: affectedIds.size
+            });
+        });
     }
 
     logger.info('Bulk operation completed', {
@@ -3200,7 +3362,8 @@ async function healthCheckController(req, res) {
 async function createProductController(req, res) {
     try {
         const result = await createProduct(req.body);
-        await Promise.all([invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
+        // Update cache immediately
+        await updateCacheInBackground('CREATE_PRODUCT', [result.rows[0].id]);
         res.success(result.rows[0], 'Product created successfully');
     } catch (error) {
         res.error(error);
@@ -3245,14 +3408,25 @@ async function bulkUpdateProductsController(req, res) {
         if (!Array.isArray(data) || data.length === 0) {
             return res.error('Invalid data array', 400);
         }
+
+        // Process the bulk operation
         const results = await processBulkOperation(type, data, options);
+
+        // Return success immediately with job IDs
         res.success(
             {
                 jobIds: results.map(r => r.id),
+                message: 'Bulk operation queued successfully. Cache will be updated in the background.'
             },
             'Bulk operation queued successfully'
         );
     } catch (error) {
+        logger.error('Bulk update failed', {
+            error: error.message,
+            stack: error.stack,
+            type: req.body.type,
+            dataLength: req.body.data?.length
+        });
         res.error(error.message);
     }
 }
@@ -3260,7 +3434,7 @@ async function bulkUpdateProductsController(req, res) {
 async function createCategoryController(req, res) {
     try {
         const result = await createCategory(req.body);
-        await Promise.all([invalidateCachePattern('api:categories:tree:*'), invalidateCachePattern('api:products:search:*')]);
+        await updateCacheInBackground('UPDATE_CATEGORY', [result.rows[0].id]);
         res.success(result.rows[0], 'Category created successfully');
     } catch (error) {
         res.error(error);
@@ -3283,7 +3457,7 @@ async function addCommentController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addComment(commentData);
-        await invalidateCachePattern(`/products/${req.params.productId}/comments`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Comment added successfully');
     } catch (error) {
         res.error(error);
@@ -3311,7 +3485,7 @@ async function addTagToProductController(req, res) {
     try {
         const { tag_name } = req.body;
         const result = await addTagToProduct(req.params.productId, tag_name);
-        await Promise.all([invalidateCachePattern(`/products/tags/${tag_name}`), invalidateCachePattern(`/products/${req.params.productId}`)]);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Tag added successfully');
     } catch (error) {
         res.error(error);
@@ -3398,7 +3572,7 @@ async function addPriceHistoryController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addPriceHistory(priceData);
-        await Promise.all([invalidateCachePattern(`api:products:price-history:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
+        await updateCacheInBackground('UPDATE_PRICE', [req.params.productId]);
         res.success(result.rows[0], 'Price history added successfully');
     } catch (error) {
         res.error(error);
@@ -3412,7 +3586,7 @@ async function addProductRelationshipController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductRelationship(relationshipData);
-        await invalidateCachePattern(`/products/${req.params.productId}/relationships`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product relationship added successfully');
     } catch (error) {
         res.error(error);
@@ -3435,7 +3609,7 @@ async function createProductVersionController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductVersion(versionData);
-        await invalidateCachePattern(`/products/${req.params.productId}/versions`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product version created successfully');
     } catch (error) {
         res.error(error);
@@ -3550,7 +3724,7 @@ async function createProductVariantController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductVariant(variantData);
-        await invalidateCachePattern(`/products/${req.params.productId}/variants`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product variant created successfully');
     } catch (error) {
         res.error(error);
@@ -3573,7 +3747,7 @@ async function addProductImageController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductImage(imageData);
-        await invalidateCachePattern(`/products/${req.params.productId}/images`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product image added successfully');
     } catch (error) {
         res.error(error);
@@ -3596,7 +3770,7 @@ async function updateInventoryController(req, res) {
             product_id: req.params.productId,
         };
         const result = await updateInventory(inventoryData);
-        await invalidateCachePattern(`/products/${req.params.productId}/inventory`);
+        await updateCacheInBackground('UPDATE_INVENTORY', [req.params.productId]);
         res.success(result.rows[0], 'Inventory updated successfully');
     } catch (error) {
         res.error(error);
@@ -3610,7 +3784,7 @@ async function addProductReviewController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductReview(reviewData);
-        await Promise.all([invalidateCachePattern(`api:products:reviews:${req.params.productId}:*`), invalidateCachePattern(`api:products:analytics:${req.params.productId}:*`)]);
+        await updateCacheInBackground('UPDATE_REVIEWS', [req.params.productId]);
         res.success(result.rows[0], 'Product review added successfully');
     } catch (error) {
         res.error(error);
@@ -3677,7 +3851,7 @@ async function addProductAttributeController(req, res) {
             product_id: req.params.productId,
         };
         const result = await addProductAttributeValue(attributeData);
-        await invalidateCachePattern(`/products/${req.params.productId}/attributes`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product attribute added successfully');
     } catch (error) {
         res.error(error);
@@ -3700,7 +3874,7 @@ async function createProductChatController(req, res) {
             product_id: req.params.productId,
         };
         const result = await createProductChat(chatData);
-        await invalidateCachePattern(`/products/${req.params.productId}/chats`);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.productId]);
         res.success(result.rows[0], 'Product chat created successfully');
     } catch (error) {
         res.error(error);
@@ -3898,7 +4072,8 @@ async function updateProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
+        // Update cache immediately
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.id]);
         res.success(result.rows[0], 'Product updated successfully');
     } catch (error) {
         res.error(error);
@@ -3913,8 +4088,9 @@ async function deleteProductController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*'), invalidateCachePattern('api:categories:tree:*')]);
-        res.success(result.rows[0], 'Product deleted successfully');
+        // Update cache immediately
+        await updateCacheInBackground('DELETE_PRODUCT', [req.params.id]);
+        res.success(null, 'Product deleted successfully');
     } catch (error) {
         res.error(error);
     }
@@ -3928,7 +4104,7 @@ async function updateProductStatusController(req, res) {
                 error: 'Product not found or already deleted',
             });
         }
-        await Promise.all([invalidateCachePattern(`api:products:${req.params.id}:*`), invalidateCachePattern('api:products:search:*')]);
+        await updateCacheInBackground('UPDATE_PRODUCT', [req.params.id]);
         res.success(result.rows[0], 'Product status updated successfully');
     } catch (error) {
         res.error(error);
@@ -3944,7 +4120,7 @@ async function bulkUpdateProductStatusController(req, res) {
             });
         }
         const result = await bulkUpdateProductStatus(productIds, status);
-        await invalidateCachePattern('api:products:search:*');
+        await updateCacheInBackground('UPDATE_PRODUCT', productIds);
         res.success(result.rows, 'Product statuses updated successfully');
     } catch (error) {
         res.error(error);
@@ -3978,3 +4154,102 @@ async function main() {
 }
 main();
 // ======================================================================
+
+async function flushCacheController(req, res) {
+    try {
+        const { patterns, type } = req.body;
+        
+        if (!patterns && !type) {
+            return res.error('Either patterns or type must be provided', 400);
+        }
+
+        let cachePatterns = [];
+        
+        if (type) {
+            // Define cache patterns based on type
+            const typePatterns = {
+                'products': [
+                    'api:products:*',
+                    'api:categories:tree:*'
+                ],
+                'categories': [
+                    'api:categories:*',
+                    'api:products:search:*'
+                ],
+                'all': [
+                    'api:*'
+                ]
+            };
+
+            cachePatterns = typePatterns[type] || [];
+        } else if (patterns) {
+            cachePatterns = Array.isArray(patterns) ? patterns : [patterns];
+        }
+
+        if (cachePatterns.length === 0) {
+            return res.error('No valid cache patterns provided', 400);
+        }
+
+        // Invalidate cache patterns
+        await invalidateCachePatterns(cachePatterns);
+
+        // If type is provided, warm up the cache
+        if (type) {
+            await warmCacheForType(type);
+        }
+
+        res.success({
+            message: 'Cache flushed successfully',
+            patterns: cachePatterns,
+            type
+        });
+    } catch (error) {
+        logger.error('Cache flush failed', {
+            error: error.message,
+            stack: error.stack,
+            body: req.body
+        });
+        res.error(error.message);
+    }
+}
+
+async function warmCacheForType(type) {
+    try {
+        logger.info('Starting cache warm-up for type', { type });
+
+        switch (type) {
+            case 'products':
+                // Warm up product search cache
+                const products = await searchProducts({ limit: 100 });
+                if (products.items) {
+                    for (const product of products.items) {
+                        const key = `api:products:${product.id}:details`;
+                        await redisClient.setEx(key, CACHE_TTL.PRODUCT, JSON.stringify(product));
+                    }
+                }
+                break;
+
+            case 'categories':
+                // Warm up category tree cache
+                const categories = await getCategoryTree();
+                if (categories.rows) {
+                    const key = 'api:categories:tree:all';
+                    await redisClient.setEx(key, CACHE_TTL.CATEGORY, JSON.stringify(categories.rows));
+                }
+                break;
+
+            case 'all':
+                // Warm up all caches
+                await warmCache();
+                break;
+        }
+
+        logger.info('Cache warm-up completed for type', { type });
+    } catch (error) {
+        logger.error('Cache warm-up failed', {
+            error: error.message,
+            type
+        });
+        throw error;
+    }
+}
