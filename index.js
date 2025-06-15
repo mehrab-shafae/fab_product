@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const schemaConfig = JSON.parse(readFileSync(join(__dirname, 'database-schema.json'), 'utf8'));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5003;
 const POSTGRES_URI = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 
 const { combine, timestamp, printf, colorize } = format;

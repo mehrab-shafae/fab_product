@@ -5,11 +5,9 @@ info:
   description: API for managing products and related features
 
 servers:
-  - url: http://localhost:3000/api/product/v1
+  - url: http://localhost:5003/api/product/v1
     description: Product API endpoints
-  - url: http://localhost:5000/api/product/v1
-    description: Product API endpoints
-  - url: http://localhost:3000
+  - url: http://localhost:5003
     description: System endpoints
 
 components:
