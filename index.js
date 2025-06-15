@@ -160,7 +160,6 @@ const logger = createLogger({
 });
 
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
-
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 const limiter = rateLimit({
@@ -2452,6 +2451,18 @@ async function getProductStatisticsController(req, res) {
       }
 }
 
+async function getCategoryBySlugController(req, res) {
+      try {
+            const result = await getCategoryBySlug(req.params.slug);
+            if (result.rows.length === 0) {
+                  return res.error('Category not found', 404);
+            }
+            res.success(result.rows[0]);
+      } catch (error) {
+            res.error(error);
+      }
+}
+
 // ======================================================================
 
 function scheduleMaterializedViewRefresh() {
@@ -2464,15 +2475,3 @@ async function main() {
 }
 main();
 // ======================================================================
-
-async function getCategoryBySlugController(req, res) {
-      try {
-            const result = await getCategoryBySlug(req.params.slug);
-            if (result.rows.length === 0) {
-                  return res.error('Category not found', 404);
-            }
-            res.success(result.rows[0]);
-      } catch (error) {
-            res.error(error);
-      }
-}
