@@ -165,42 +165,35 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 const limiter = rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: isDevelopment ? 0 : 250, // 0 means no limit in development
+      max: isDevelopment ? 0 : 250,
       message: 'Too many requests from this IP, please try again later.',
 });
 
 const speedLimiter = slowDown({
       windowMs: 15 * 60 * 1000,
-      delayAfter: isDevelopment ? 100 : 50, // Double the threshold in development
+      delayAfter: isDevelopment ? 100 : 50,
       delayMs: (used, req) => {
-            // Base delay calculation
-            const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500); // Half the delay in development
+            const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500);
 
-            // Adjust delay based on HTTP method
             const methodMultiplier =
                   {
-                        GET: 0.5, // Less delay for GET requests
-                        POST: 2.0, // More delay for POST requests
-                        PUT: 1.5, // Moderate delay for PUT requests
-                        DELETE: 1.5, // Moderate delay for DELETE requests
-                        PATCH: 1.5, // Moderate delay for PATCH requests
+                        GET: 0.5,
+                        POST: 2.0,
+                        PUT: 1.5,
+                        DELETE: 1.5,
+                        PATCH: 1.5,
                   }[req.method] || 1.0;
 
-            // Check if the route has caching
             const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
 
-            // Adjust delay based on caching status
             const cacheMultiplier = hasCaching ? 0.3 : 1.0;
 
-            // Calculate final delay
             const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
 
-            // Ensure minimum delay for non-cached routes
-            return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200); // Half the minimum delay in development
+            return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200);
       },
       keyGenerator: req => {
-            // Generate key based on IP and route pattern
-            const routePattern = req.originalUrl.split('/')[1]; // Get first part of route
+            const routePattern = req.originalUrl.split('/')[1];
             return `${req.ip}:${routePattern}`;
       },
       // skip: (req) => {
@@ -1730,7 +1723,6 @@ function validateRequiredFieldsMiddleware(requiredFields) {
 }
 
 function validateCategoryMiddleware(req, res, next) {
-      // Only validate body for POST and PUT requests
       if (req.method === 'POST' || req.method === 'PUT') {
             const { name, parent_id } = req.body;
 
