@@ -305,16 +305,18 @@ async function init() {
             await sequelize.authenticate();
             console.log('Sequelize connection has been established successfully.');
             
+            // Create database schema first
+            await createDatabaseSchema();
+            console.log('Database schema created successfully.');
+            
             // Sync models with database without altering the schema
             await sequelize.sync({ alter: false });
             console.log('Database synchronized successfully.');
 
-            // if (false) optimizeSystemForService();
-
+            // Create materialized views and indexes
             await createMaterializedViews();
             await createMaterializedViewIndexes();
             await refreshMaterializedViews();
-
             await createOptimizedIndexes();
 
             scheduleMaterializedViewRefresh();

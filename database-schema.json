@@ -69,6 +69,30 @@
                   "version": 9,
                   "name": "Add unique index for name and slug",
                   "queries": ["DROP INDEX IF EXISTS categories_name_slug_key", "CREATE UNIQUE INDEX IF NOT EXISTS categories_name_slug_key ON categories(name, slug) WHERE deleted_at IS NULL"]
+            },
+            {
+                  "version": 10,
+                  "name": "Enhance categories table with additional fields",
+                  "queries": [
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS path INTEGER[] DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS \"order\" INTEGER DEFAULT 0",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_url VARCHAR(500)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_title VARCHAR(255)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_description TEXT",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_keywords VARCHAR(255)[] DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS attributes JSONB DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'",
+                        "CREATE INDEX IF NOT EXISTS categories_parent_id_idx ON categories(parent_id)",
+                        "CREATE INDEX IF NOT EXISTS categories_level_idx ON categories(level)",
+                        "CREATE INDEX IF NOT EXISTS categories_status_idx ON categories(status)",
+                        "CREATE INDEX IF NOT EXISTS categories_is_featured_idx ON categories(is_featured)",
+                        "CREATE INDEX IF NOT EXISTS categories_order_idx ON categories(\"order\")"
+                  ]
             }
       ],
       "indexes": [
