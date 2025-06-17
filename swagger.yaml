@@ -51,9 +51,24 @@ components:
         name:
           type: string
           description: Category name
+        slug:
+          type: string
+          description: Category slug
         parent_id:
           type: integer
           description: Parent category ID
+        status:
+          type: string
+          enum: [active, inactive]
+          description: Category status
+        is_featured:
+          type: boolean
+          description: Whether the category is featured
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+          description: Child categories
         created_at:
           type: string
           format: date-time
@@ -508,6 +523,7 @@ paths:
                 properties:
                   status:
                     type: string
+                    enum: [ok, error]
                     description: System status
                   timestamp:
                     type: string
@@ -516,65 +532,38 @@ paths:
                   services:
                     type: object
                     properties:
-                      postgres:
+                      database:
                         type: string
-                        description: PostgreSQL connection status
-                      redis:
-                        type: object
-                        properties:
-                          status:
-                            type: string
-                            description: Redis connection status
-                          lastError:
-                            type: string
-                            description: Last Redis error
-                  cache:
-                    type: object
-                    properties:
-                      enabled:
-                        type: boolean
-                        description: Cache status
-                      warming:
-                        type: object
-                        properties:
-                          lastRun:
-                            type: string
-                            format: date-time
-                            description: Last cache warming run
-                          status:
-                            type: string
-                            description: Cache warming status
+                        description: Database connection status
+                      cache:
+                        type: string
+                        description: Cache service status
+                  version:
+                    type: string
+                    description: API version
 
   /flush:
     post:
       summary: Flush system cache
       tags: [System]
       description: |
-        Flush all cached data from the system. Either patterns or type must be provided.
+        Flush all cached data from the system
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              oneOf:
-                - type: object
-                  required:
-                    - patterns
-                  properties:
-                    patterns:
-                      type: array
-                      items:
-                        type: string
-                      description: Array of cache patterns to flush
-                - type: object
-                  required:
-                    - type
-                  properties:
-                    type:
-                      type: string
-                      enum: [products, categories, all]
-                      description: Type of cache to flush
+              properties:
+                patterns:
+                  type: array
+                  items:
+                    type: string
+                  description: Cache patterns to flush
+                type:
+                  type: string
+                  enum: [products, categories, all]
+                  description: Type of cache to flush
       responses:
         '200':
           description: Cache flushed successfully
@@ -594,27 +583,6 @@ paths:
                   type:
                     type: string
                     description: Type of cache that was flushed
-        '400':
-          description: Bad request - missing required parameters
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  status:
-                    type: string
-                    enum: [error]
-                  message:
-                    type: string
-                    description: Error message
-                  data:
-                    type: null
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
   /jobs/{jobId}/status:
     get:
@@ -2544,8 +2512,17 @@ paths:
                 parent_id:
                   type: integer
                   description: Parent category ID
+                status:
+                  type: string
+                  enum: [active, inactive]
+                  default: active
+                  description: Category status
+                is_featured:
+                  type: boolean
+                  default: false
+                  description: Whether the category is featured
       responses:
-        '200':
+        '201':
           description: Category created successfully
           content:
             application/json:
@@ -2557,12 +2534,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+
     get:
       summary: Get all categories
       tags: [Categories]
       description: |
         Get a list of all categories in the system
       parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Filter by category status
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+            default: false
+          description: Include inactive categories
         - in: query
           name: page
           schema:
@@ -2609,177 +2599,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /categories/tree:
-    get:
-      summary: Get category tree
-      tags: [Categories]
-      description: |
-        Get the complete category tree structure
-      responses:
-        '200':
-          description: Category tree
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /products/tags/{tagName}:
-    get:
-      summary: Get products by tag
-      tags: [Products]
-      parameters:
-        - in: path
-          name: tagName
-          required: true
-          schema:
-            type: string
-          description: Tag name
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          description: Page number
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          description: Number of items per page
-      responses:
-        '200':
-          description: List of products with the specified tag
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Product'
-
-  /products/{productId}/comments:
-    post:
-      summary: Add comment to product
-      tags: [Comments]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema:
-            type: integer
-          description: Product ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - content
-                - user_id
-              properties:
-                content:
-                  type: string
-                  description: Comment content
-                user_id:
-                  type: string
-                  description: User hash ID
-      responses:
-        '200':
-          description: Comment added successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Comment'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-    get:
-      summary: Get product comments
-      tags: [Comments]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema:
-            type: integer
-          description: Product ID
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          description: Page number
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          description: Number of items per page
-      responses:
-        '200':
-          description: List of comments
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/PaginatedResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Comment'
-
-  /products/{productId}/tags:
-    post:
-      summary: Add tag to product
-      tags: [Products]
-      parameters:
-        - in: path
-          name: productId
-          required: true
-          schema:
-            type: integer
-          description: Product ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - tag_name
-              properties:
-                tag_name:
-                  type: string
-                  description: Tag name
-      responses:
-        '200':
-          description: Tag added successfully
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
   /categories/{id}:
     get:
       summary: Get category by ID
@@ -2793,40 +2612,25 @@ paths:
           schema:
             type: integer
           description: Category ID
+        - in: query
+          name: includeChildren
+          schema:
+            type: boolean
+            default: true
+          description: Include child categories
+        - in: query
+          name: depth
+          schema:
+            type: integer
+            default: 2
+          description: Depth of child categories to include
       responses:
         '200':
           description: Category details
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  id:
-                    type: integer
-                    description: Category ID
-                  name:
-                    type: string
-                    description: Category name
-                  parent_id:
-                    type: integer
-                    description: Parent category ID
-                  parent_name:
-                    type: string
-                    description: Parent category name
-                  product_count:
-                    type: integer
-                    description: Number of products in this category
-                  subcategory_count:
-                    type: integer
-                    description: Number of subcategories
-                  created_at:
-                    type: string
-                    format: date-time
-                    description: Creation timestamp
-                  updated_at:
-                    type: string
-                    format: date-time
-                    description: Last update timestamp
+                $ref: '#/components/schemas/Category'
         '404':
           description: Category not found
           content:
@@ -2839,7 +2643,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    
+
     put:
       summary: Update category
       tags: [Categories]
@@ -2865,6 +2669,13 @@ paths:
                 parent_id:
                   type: integer
                   description: New parent category ID
+                status:
+                  type: string
+                  enum: [active, inactive]
+                  description: New category status
+                is_featured:
+                  type: boolean
+                  description: Whether the category is featured
       responses:
         '200':
           description: Category updated successfully
@@ -2884,7 +2695,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-    
+
     delete:
       summary: Delete category
       tags: [Categories]
@@ -2917,6 +2728,41 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /categories/tree:
+    get:
+      summary: Get category tree
+      tags: [Categories]
+      description: |
+        Get the complete category tree structure
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Filter by category status
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+            default: false
+          description: Include inactive categories
+      responses:
+        '200':
+          description: Category tree
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /categories/search:
     get:
       summary: Search categories
@@ -2935,11 +2781,17 @@ paths:
             type: integer
           description: Filter by parent category ID
         - in: query
-          name: include_deleted
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive]
+          description: Filter by category status
+        - in: query
+          name: includeInactive
           schema:
             type: boolean
             default: false
-          description: Include soft-deleted categories
+          description: Include inactive categories
         - in: query
           name: page
           schema:
@@ -2999,6 +2851,18 @@ paths:
           schema:
             type: string
           description: Category slug
+        - in: query
+          name: includeChildren
+          schema:
+            type: boolean
+            default: true
+          description: Include child categories
+        - in: query
+          name: depth
+          schema:
+            type: integer
+            default: 2
+          description: Depth of child categories to include
       responses:
         '200':
           description: Category details
@@ -3076,5 +2940,33 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error' 
+                $ref: '#/components/schemas/Error'
+
+  /categories/featured:
+    get:
+      summary: Get featured categories
+      tags: [Categories]
+      description: |
+        Get a list of featured categories
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of categories to return
+      responses:
+        '200':
+          description: List of featured categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/Error' 

@@ -14,6 +14,18 @@ router.post('/', validateRequiredFieldsMiddleware(['name']), async (req, res) =>
     }
 });
 
+// Get featured categories
+router.get('/featured', async (req, res) => {
+    try {
+        const categories = await categoryService.getFeaturedCategories(
+            parseInt(req.query.limit) || 10
+        );
+        res.json(categories);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Get category by ID
 router.get('/:id', async (req, res) => {
     try {
@@ -129,18 +141,6 @@ router.post('/reorder', validateRequiredFieldsMiddleware(['orderedIds']), async 
     try {
         const result = await categoryService.reorderCategories(req.body.orderedIds);
         res.json(result);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get featured categories
-router.get('/featured', async (req, res) => {
-    try {
-        const categories = await categoryService.getFeaturedCategories(
-            parseInt(req.query.limit) || 10
-        );
-        res.json(categories);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
