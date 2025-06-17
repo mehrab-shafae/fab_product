@@ -13,6 +13,8 @@ import { dirname, join } from 'path';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
+import { sequelize } from './src/models/index.js';
+import categoryRoutes from './src/routes/categoryRoutes.js';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -299,7 +301,13 @@ async function init() {
       app.get('/health', healthCheckController);
 
       try {
-            await createDatabaseSchema();
+            // Initialize Sequelize
+            await sequelize.authenticate();
+            console.log('Sequelize connection has been established successfully.');
+            
+            // Sync models with database without altering the schema
+            await sequelize.sync({ alter: false });
+            console.log('Database synchronized successfully.');
 
             // if (false) optimizeSystemForService();
 
@@ -340,7 +348,7 @@ async function init() {
 
 function apiV1Routers(app) {
       app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), requestLogger, createProductController);
-      app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
+      //app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
       app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), validateProductIdMiddleware, requestLogger, addCommentController);
       app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), validateProductIdMiddleware, requestLogger, addTagToProductController);
       app.post('/products/:productId/chats', validateProductIdMiddleware, requestLogger, createProductChatController);
@@ -356,12 +364,12 @@ function apiV1Routers(app) {
       app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, addPriceHistoryController);
       app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), validateProductIdMiddleware, requestLogger, addProductRelationshipController);
       app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), validateProductIdMiddleware, requestLogger, createProductVersionController);
-      app.post('/categories/bulk-update', validateCategoryMiddleware, requestLogger, bulkUpdateCategoriesController);
+      //app.post('/categories/bulk-update', validateCategoryMiddleware, requestLogger, bulkUpdateCategoriesController);
 
       app.get('/products', paginateResults, requestLogger, searchProductsController);
       app.get('/products/:id', validateProductIdMiddleware, requestLogger, getProductByIdController);
-      app.get('/categories', paginateResults, requestLogger, getCategoriesController);
-      app.get('/categories/tree', requestLogger, getCategoryTreeController);
+      //app.get('/categories', paginateResults, requestLogger, getCategoriesController);
+      //app.get('/categories/tree', requestLogger, getCategoryTreeController);
       app.get('/products/:productId/comments', validateProductIdMiddleware, paginateResults, requestLogger, getProductCommentsController);
       app.get('/products/tags/:tagName', paginateResults, requestLogger, getProductsByTagController);
       app.get('/products/search/document', validateRequiredFieldsMiddleware(['q']), paginateResults, requestLogger, searchProductDocumentsController);
@@ -369,7 +377,7 @@ function apiV1Routers(app) {
       app.get('/chats/:chatId/messages', paginateResults, requestLogger, getChatMessagesController);
       app.get('/products/statistics', requestLogger, getProductStatisticsController);
       app.get('/products/:productId/analytics', validateProductIdMiddleware, requestLogger, getProductAnalyticsController);
-      app.get('/categories/:categoryId/analytics', validateCategoryMiddleware, requestLogger, getCategoryAnalyticsController);
+      //app.get('/categories/:categoryId/analytics', validateCategoryMiddleware, requestLogger, getCategoryAnalyticsController);
       app.get('/products/:productId/attributes', validateProductIdMiddleware, requestLogger, getProductAttributesController);
       app.get('/products/:productId/price-history', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getProductPriceHistoryController);
       app.get('/products/:productId/price-statistics', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getProductPriceStatisticsController);
@@ -380,18 +388,21 @@ function apiV1Routers(app) {
       app.get('/products/:id/price-trends', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getPriceTrendsController);
       app.get('/products/:productId/relationships', validateProductIdMiddleware, requestLogger, getProductRelationshipsController);
       app.get('/products/:productId/versions', validateProductIdMiddleware, requestLogger, getProductVersionsController);
-      app.get('/categories/:id', validateCategoryMiddleware, requestLogger, getCategoryByIdController);
-      app.get('/categories/search', paginateResults, requestLogger, searchCategoriesController);
-      app.get('/categories/slug/:slug', requestLogger, getCategoryBySlugController);
+      //app.get('/categories/:id', validateCategoryMiddleware, requestLogger, getCategoryByIdController);
+      //app.get('/categories/search', paginateResults, requestLogger, searchCategoriesController);
+      //app.get('/categories/slug/:slug', requestLogger, getCategoryBySlugController);
 
       app.put('/products/:id', validateRequiredFieldsMiddleware(['name', 'price', 'description']), validateProductIdMiddleware, requestLogger, updateProductController);
-      app.put('/categories/:id', validateCategoryMiddleware, requestLogger, updateCategoryController);
+      //app.put('/categories/:id', validateCategoryMiddleware, requestLogger, updateCategoryController);
 
       app.delete('/products/:id', validateProductIdMiddleware, requestLogger, deleteProductController);
-      app.delete('/categories/:id', validateCategoryMiddleware, requestLogger, deleteCategoryController);
+      //app.delete('/categories/:id', validateCategoryMiddleware, requestLogger, deleteCategoryController);
 
       app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
       app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
+
+      // Add category routes
+      app.use('/categories', categoryRoutes);
 }
 
 // function executeLinuxCommand(command) {
