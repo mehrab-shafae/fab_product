@@ -7,6 +7,9 @@ export const categoryController = {
             const category = await categoryService.create(req.body);
             res.success(category, 'Category created successfully');
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.error('A category with this name or slug already exists', 409);
+            }
             res.error(error);
         }
     },
@@ -56,6 +59,9 @@ export const categoryController = {
             }
             res.success(category, 'Category updated successfully');
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.error('A category with this name or slug already exists', 409);
+            }
             res.error(error);
         }
     },
@@ -96,6 +102,9 @@ export const categoryController = {
             const results = await categoryService.bulkUpdate(req.body);
             res.success(results, 'Categories updated successfully');
         } catch (error) {
+            if (error.name === 'SequelizeUniqueConstraintError') {
+                return res.error('A category with this name or slug already exists', 409);
+            }
             res.error(error);
         }
     },

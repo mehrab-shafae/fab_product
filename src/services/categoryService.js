@@ -1,11 +1,24 @@
 import { Category } from '../models/index.js';
 import { Op } from 'sequelize';
-import slugify from 'slugify';
+import { generateCategorySlug } from '../utils/slugGenerator.js';
 
 export const categoryService = {
     // Create a new category
     async create(categoryData) {
-        const slug = slugify(categoryData.name, { lower: true });
+        const { name, parent_id } = categoryData;
+        
+        // Get parent category if exists
+        let parentSlug = null;
+        if (parent_id) {
+            const parentCategory = await Category.findByPk(parent_id);
+            if (parentCategory) {
+                parentSlug = parentCategory.slug;
+            }
+        }
+
+        // Generate slug
+        const slug = await generateCategorySlug(name, parentSlug, Category);
+
         return await Category.create({
             ...categoryData,
             slug
@@ -61,8 +74,23 @@ export const categoryService = {
         const category = await Category.findByPk(id);
         if (!category) return null;
 
-        if (categoryData.name) {
-            categoryData.slug = slugify(categoryData.name, { lower: true });
+        const { name, parent_id } = categoryData;
+        
+        // If name or parent_id changed, regenerate slug
+        if (name || parent_id) {
+            let parentSlug = null;
+            if (parent_id) {
+                const parentCategory = await Category.findByPk(parent_id);
+                if (parentCategory) {
+                    parentSlug = parentCategory.slug;
+                }
+            }
+
+            categoryData.slug = await generateCategorySlug(
+                name || category.name,
+                parentSlug,
+                Category
+            );
         }
 
         return await category.update(categoryData);
@@ -130,20 +158,39 @@ export const categoryService = {
     async bulkUpdate(categories) {
         const results = await Promise.all(
             categories.map(async (category) => {
-                if (category.name) {
-                    category.slug = slugify(category.name, { lower: true });
+                const { id, name, parent_id } = category;
+                const existingCategory = await Category.findByPk(id);
+                
+                if (!existingCategory) return null;
+
+                // If name or parent_id changed, regenerate slug
+                if (name || parent_id) {
+                    let parentSlug = null;
+                    if (parent_id) {
+                        const parentCategory = await Category.findByPk(parent_id);
+                        if (parentCategory) {
+                            parentSlug = parentCategory.slug;
+                        }
+                    }
+
+                    category.slug = await generateCategorySlug(
+                        name || existingCategory.name,
+                        parentSlug,
+                        Category
+                    );
                 }
+
                 const [updatedCategory] = await Category.update(
                     category,
                     {
-                        where: { id: category.id },
+                        where: { id },
                         returning: true
                     }
                 );
                 return updatedCategory;
             })
         );
-        return results;
+        return results.filter(Boolean);
     },
 
     // Get category path (breadcrumb)
