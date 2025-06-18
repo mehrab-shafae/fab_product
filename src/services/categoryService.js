@@ -1,4 +1,4 @@
-import { Category } from '../models/index.js';
+import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from '../models/index.js';
 import { Op } from 'sequelize';
 import { generateCategorySlug } from '../utils/slugGenerator.js';
 
@@ -365,5 +365,105 @@ export const categoryService = {
                 required: false
             }]
         });
-    }
+    },
+
+    // Category Attribute Management
+    async addAttribute(categoryId, attributeData) {
+        return await CategoryAttribute.create({
+            ...attributeData,
+            category_id: categoryId
+        });
+    },
+    async updateAttribute(attributeId, attributeData) {
+        const attr = await CategoryAttribute.findByPk(attributeId);
+        if (!attr) return null;
+        return await attr.update(attributeData);
+    },
+    async deleteAttribute(attributeId) {
+        const attr = await CategoryAttribute.findByPk(attributeId);
+        if (!attr) return false;
+        await attr.destroy();
+        return true;
+    },
+    async getAttributes(categoryId) {
+        return await CategoryAttribute.findAll({
+            where: { category_id: categoryId },
+            include: [{ model: CategoryAttributeOption, as: 'options' }],
+            order: [['order', 'ASC'], ['id', 'ASC']]
+        });
+    },
+    // Category Attribute Option Management
+    async addAttributeOption(attributeId, value, order = 0) {
+        return await CategoryAttributeOption.create({
+            category_attribute_id: attributeId,
+            value,
+            order
+        });
+    },
+    async updateAttributeOption(optionId, value, order) {
+        const opt = await CategoryAttributeOption.findByPk(optionId);
+        if (!opt) return null;
+        return await opt.update({ value, order });
+    },
+    async deleteAttributeOption(optionId) {
+        const opt = await CategoryAttributeOption.findByPk(optionId);
+        if (!opt) return false;
+        await opt.destroy();
+        return true;
+    },
+    async getAttributeOptions(attributeId) {
+        return await CategoryAttributeOption.findAll({
+            where: { category_attribute_id: attributeId },
+            order: [['order', 'ASC'], ['id', 'ASC']]
+        });
+    },
+    // دریافت attributeهای اجباری یک دسته و والدهایش
+    async getRequiredAttributesForCategory(categoryId) {
+        // دریافت همه attributeهای اجباری این دسته و والدهایش (سلسله‌مراتبی)
+        let attributes = [];
+        let currentCategoryId = categoryId;
+        while (currentCategoryId) {
+            const attrs = await CategoryAttribute.findAll({
+                where: { category_id: currentCategoryId, required: true },
+                include: [{ model: CategoryAttributeOption, as: 'options' }]
+            });
+            attributes = [...attrs, ...attributes];
+            const cat = await Category.findByPk(currentCategoryId);
+            currentCategoryId = cat && cat.parent_id ? cat.parent_id : null;
+        }
+        return attributes;
+    },
+    // ساخت محصول با اعتبارسنجی attributeهای اجباری و ذخیره مقادیر آن‌ها
+    async createProductWithAttributes(productData, attributeValues) {
+        // productData: {name, price, description, category_id, ...}
+        // attributeValues: [{category_attribute_id, value}]
+        const requiredAttrs = await this.getRequiredAttributesForCategory(productData.category_id);
+        // اعتبارسنجی attributeهای اجباری
+        for (const attr of requiredAttrs) {
+            const val = attributeValues.find(v => v.category_attribute_id == attr.id);
+            if (!val || val.value === undefined || val.value === null || val.value === '') {
+                throw new Error(`Attribute '${attr.name}' is required`);
+            }
+            if (attr.type === 'number' && isNaN(Number(val.value))) {
+                throw new Error(`Attribute '${attr.name}' must be a number`);
+            }
+            if (attr.type === 'enum') {
+                const allowed = attr.options.map(o => o.value);
+                if (!allowed.includes(val.value)) {
+                    throw new Error(`Attribute '${attr.name}' must be one of: ${allowed.join(', ')}`);
+                }
+            }
+        }
+        // ساخت محصول
+        const product = await Product.create(productData);
+        // ذخیره attributeها
+        for (const attrVal of attributeValues) {
+            await ProductAttributeValue.create({
+                product_id: product.id,
+                category_attribute_id: attrVal.category_attribute_id,
+                value: attrVal.value
+            });
+        }
+        return product;
+    },
 }; 

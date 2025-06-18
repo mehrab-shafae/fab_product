@@ -15,6 +15,7 @@ import helmet from 'helmet';
 import YAML from 'yamljs';
 import { sequelize } from './src/models/index.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
+import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './src/models/index.js';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -1771,12 +1772,18 @@ async function healthCheckController(req, res) {
 }
 
 async function createProductController(req, res) {
-      try {
-            const result = await createProduct(req.body);
+    try {
+        const { attributes, ...productData } = req.body;
+        if (attributes && Array.isArray(attributes)) {
+            const product = await createProductWithAttributes(productData, attributes);
+            res.success(product, 'Product created successfully');
+        } else {
+            const result = await createProduct(productData);
             res.success(result.rows[0], 'Product created successfully');
-      } catch (error) {
-            res.error(error);
-      }
+        }
+    } catch (error) {
+        res.error(error);
+    }
 }
 
 async function getProductByIdController(req, res) {
@@ -2488,3 +2495,48 @@ async function main() {
 }
 main();
 // ======================================================================
+
+async function createProductWithAttributes(productData, attributeValues) {
+    // productData: {name, price, description, category_id, ...}
+    // attributeValues: [{category_attribute_id, value}]
+    // دریافت attributeهای اجباری دسته و والدها
+    let attributes = [];
+    let currentCategoryId = productData.category_id;
+    while (currentCategoryId) {
+        const attrs = await CategoryAttribute.findAll({
+            where: { category_id: currentCategoryId, required: true },
+            include: [{ model: CategoryAttributeOption, as: 'options' }]
+        });
+        attributes = [...attrs, ...attributes];
+        const cat = await Category.findByPk(currentCategoryId);
+        currentCategoryId = cat && cat.parent_id ? cat.parent_id : null;
+    }
+    // اعتبارسنجی attributeهای اجباری
+    for (const attr of attributes) {
+        const val = attributeValues.find(v => v.category_attribute_id == attr.id);
+        if (!val || val.value === undefined || val.value === null || val.value === '') {
+            throw new Error(`Attribute '${attr.name}' is required`);
+        }
+        if (attr.type === 'number' && isNaN(Number(val.value))) {
+            throw new Error(`Attribute '${attr.name}' must be a number`);
+        }
+        if (attr.type === 'enum') {
+            const allowed = attr.options.map(o => o.value);
+            if (!allowed.includes(val.value)) {
+                throw new Error(`Attribute '${attr.name}' must be one of: ${allowed.join(', ')}`);
+            }
+        }
+    }
+    // ساخت محصول
+    const result = await createProduct(productData);
+    const product = result.rows[0];
+    // ذخیره attributeها
+    for (const attrVal of attributeValues) {
+        await ProductAttributeValue.create({
+            product_id: product.id,
+            category_attribute_id: attrVal.category_attribute_id,
+            value: attrVal.value
+        });
+    }
+    return product;
+}

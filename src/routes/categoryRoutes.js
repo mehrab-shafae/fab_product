@@ -156,4 +156,86 @@ router.put('/bulk', validateRequiredFieldsMiddleware(['categories']), async (req
     }
 });
 
+// Category Attribute APIs
+router.post('/:categoryId/attributes', async (req, res) => {
+    try {
+        const attr = await categoryService.addAttribute(req.params.categoryId, req.body);
+        res.status(201).json(attr);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.get('/:categoryId/attributes', async (req, res) => {
+    try {
+        const attrs = await categoryService.getAttributes(req.params.categoryId);
+        res.json(attrs);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.put('/attributes/:attributeId', async (req, res) => {
+    try {
+        const attr = await categoryService.updateAttribute(req.params.attributeId, req.body);
+        if (!attr) return res.status(404).json({ error: 'Attribute not found' });
+        res.json(attr);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.delete('/attributes/:attributeId', async (req, res) => {
+    try {
+        const ok = await categoryService.deleteAttribute(req.params.attributeId);
+        if (!ok) return res.status(404).json({ error: 'Attribute not found' });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+// Category Attribute Option APIs
+router.post('/attributes/:attributeId/options', async (req, res) => {
+    try {
+        const opt = await categoryService.addAttributeOption(req.params.attributeId, req.body.value, req.body.order);
+        res.status(201).json(opt);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.get('/attributes/:attributeId/options', async (req, res) => {
+    try {
+        const opts = await categoryService.getAttributeOptions(req.params.attributeId);
+        res.json(opts);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.put('/options/:optionId', async (req, res) => {
+    try {
+        const opt = await categoryService.updateAttributeOption(req.params.optionId, req.body.value, req.body.order);
+        if (!opt) return res.status(404).json({ error: 'Option not found' });
+        res.json(opt);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+router.delete('/options/:optionId', async (req, res) => {
+    try {
+        const ok = await categoryService.deleteAttributeOption(req.params.optionId);
+        if (!ok) return res.status(404).json({ error: 'Option not found' });
+        res.status(204).send();
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ساخت محصول با attributeها
+router.post('/products-with-attributes', async (req, res) => {
+    try {
+        const { product, attributes } = req.body; // product: {name, price, ...}, attributes: [{category_attribute_id, value}]
+        const created = await categoryService.createProductWithAttributes(product, attributes);
+        res.status(201).json(created);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
+
 export default router; 
