@@ -66,7 +66,7 @@ const Category = sequelize.define('Category', {
         type: DataTypes.ARRAY(DataTypes.STRING),
         defaultValue: []
     },
-    attributes: {
+    attribute_metadata: {
         type: DataTypes.JSONB,
         defaultValue: {}
     },

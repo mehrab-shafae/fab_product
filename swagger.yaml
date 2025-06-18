@@ -506,6 +506,57 @@ components:
               type: integer
               description: Total number of pages
 
+    CategoryAttribute:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Attribute ID
+        category_id:
+          type: integer
+          description: Category ID
+        name:
+          type: string
+          description: Attribute name
+        type:
+          type: string
+          enum: [text, number, select, multiselect]
+          description: Attribute type
+        required:
+          type: boolean
+          description: Whether the attribute is required
+        order:
+          type: integer
+          description: Display order
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CategoryAttributeOption:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Option ID
+        attribute_id:
+          type: integer
+          description: Attribute ID
+        value:
+          type: string
+          description: Option value
+        order:
+          type: integer
+          description: Display order
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
 paths:
   /health:
     get:
@@ -625,7 +676,7 @@ paths:
       summary: Create a new product
       tags: [Products]
       description: |
-        Create a new product in the system
+        Create a new product in the system with detailed information
       requestBody:
         required: true
         content:
@@ -652,6 +703,15 @@ paths:
                 metadata:
                   type: object
                   description: Additional product metadata
+            example:
+              name: "iPhone 13 Pro"
+              description: "Latest iPhone model with advanced camera system"
+              price: 999.99
+              category_id: 2
+              metadata:
+                color: "Graphite"
+                storage: "256GB"
+                warranty: "1 year"
       responses:
         '200':
           description: Product created successfully
@@ -659,6 +719,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Product'
+              example:
+                id: 1
+                name: "iPhone 13 Pro"
+                description: "Latest iPhone model with advanced camera system"
+                price: 999.99
+                category_id: 2
+                metadata:
+                  color: "Graphite"
+                  storage: "256GB"
+                  warranty: "1 year"
+                created_at: "2024-03-20T10:00:00Z"
+                updated_at: "2024-03-20T10:00:00Z"
         '500':
           description: Server error
           content:
@@ -670,7 +742,7 @@ paths:
       summary: Get a paginated list of products
       tags: [Products]
       description: |
-        Get a paginated list of products
+        Get a paginated list of products with optional filters
       parameters:
         - in: query
           name: page
@@ -684,6 +756,27 @@ paths:
             type: integer
             default: 10
           description: Number of items per page
+        - in: query
+          name: category_id
+          schema:
+            type: integer
+          description: Filter by category ID
+        - in: query
+          name: min_price
+          schema:
+            type: number
+          description: Minimum price filter
+        - in: query
+          name: max_price
+          schema:
+            type: number
+          description: Maximum price filter
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [price_asc, price_desc, name_asc, name_desc, newest]
+          description: Sort order
       responses:
         '200':
           description: List of products
@@ -701,16 +794,31 @@ paths:
                     properties:
                       page:
                         type: integer
-                        description: Current page number
                       limit:
                         type: integer
-                        description: Items per page
                       total:
                         type: integer
-                        description: Total number of items
                       pages:
                         type: integer
-                        description: Total number of pages
+              example:
+                data:
+                  - id: 1
+                    name: "iPhone 13 Pro"
+                    description: "Latest iPhone model"
+                    price: 999.99
+                    category_id: 2
+                    created_at: "2024-03-20T10:00:00Z"
+                  - id: 2
+                    name: "Samsung Galaxy S21"
+                    description: "Latest Samsung flagship"
+                    price: 799.99
+                    category_id: 2
+                    created_at: "2024-03-20T09:00:00Z"
+                pagination:
+                  page: 1
+                  limit: 10
+                  total: 50
+                  pages: 5
         '500':
           description: Server error
           content:
@@ -830,7 +938,7 @@ paths:
       summary: Bulk update products
       tags: [Products]
       description: |
-        Update multiple products simultaneously
+        Update multiple products simultaneously with various update types
       requestBody:
         required: true
         content:
@@ -855,16 +963,24 @@ paths:
                   properties:
                     batchSize:
                       type: integer
-                      description: Number of items per batch
                     concurrency:
                       type: integer
-                      description: Number of concurrent operations
                     retryAttempts:
                       type: integer
-                      description: Number of retry attempts
                     retryDelay:
                       type: integer
-                      description: Delay between retries
+            example:
+              type: "price_update"
+              data:
+                - id: 1
+                  price: 899.99
+                - id: 2
+                  price: 749.99
+              options:
+                batchSize: 100
+                concurrency: 5
+                retryAttempts: 3
+                retryDelay: 1000
       responses:
         '200':
           description: Operation queued successfully
@@ -875,12 +991,13 @@ paths:
                 properties:
                   message:
                     type: string
-                    description: Success message
                   jobIds:
                     type: array
                     items:
                       type: string
-                    description: Job IDs
+              example:
+                message: "Bulk update operation queued successfully"
+                jobIds: ["job-123", "job-124"]
         '500':
           description: Server error
           content:
@@ -892,6 +1009,8 @@ paths:
     get:
       summary: Search product documents
       tags: [Products]
+      description: |
+        Search products using full-text search with various filters
       parameters:
         - in: query
           name: q
@@ -911,6 +1030,21 @@ paths:
             type: integer
             default: 10
           description: Number of items per page
+        - in: query
+          name: category_id
+          schema:
+            type: integer
+          description: Filter by category
+        - in: query
+          name: min_price
+          schema:
+            type: number
+          description: Minimum price
+        - in: query
+          name: max_price
+          schema:
+            type: number
+          description: Maximum price
       responses:
         '200':
           description: Search results
@@ -925,11 +1059,19 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/Product'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /products/{productId}/price-trends:
     get:
       summary: Get product price trends
       tags: [Products]
+      description: |
+        Get historical price trends for a product with optional variant filtering
       parameters:
         - in: path
           name: productId
@@ -942,9 +1084,16 @@ paths:
           schema:
             type: integer
           description: Variant ID
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: "30d"
+          description: Time period for trends
       responses:
         '200':
-          description: Price trends
+          description: Price trends data
           content:
             application/json:
               schema:
@@ -1143,6 +1292,8 @@ paths:
     post:
       summary: Create product variant
       tags: [Products]
+      description: |
+        Create a new variant for a specific product with unique SKU and price
       parameters:
         - in: path
           name: productId
@@ -1170,6 +1321,17 @@ paths:
                 sku:
                   type: string
                   description: Stock keeping unit
+                metadata:
+                  type: object
+                  description: Additional variant metadata
+            example:
+              name: "iPhone 13 Pro - 256GB - Graphite"
+              price: 1099.99
+              sku: "IP13P-256-GR"
+              metadata:
+                color: "Graphite"
+                storage: "256GB"
+                warranty: "1 year"
       responses:
         '200':
           description: Variant created successfully
@@ -1177,12 +1339,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductVariant'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                id: 1
+                product_id: 1
+                name: "iPhone 13 Pro - 256GB - Graphite"
+                price: 1099.99
+                sku: "IP13P-256-GR"
+                created_at: "2024-03-20T10:00:00Z"
+                updated_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product variants
@@ -1214,6 +1378,8 @@ paths:
     post:
       summary: Add product image
       tags: [Products]
+      description: |
+        Add a new image to a product with metadata and ordering
       parameters:
         - in: path
           name: productId
@@ -1237,6 +1403,16 @@ paths:
                 alt_text:
                   type: string
                   description: Image alt text
+                order:
+                  type: integer
+                  description: Display order
+                metadata:
+                  type: object
+                  description: Additional image metadata
+            example:
+              url: "https://example.com/images/iphone-13-pro-graphite.jpg"
+              alt_text: "iPhone 13 Pro in Graphite - Front View"
+              order: 1
       responses:
         '200':
           description: Image added successfully
@@ -1244,12 +1420,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductImage'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                id: 1
+                product_id: 1
+                url: "https://example.com/images/iphone-13-pro-graphite.jpg"
+                alt_text: "iPhone 13 Pro in Graphite - Front View"
+                order: 1
+                created_at: "2024-03-20T10:00:00Z"
+                updated_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product images
@@ -1281,6 +1459,8 @@ paths:
     post:
       summary: Update product inventory
       tags: [Products]
+      description: |
+        Update inventory levels for a product variant
       parameters:
         - in: path
           name: productId
@@ -1304,20 +1484,42 @@ paths:
                 variant_id:
                   type: integer
                   description: Variant ID
+                location_id:
+                  type: integer
+                  description: Optional warehouse/location ID
+                notes:
+                  type: string
+                  description: Optional notes about the inventory update
+            example:
+              quantity: 100
+              variant_id: 1
+              location_id: 1
+              notes: "Restocking from main warehouse"
       responses:
         '200':
           description: Inventory updated successfully
-        '500':
-          description: Server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  current_quantity:
+                    type: integer
+                  previous_quantity:
+                    type: integer
+              example:
+                success: true
+                current_quantity: 100
+                previous_quantity: 50
 
   /products/{productId}/reviews:
     post:
       summary: Add product review
       tags: [Products]
+      description: |
+        Add a new review for a product with rating and content
       parameters:
         - in: path
           name: productId
@@ -1340,13 +1542,26 @@ paths:
                   type: integer
                   minimum: 1
                   maximum: 5
-                  description: Review rating
+                  description: Review rating (1-5)
                 content:
                   type: string
                   description: Review content
                 user_id:
                   type: string
                   description: User hash ID
+                title:
+                  type: string
+                  description: Optional review title
+                images:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional review images
+            example:
+              rating: 5
+              content: "Great phone with amazing camera quality!"
+              user_id: "user123"
+              title: "Best Phone Ever"
       responses:
         '200':
           description: Review added successfully
@@ -1354,12 +1569,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Review'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                id: 1
+                product_id: 1
+                user_id: "user123"
+                rating: 5
+                content: "Great phone with amazing camera quality!"
+                title: "Best Phone Ever"
+                created_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product reviews
@@ -1396,7 +1613,7 @@ paths:
                       data:
                         type: array
                         items:
-                          $ref: '#/components/schemas/Review'
+                          $ref: '#/components/schemas/ProductReview'
 
   /users/{userId}/wishlist:
     post:
@@ -1894,6 +2111,8 @@ paths:
     post:
       summary: Create product variant
       tags: [Products]
+      description: |
+        Create a new variant for a specific product with unique SKU and price
       parameters:
         - in: path
           name: productId
@@ -1921,6 +2140,13 @@ paths:
                 sku:
                   type: string
                   description: Stock keeping unit
+                metadata:
+                  type: object
+                  description: Additional variant metadata
+            example:
+              name: "iPhone 13 Pro - 256GB - Graphite"
+              price: 1099.99
+              sku: "IP13P-256-GR"
       responses:
         '200':
           description: Variant created successfully
@@ -1928,12 +2154,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductVariant'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                id: 1
+                product_id: 1
+                name: "iPhone 13 Pro - 256GB - Graphite"
+                price: 1099.99
+                sku: "IP13P-256-GR"
+                created_at: "2024-03-20T10:00:00Z"
+                updated_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product variants
@@ -1965,6 +2193,8 @@ paths:
     post:
       summary: Add product image
       tags: [Products]
+      description: |
+        Add a new image to a product with metadata and ordering
       parameters:
         - in: path
           name: productId
@@ -1988,6 +2218,16 @@ paths:
                 alt_text:
                   type: string
                   description: Image alt text
+                order:
+                  type: integer
+                  description: Display order
+                metadata:
+                  type: object
+                  description: Additional image metadata
+            example:
+              url: "https://example.com/images/iphone-13-pro-graphite.jpg"
+              alt_text: "iPhone 13 Pro in Graphite - Front View"
+              order: 1
       responses:
         '200':
           description: Image added successfully
@@ -1995,12 +2235,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ProductImage'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                id: 1
+                product_id: 1
+                url: "https://example.com/images/iphone-13-pro-graphite.jpg"
+                alt_text: "iPhone 13 Pro in Graphite - Front View"
+                order: 1
+                created_at: "2024-03-20T10:00:00Z"
+                updated_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product images
@@ -2032,6 +2274,8 @@ paths:
     post:
       summary: Update product inventory
       tags: [Products]
+      description: |
+        Update inventory levels for a product variant
       parameters:
         - in: path
           name: productId
@@ -2055,20 +2299,42 @@ paths:
                 variant_id:
                   type: integer
                   description: Variant ID
+                location_id:
+                  type: integer
+                  description: Optional warehouse/location ID
+                notes:
+                  type: string
+                  description: Optional notes about the inventory update
+            example:
+              quantity: 100
+              variant_id: 1
+              location_id: 1
+              notes: "Restocking from main warehouse"
       responses:
         '200':
           description: Inventory updated successfully
-        '500':
-          description: Server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  current_quantity:
+                    type: integer
+                  previous_quantity:
+                    type: integer
+              example:
+                success: true
+                current_quantity: 100
+                previous_quantity: 50
 
   /products/{productId}/reviews:
     post:
       summary: Add product review
       tags: [Products]
+      description: |
+        Add a new review for a product with rating and content
       parameters:
         - in: path
           name: productId
@@ -2088,27 +2354,44 @@ paths:
                 - user_id
               properties:
                 rating:
-                  type: number
-                  description: Review rating
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                  description: Review rating (1-5)
                 content:
                   type: string
                   description: Review content
                 user_id:
                   type: string
                   description: User hash ID
+                title:
+                  type: string
+                  description: Optional review title
+                images:
+                  type: array
+                  items:
+                    type: string
+                  description: Optional review images
+            example:
+              rating: 5
+              content: "Great phone with amazing camera quality!"
+              user_id: "user123"
+              title: "Best Phone Ever"
       responses:
         '200':
           description: Review added successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductReview'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Review'
+              example:
+                id: 1
+                product_id: 1
+                user_id: "user123"
+                rating: 5
+                content: "Great phone with amazing camera quality!"
+                title: "Best Phone Ever"
+                created_at: "2024-03-20T10:00:00Z"
 
     get:
       summary: Get product reviews
@@ -2888,7 +3171,20 @@ paths:
       summary: Get product statistics
       tags: [Products]
       description: |
-        Get overall product statistics with caching
+        Get overall product statistics with various metrics and caching
+      parameters:
+        - in: query
+          name: category_id
+          schema:
+            type: integer
+          description: Filter statistics by category
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [day, week, month, year]
+            default: "month"
+          description: Time period for statistics
       responses:
         '200':
           description: Product statistics
@@ -2899,48 +3195,25 @@ paths:
                 properties:
                   total_products:
                     type: integer
-                    description: Total number of products
                   active_products:
                     type: integer
-                    description: Number of active products
                   average_price:
                     type: number
-                    description: Average product price
                   price_range:
                     type: object
                     properties:
                       min:
                         type: number
-                        description: Minimum product price
                       max:
                         type: number
-                        description: Maximum product price
                   category_distribution:
                     type: object
-                    additionalProperties:
-                      type: integer
-                    description: Number of products per category
                   status_distribution:
                     type: object
-                    properties:
-                      active:
-                        type: integer
-                        description: Number of active products
-                      inactive:
-                        type: integer
-                        description: Number of inactive products
-                      draft:
-                        type: integer
-                        description: Number of draft products
-                      archived:
-                        type: integer
-                        description: Number of archived products
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
+              example:
+                total_products: 1500
+                active_products: 1200
+                average_price: 499.99
 
   /categories/featured:
     get:
@@ -2969,4 +3242,440 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error' 
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/breadcrumb:
+    get:
+      summary: Get category breadcrumb
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category breadcrumb
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              example:
+                - id: 1
+                  name: "Electronics"
+                  slug: "electronics"
+                - id: 2
+                  name: "Smartphones"
+                  slug: "smartphones"
+                - id: 3
+                  name: "Android Phones"
+                  slug: "android-phones"
+
+  /categories/{categoryId}/stats:
+    get:
+      summary: Get category statistics
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_products:
+                    type: integer
+                  active_products:
+                    type: integer
+                  avg_price:
+                    type: number
+                  total_sales:
+                    type: number
+              example:
+                total_products: 150
+                active_products: 120
+                avg_price: 499.99
+                total_sales: 50000
+
+  /categories/reorder:
+    post:
+      summary: Reorder categories
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderedIds
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: integer
+            example:
+              orderedIds: [5, 2, 3, 1, 4]
+      responses:
+        '200':
+          description: Categories reordered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+              example:
+                success: true
+                message: "Categories reordered successfully"
+
+  /categories/bulk:
+    put:
+      summary: Bulk update categories
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categories
+              properties:
+                categories:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Category'
+            example:
+              categories:
+                - id: 1
+                  name: "Updated Electronics"
+                  status: "active"
+                - id: 2
+                  name: "Updated Smartphones"
+                  status: "inactive"
+      responses:
+        '200':
+          description: Categories updated successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+
+  /categories/{categoryId}/attributes:
+    post:
+      summary: Add category attribute
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - type
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [text, number, select, multiselect]
+                required:
+                  type: boolean
+                order:
+                  type: integer
+            example:
+              name: "Color"
+              type: "select"
+              required: true
+              order: 1
+      responses:
+        '201':
+          description: Attribute created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttribute'
+
+    get:
+      summary: Get category attributes
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: List of category attributes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryAttribute'
+              example:
+                - id: 1
+                  name: "Color"
+                  type: "select"
+                  required: true
+                  order: 1
+                - id: 2
+                  name: "Size"
+                  type: "select"
+                  required: true
+                  order: 2
+
+  /categories/attributes/{attributeId}:
+    put:
+      summary: Update category attribute
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: integer
+          description: Attribute ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                type:
+                  type: string
+                  enum: [text, number, select, multiselect]
+                required:
+                  type: boolean
+                order:
+                  type: integer
+            example:
+              name: "Updated Color"
+              required: false
+              order: 2
+      responses:
+        '200':
+          description: Attribute updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttribute'
+
+    delete:
+      summary: Delete category attribute
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: integer
+          description: Attribute ID
+      responses:
+        '204':
+          description: Attribute deleted successfully
+
+  /categories/attributes/{attributeId}/options:
+    post:
+      summary: Add attribute option
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: integer
+          description: Attribute ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - value
+              properties:
+                value:
+                  type: string
+                order:
+                  type: integer
+            example:
+              value: "Red"
+              order: 1
+      responses:
+        '201':
+          description: Option created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttributeOption'
+
+    get:
+      summary: Get attribute options
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: integer
+          description: Attribute ID
+      responses:
+        '200':
+          description: List of attribute options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryAttributeOption'
+              example:
+                - id: 1
+                  value: "Red"
+                  order: 1
+                - id: 2
+                  value: "Blue"
+                  order: 2
+                - id: 3
+                  value: "Green"
+                  order: 3
+
+  /categories/options/{optionId}:
+    put:
+      summary: Update attribute option
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: optionId
+          required: true
+          schema:
+            type: integer
+          description: Option ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                value:
+                  type: string
+                order:
+                  type: integer
+            example:
+              value: "Dark Red"
+              order: 2
+      responses:
+        '200':
+          description: Option updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttributeOption'
+
+    delete:
+      summary: Delete attribute option
+      tags: [Categories]
+      parameters:
+        - in: path
+          name: optionId
+          required: true
+          schema:
+            type: integer
+          description: Option ID
+      responses:
+        '204':
+          description: Option deleted successfully
+
+  /categories/products-with-attributes:
+    post:
+      summary: Create product with attributes
+      tags: [Categories]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product
+                - attributes
+              properties:
+                product:
+                  type: object
+                  required:
+                    - name
+                    - price
+                  properties:
+                    name:
+                      type: string
+                    price:
+                      type: number
+                    description:
+                      type: string
+                attributes:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - category_attribute_id
+                      - value
+                    properties:
+                      category_attribute_id:
+                        type: integer
+                      value:
+                        type: string
+            example:
+              product:
+                name: "Samsung Galaxy S21"
+                price: 799.99
+                description: "Latest Samsung flagship phone"
+              attributes:
+                - category_attribute_id: 1
+                  value: "Black"
+                - category_attribute_id: 2
+                  value: "256GB"
+      responses:
+        '201':
+          description: Product created successfully with attributes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product:
+                    $ref: '#/components/schemas/Product'
+                  attributes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductAttribute' 
