@@ -310,9 +310,15 @@ async function init() {
             await createDatabaseSchema();
             console.log('Database schema created successfully.');
             
-            // Sync models with database without altering the schema
-            await sequelize.sync({ alter: false });
-            console.log('Database synchronized successfully.');
+            // Sync models with database - use force: false to preserve existing data
+            // and alter: false to not modify existing tables
+            try {
+                  await sequelize.sync({ alter: false, force: false });
+                  console.log('Database synchronized successfully.');
+            } catch (syncError) {
+                  console.log('Sequelize sync had some issues, but continuing with existing database structure...');
+                  console.log('Sync error details:', syncError.message);
+            }
 
             // Create materialized views and indexes
             await createMaterializedViews();
@@ -351,7 +357,6 @@ async function init() {
 
 function apiV1Routers(app) {
       app.post('/products', validateRequiredFieldsMiddleware(['name', 'price', 'description']), requestLogger, createProductController);
-      //app.post('/categories', validateRequiredFieldsMiddleware(['name']), validateCategoryMiddleware, requestLogger, createCategoryController);
       app.post('/products/:productId/comments', validateRequiredFieldsMiddleware(['content', 'user_id']), validateProductIdMiddleware, requestLogger, addCommentController);
       app.post('/products/:productId/tags', validateRequiredFieldsMiddleware(['tag_name']), validateProductIdMiddleware, requestLogger, addTagToProductController);
       app.post('/products/:productId/chats', validateProductIdMiddleware, requestLogger, createProductChatController);
@@ -367,12 +372,9 @@ function apiV1Routers(app) {
       app.post('/products/:productId/price-history', validateRequiredFieldsMiddleware(['price', 'variant_id']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, addPriceHistoryController);
       app.post('/products/:productId/relationships', validateRequiredFieldsMiddleware(['related_product_id', 'relationship_type']), validateProductIdMiddleware, requestLogger, addProductRelationshipController);
       app.post('/products/:productId/versions', validateRequiredFieldsMiddleware(['version_number', 'changes']), validateProductIdMiddleware, requestLogger, createProductVersionController);
-      //app.post('/categories/bulk-update', validateCategoryMiddleware, requestLogger, bulkUpdateCategoriesController);
 
       app.get('/products', paginateResults, requestLogger, searchProductsController);
       app.get('/products/:id', validateProductIdMiddleware, requestLogger, getProductByIdController);
-      //app.get('/categories', paginateResults, requestLogger, getCategoriesController);
-      //app.get('/categories/tree', requestLogger, getCategoryTreeController);
       app.get('/products/:productId/comments', validateProductIdMiddleware, paginateResults, requestLogger, getProductCommentsController);
       app.get('/products/tags/:tagName', paginateResults, requestLogger, getProductsByTagController);
       app.get('/products/search/document', validateRequiredFieldsMiddleware(['q']), paginateResults, requestLogger, searchProductDocumentsController);
@@ -380,7 +382,6 @@ function apiV1Routers(app) {
       app.get('/chats/:chatId/messages', paginateResults, requestLogger, getChatMessagesController);
       app.get('/products/statistics', requestLogger, getProductStatisticsController);
       app.get('/products/:productId/analytics', validateProductIdMiddleware, requestLogger, getProductAnalyticsController);
-      //app.get('/categories/:categoryId/analytics', validateCategoryMiddleware, requestLogger, getCategoryAnalyticsController);
       app.get('/products/:productId/attributes', validateProductIdMiddleware, requestLogger, getProductAttributesController);
       app.get('/products/:productId/price-history', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getProductPriceHistoryController);
       app.get('/products/:productId/price-statistics', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getProductPriceStatisticsController);
@@ -391,20 +392,14 @@ function apiV1Routers(app) {
       app.get('/products/:id/price-trends', validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, getPriceTrendsController);
       app.get('/products/:productId/relationships', validateProductIdMiddleware, requestLogger, getProductRelationshipsController);
       app.get('/products/:productId/versions', validateProductIdMiddleware, requestLogger, getProductVersionsController);
-      //app.get('/categories/:id', validateCategoryMiddleware, requestLogger, getCategoryByIdController);
-      //app.get('/categories/search', paginateResults, requestLogger, searchCategoriesController);
-      //app.get('/categories/slug/:slug', requestLogger, getCategoryBySlugController);
 
       app.put('/products/:id', validateRequiredFieldsMiddleware(['name', 'price', 'description']), validateProductIdMiddleware, requestLogger, updateProductController);
-      //app.put('/categories/:id', validateCategoryMiddleware, requestLogger, updateCategoryController);
 
       app.delete('/products/:id', validateProductIdMiddleware, requestLogger, deleteProductController);
-      //app.delete('/categories/:id', validateCategoryMiddleware, requestLogger, deleteCategoryController);
 
       app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
       app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
 
-      // Add category routes
       app.use('/categories', categoryRoutes);
 }
 
@@ -1528,6 +1523,12 @@ async function createDatabaseSchema() {
                   }
             }
 
+            // Add missing columns for Sequelize compatibility
+            await addMissingColumnsForSequelize();
+
+            // Create missing tables for Sequelize models
+            await createMissingTablesForSequelize();
+
             logger.info('Database schema creation completed successfully');
       } catch (error) {
             logger.error('Database schema creation failed', {
@@ -1535,6 +1536,79 @@ async function createDatabaseSchema() {
                   stack: error.stack,
             });
             throw error;
+      }
+}
+
+async function addMissingColumnsForSequelize() {
+      const client = await pgPool.connect();
+      try {
+            logger.info('Adding missing columns for Sequelize compatibility');
+            await client.query('BEGIN');
+
+            // Add missing columns to categories table
+            const categoryColumns = [
+                  'attribute_metadata JSONB DEFAULT \'{}\'',
+                  'slug VARCHAR(255)',
+                  'description TEXT',
+                  'level INTEGER DEFAULT 1',
+                  'path INTEGER[] DEFAULT \'{}\'',
+                  '"order" INTEGER DEFAULT 0',
+                  'status VARCHAR(20) DEFAULT \'active\'',
+                  'is_featured BOOLEAN DEFAULT false',
+                  'image_url VARCHAR(500)',
+                  'icon_url VARCHAR(500)',
+                  'meta_title VARCHAR(255)',
+                  'meta_description TEXT',
+                  'meta_keywords VARCHAR(255)[] DEFAULT \'{}\'',
+                  'settings JSONB DEFAULT \'{}\'',
+                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'deleted_at TIMESTAMP'
+            ];
+
+            for (const column of categoryColumns) {
+                  try {
+                        await client.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS ${column}`);
+                  } catch (error) {
+                        logger.warn(`Could not add column ${column} to categories table`, { error: error.message });
+                  }
+            }
+
+            // Add missing columns to products table
+            const productColumns = [
+                  'status VARCHAR(20) DEFAULT \'active\'',
+                  'metadata JSONB DEFAULT \'{}\'',
+                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'deleted_at TIMESTAMP'
+            ];
+
+            for (const column of productColumns) {
+                  try {
+                        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${column}`);
+                  } catch (error) {
+                        logger.warn(`Could not add column ${column} to products table`, { error: error.message });
+                  }
+            }
+
+            // Make category_id optional in products table
+            try {
+                  await client.query('ALTER TABLE products ALTER COLUMN category_id DROP NOT NULL');
+            } catch (error) {
+                  logger.warn('Could not make category_id optional in products table', { error: error.message });
+            }
+
+            await client.query('COMMIT');
+            logger.info('Missing columns added successfully');
+      } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('Failed to add missing columns', {
+                  error: error.message,
+                  stack: error.stack,
+            });
+            throw error;
+      } finally {
+            client.release();
       }
 }
 
@@ -2539,4 +2613,63 @@ async function createProductWithAttributes(productData, attributeValues) {
         });
     }
     return product;
+}
+
+async function createMissingTablesForSequelize() {
+      const client = await pgPool.connect();
+      try {
+            logger.info('Creating missing tables for Sequelize models');
+            await client.query('BEGIN');
+
+            // Create category_attributes table
+            await client.query(`
+                  CREATE TABLE IF NOT EXISTS category_attributes (
+                      id SERIAL PRIMARY KEY,
+                      category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
+                      name VARCHAR(255) NOT NULL,
+                      type VARCHAR(20) NOT NULL,
+                      required BOOLEAN DEFAULT false,
+                      "order" INTEGER DEFAULT 0,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                  )
+            `);
+
+            // Create category_attribute_options table
+            await client.query(`
+                  CREATE TABLE IF NOT EXISTS category_attribute_options (
+                      id SERIAL PRIMARY KEY,
+                      category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE,
+                      value VARCHAR(255) NOT NULL,
+                      "order" INTEGER DEFAULT 0,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                  )
+            `);
+
+            // Create product_attribute_values table (if it doesn't exist)
+            await client.query(`
+                  CREATE TABLE IF NOT EXISTS product_attribute_values (
+                      id SERIAL PRIMARY KEY,
+                      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+                      category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE,
+                      value TEXT NOT NULL,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      UNIQUE(product_id, category_attribute_id)
+                  )
+            `);
+
+            await client.query('COMMIT');
+            logger.info('Missing tables created successfully');
+      } catch (error) {
+            await client.query('ROLLBACK');
+            logger.error('Failed to create missing tables', {
+                  error: error.message,
+                  stack: error.stack,
+            });
+            throw error;
+      } finally {
+            client.release();
+      }
 }

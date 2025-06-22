@@ -5,8 +5,11 @@ import { validateRequiredFieldsMiddleware } from '../middleware/validation.js';
 const router = express.Router();
 
 // Create a new category
-router.post('/', validateRequiredFieldsMiddleware(['name']), async (req, res) => {
+router.post('/', async (req, res) => {
     try {
+        if (!req.body.name) {
+            return res.status(400).json({ error: 'Name is required' });
+        }
         const category = await categoryService.create(req.body);
         res.status(201).json(category);
     } catch (error) {
@@ -14,13 +17,68 @@ router.post('/', validateRequiredFieldsMiddleware(['name']), async (req, res) =>
     }
 });
 
-// Get featured categories
+// Get featured categories - This must come before /:id to avoid conflicts
 router.get('/featured', async (req, res) => {
     try {
         const categories = await categoryService.getFeaturedCategories(
             parseInt(req.query.limit) || 10
         );
         res.json(categories);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get category tree - This must come before /:id to avoid conflicts
+router.get('/tree', async (req, res) => {
+    try {
+        const tree = await categoryService.getTree({
+            status: req.query.status,
+            includeInactive: req.query.includeInactive === 'true'
+        });
+        res.json(tree);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Search categories - This must come before /:id to avoid conflicts
+router.get('/search', async (req, res) => {
+    try {
+        const result = await categoryService.search(req.query, {
+            page: parseInt(req.query.page) || 1,
+            limit: parseInt(req.query.limit) || 10
+        });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get all categories - This must come before /:id to avoid conflicts
+router.get('/', async (req, res) => {
+    try {
+        const result = await categoryService.search(req.query, {
+            page: parseInt(req.query.page) || 1,
+            limit: parseInt(req.query.limit) || 10
+        });
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Get category by slug - This must come before /:id to avoid conflicts
+router.get('/slug/:slug', async (req, res) => {
+    try {
+        const category = await categoryService.getBySlug(req.params.slug, {
+            includeChildren: true,
+            depth: 2
+        });
+        if (!category) {
+            return res.status(404).json({ error: 'Category not found' });
+        }
+        res.json(category);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -37,35 +95,6 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Category not found' });
         }
         res.json(category);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get category by slug
-router.get('/slug/:slug', async (req, res) => {
-    try {
-        const category = await categoryService.getBySlug(req.params.slug, {
-            includeChildren: true,
-            depth: 2
-        });
-        if (!category) {
-            return res.status(404).json({ error: 'Category not found' });
-        }
-        res.json(category);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get category tree
-router.get('/tree', async (req, res) => {
-    try {
-        const tree = await categoryService.getTree({
-            status: req.query.status,
-            includeInactive: req.query.includeInactive === 'true'
-        });
-        res.json(tree);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -92,19 +121,6 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Category not found' });
         }
         res.status(204).send();
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Search categories
-router.get('/search', async (req, res) => {
-    try {
-        const result = await categoryService.search(req.query, {
-            page: parseInt(req.query.page) || 1,
-            limit: parseInt(req.query.limit) || 10
-        });
-        res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -137,8 +153,11 @@ router.get('/:id/stats', async (req, res) => {
 });
 
 // Reorder categories
-router.post('/reorder', validateRequiredFieldsMiddleware(['orderedIds']), async (req, res) => {
+router.post('/reorder', async (req, res) => {
     try {
+        if (!req.body.orderedIds) {
+            return res.status(400).json({ error: 'orderedIds is required' });
+        }
         const result = await categoryService.reorderCategories(req.body.orderedIds);
         res.json(result);
     } catch (error) {
@@ -147,8 +166,11 @@ router.post('/reorder', validateRequiredFieldsMiddleware(['orderedIds']), async 
 });
 
 // Bulk update categories
-router.put('/bulk', validateRequiredFieldsMiddleware(['categories']), async (req, res) => {
+router.put('/bulk', async (req, res) => {
     try {
+        if (!req.body.categories) {
+            return res.status(400).json({ error: 'categories is required' });
+        }
         const result = await categoryService.bulkUpdate(req.body.categories);
         res.json(result);
     } catch (error) {

@@ -14,6 +14,10 @@ const models = {
     ProductAttributeValue
 };
 
+// Define associations
+Category.hasMany(CategoryAttribute, { foreignKey: 'category_id', as: 'categoryAttributes' });
+CategoryAttribute.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
+
 // Export models and sequelize instance
 export {
     sequelize,

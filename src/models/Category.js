@@ -13,7 +13,7 @@ const Category = sequelize.define('Category', {
     },
     slug: {
         type: DataTypes.STRING(255),
-        unique: true
+        allowNull: true
     },
     description: {
         type: DataTypes.TEXT,
@@ -21,6 +21,7 @@ const Category = sequelize.define('Category', {
     },
     parent_id: {
         type: DataTypes.INTEGER,
+        allowNull: true,
         references: {
             model: 'categories',
             key: 'id'
@@ -65,6 +66,10 @@ const Category = sequelize.define('Category', {
     meta_keywords: {
         type: DataTypes.ARRAY(DataTypes.STRING),
         defaultValue: []
+    },
+    attributes: {
+        type: DataTypes.JSONB,
+        defaultValue: {}
     },
     attribute_metadata: {
         type: DataTypes.JSONB,

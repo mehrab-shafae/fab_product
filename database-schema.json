@@ -93,6 +93,50 @@
                         "CREATE INDEX IF NOT EXISTS categories_is_featured_idx ON categories(is_featured)",
                         "CREATE INDEX IF NOT EXISTS categories_order_idx ON categories(\"order\")"
                   ]
+            },
+            {
+                  "version": 11,
+                  "name": "Add missing columns for Sequelize compatibility",
+                  "queries": [
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS attribute_metadata JSONB DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS slug VARCHAR(255)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS path INTEGER[] DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS \"order\" INTEGER DEFAULT 0",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS is_featured BOOLEAN DEFAULT false",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url VARCHAR(500)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_url VARCHAR(500)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_title VARCHAR(255)",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_description TEXT",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS meta_keywords VARCHAR(255)[] DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS settings JSONB DEFAULT '{}'",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"
+                  ]
+            },
+            {
+                  "version": 12,
+                  "name": "Ensure products table has all required columns",
+                  "queries": [
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'",
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS metadata JSONB DEFAULT '{}'",
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP",
+                        "ALTER TABLE products ALTER COLUMN category_id DROP NOT NULL"
+                  ]
+            },
+            {
+                  "version": 13,
+                  "name": "Create category_attributes and related tables",
+                  "queries": [
+                        "CREATE TABLE IF NOT EXISTS category_attributes (id SERIAL PRIMARY KEY, category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, type VARCHAR(20) NOT NULL, required BOOLEAN DEFAULT false, \"order\" INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                        "CREATE TABLE IF NOT EXISTS category_attribute_options (id SERIAL PRIMARY KEY, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, value VARCHAR(255) NOT NULL, \"order\" INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                        "CREATE TABLE IF NOT EXISTS product_attribute_values (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, value TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, category_attribute_id))"
+                  ]
             }
       ],
       "indexes": [

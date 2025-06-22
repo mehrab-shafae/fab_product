@@ -1,6 +1,5 @@
 import { DataTypes } from 'sequelize';
 import sequelize from './config.js';
-import Category from './Category.js';
 
 const CategoryAttribute = sequelize.define('CategoryAttribute', {
     id: {
@@ -47,8 +46,5 @@ const CategoryAttribute = sequelize.define('CategoryAttribute', {
     createdAt: 'created_at',
     updatedAt: 'updated_at'
 });
-
-CategoryAttribute.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
-Category.hasMany(CategoryAttribute, { foreignKey: 'category_id', as: 'attributes' });
 
 export default CategoryAttribute; 
