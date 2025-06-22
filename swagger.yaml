@@ -54,21 +54,69 @@ components:
         slug:
           type: string
           description: Category slug
+        description:
+          type: string
+          description: Category description
         parent_id:
           type: integer
           description: Parent category ID
+        level:
+          type: integer
+          description: Category level in hierarchy
+        path:
+          type: array
+          items:
+            type: integer
+          description: Array of parent category IDs
         status:
           type: string
-          enum: [active, inactive]
+          enum: [active, inactive, draft, archived, pending_approval]
           description: Category status
         is_featured:
           type: boolean
           description: Whether the category is featured
+        order:
+          type: integer
+          description: Display order
+        image_url:
+          type: string
+          description: Category image URL
+        icon_url:
+          type: string
+          description: Category icon URL
+        meta_title:
+          type: string
+          description: SEO meta title
+        meta_description:
+          type: string
+          description: SEO meta description
+        meta_keywords:
+          type: string
+          description: SEO meta keywords
+        submitted_by:
+          type: string
+          description: User who submitted for approval
+        submitted_at:
+          type: string
+          format: date-time
+          description: Submission timestamp
+        approved_by:
+          type: string
+          description: User who approved the category
+        approved_at:
+          type: string
+          format: date-time
+          description: Approval timestamp
         children:
           type: array
           items:
             $ref: '#/components/schemas/Category'
           description: Child categories
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttribute'
+          description: Category attributes
         created_at:
           type: string
           format: date-time
@@ -520,7 +568,7 @@ components:
           description: Attribute name
         type:
           type: string
-          enum: [text, number, select, multiselect]
+          enum: [string, number, enum]
           description: Attribute type
         required:
           type: boolean
@@ -528,6 +576,11 @@ components:
         order:
           type: integer
           description: Display order
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttributeOption'
+          description: Attribute options (for enum type)
         created_at:
           type: string
           format: date-time
@@ -541,7 +594,7 @@ components:
         id:
           type: integer
           description: Option ID
-        attribute_id:
+        category_attribute_id:
           type: integer
           description: Attribute ID
         value:
@@ -556,6 +609,283 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    CategoryAnalytics:
+      type: object
+      properties:
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: string
+            level:
+              type: integer
+            path:
+              type: array
+              items:
+                type: integer
+        overview:
+          type: object
+          properties:
+            total_products:
+              type: integer
+            active_products:
+              type: integer
+            total_views:
+              type: integer
+            total_sales:
+              type: number
+            avg_price:
+              type: number
+            conversion_rate:
+              type: number
+        trends:
+          type: object
+          properties:
+            period:
+              type: string
+            data:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  products:
+                    type: integer
+                  views:
+                    type: integer
+                  sales:
+                    type: number
+        products:
+          type: object
+          properties:
+            top_products:
+              type: array
+              items:
+                type: object
+            price_distribution:
+              type: object
+            performance_metrics:
+              type: object
+        attributes:
+          type: object
+          properties:
+            usage_stats:
+              type: array
+              items:
+                type: object
+            popular_values:
+              type: array
+              items:
+                type: object
+        performance:
+          type: object
+          properties:
+            growth_rate:
+              type: number
+            market_share:
+              type: number
+            competitive_position:
+              type: string
+        comparisons:
+          type: array
+          items:
+            type: object
+
+    CategoryWorkflow:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Workflow ID
+        category_id:
+          type: integer
+          description: Category ID
+        status:
+          type: string
+          enum: [draft, pending_approval, approved, rejected]
+          description: Workflow status
+        submitted_by:
+          type: string
+          description: User who submitted
+        submitted_at:
+          type: string
+          format: date-time
+          description: Submission timestamp
+        approved_by:
+          type: string
+          description: User who approved/rejected
+        approved_at:
+          type: string
+          format: date-time
+          description: Approval timestamp
+        comments:
+          type: string
+          description: Approval/rejection comments
+        changes:
+          type: object
+          description: Changes made in this workflow
+
+    CategoryTemplate:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Template ID
+        name:
+          type: string
+          description: Template name
+        description:
+          type: string
+          description: Template description
+        category_id:
+          type: integer
+          description: Source category ID
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttribute'
+          description: Template attributes
+        is_public:
+          type: boolean
+          description: Whether template is public
+        created_by:
+          type: string
+          description: Template creator
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CategoryInsights:
+      type: object
+      properties:
+        category:
+          type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: string
+            slug:
+              type: string
+        performance:
+          type: object
+          properties:
+            strengths:
+              type: array
+              items:
+                type: string
+            weaknesses:
+              type: array
+              items:
+                type: string
+            trends:
+              type: object
+        opportunities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              description:
+                type: string
+              potential_impact:
+                type: string
+        recommendations:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+              description:
+                type: string
+              priority:
+                type: string
+                enum: [low, medium, high, critical]
+        risks:
+          type: array
+          items:
+            type: object
+            properties:
+              risk_type:
+                type: string
+              description:
+                type: string
+              severity:
+                type: string
+                enum: [low, medium, high, critical]
+
+    CategoryComparison:
+      type: object
+      properties:
+        categories:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+              name:
+                type: string
+              slug:
+                type: string
+        metrics:
+          type: object
+          properties:
+            products:
+              type: object
+            views:
+              type: object
+            sales:
+              type: object
+            revenue:
+              type: object
+        period:
+          type: string
+          description: Comparison period
+
+    CategoryHierarchy:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Category ID
+        name:
+          type: string
+          description: Category name
+        slug:
+          type: string
+          description: Category slug
+        level:
+          type: integer
+          description: Hierarchy level
+        metrics:
+          type: object
+          properties:
+            total_products:
+              type: integer
+            total_views:
+              type: integer
+            total_sales:
+              type: number
+            avg_price:
+              type: number
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryHierarchy'
+          description: Child categories
 
 paths:
   /health:
@@ -2779,7 +3109,7 @@ paths:
       summary: Create a new category
       tags: [Categories]
       description: |
-        Create a new category in the system
+        Create a new category in the system with enhanced features
       requestBody:
         required: true
         content:
@@ -2795,15 +3125,73 @@ paths:
                 parent_id:
                   type: integer
                   description: Parent category ID
+                description:
+                  type: string
+                  description: Category description
                 status:
                   type: string
-                  enum: [active, inactive]
-                  default: active
+                  enum: [active, inactive, draft, archived]
+                  default: draft
                   description: Category status
                 is_featured:
                   type: boolean
                   default: false
                   description: Whether the category is featured
+                order:
+                  type: integer
+                  description: Display order
+                image_url:
+                  type: string
+                  description: Category image URL
+                icon_url:
+                  type: string
+                  description: Category icon URL
+                meta_title:
+                  type: string
+                  description: SEO meta title
+                meta_description:
+                  type: string
+                  description: SEO meta description
+                meta_keywords:
+                  type: string
+                  description: SEO meta keywords
+                attributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      name:
+                        type: string
+                      type:
+                        type: string
+                        enum: [string, number, enum]
+                      required:
+                        type: boolean
+                      order:
+                        type: integer
+                      options:
+                        type: array
+                        items:
+                          type: string
+            example:
+              name: "Smartphones"
+              parent_id: 1
+              description: "Latest smartphone models"
+              status: "draft"
+              is_featured: true
+              order: 1
+              image_url: "https://example.com/images/smartphones.jpg"
+              meta_title: "Smartphones - Latest Models"
+              meta_description: "Discover the latest smartphone models"
+              attributes:
+                - name: "Brand"
+                  type: "enum"
+                  required: true
+                  options: ["Apple", "Samsung", "Google"]
+                - name: "Storage"
+                  type: "enum"
+                  required: true
+                  options: ["64GB", "128GB", "256GB", "512GB"]
       responses:
         '201':
           description: Category created successfully
@@ -2811,6 +3199,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Category'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Category name or slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
@@ -2822,13 +3222,13 @@ paths:
       summary: Get all categories
       tags: [Categories]
       description: |
-        Get a list of all categories in the system
+        Get a list of all categories in the system with enhanced filtering
       parameters:
         - in: query
           name: status
           schema:
             type: string
-            enum: [active, inactive]
+            enum: [active, inactive, draft, archived, pending_approval]
           description: Filter by category status
         - in: query
           name: includeInactive
@@ -2836,6 +3236,27 @@ paths:
             type: boolean
             default: false
           description: Include inactive categories
+        - in: query
+          name: includeDraft
+          schema:
+            type: boolean
+            default: false
+          description: Include draft categories
+        - in: query
+          name: featured
+          schema:
+            type: boolean
+          description: Filter by featured status
+        - in: query
+          name: parent_id
+          schema:
+            type: integer
+          description: Filter by parent category ID
+        - in: query
+          name: level
+          schema:
+            type: integer
+          description: Filter by category level
         - in: query
           name: page
           schema:
@@ -2848,6 +3269,13 @@ paths:
             type: integer
             default: 10
           description: Number of items per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [name_asc, name_desc, order_asc, order_desc, created_asc, created_desc]
+            default: order_asc
+          description: Sort order
       responses:
         '200':
           description: List of categories
@@ -2931,7 +3359,7 @@ paths:
       summary: Update category
       tags: [Categories]
       description: |
-        Update an existing category
+        Update an existing category with enhanced features
       parameters:
         - in: path
           name: id
@@ -2952,13 +3380,62 @@ paths:
                 parent_id:
                   type: integer
                   description: New parent category ID
+                description:
+                  type: string
+                  description: Category description
                 status:
                   type: string
-                  enum: [active, inactive]
+                  enum: [active, inactive, draft, archived]
                   description: New category status
                 is_featured:
                   type: boolean
                   description: Whether the category is featured
+                order:
+                  type: integer
+                  description: Display order
+                image_url:
+                  type: string
+                  description: Category image URL
+                icon_url:
+                  type: string
+                  description: Category icon URL
+                meta_title:
+                  type: string
+                  description: SEO meta title
+                meta_description:
+                  type: string
+                  description: SEO meta description
+                meta_keywords:
+                  type: string
+                  description: SEO meta keywords
+                attributes:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: Attribute ID (for updates)
+                      name:
+                        type: string
+                      type:
+                        type: string
+                        enum: [string, number, enum]
+                      required:
+                        type: boolean
+                      order:
+                        type: integer
+                      options:
+                        type: array
+                        items:
+                          type: string
+            example:
+              name: "Updated Smartphones"
+              description: "Updated smartphone category description"
+              status: "active"
+              is_featured: true
+              order: 2
+              meta_title: "Updated Smartphones - Latest Models"
       responses:
         '200':
           description: Category updated successfully
@@ -2972,6 +3449,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '409':
+          description: Category name or slug already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '500':
           description: Server error
           content:
@@ -2979,21 +3462,141 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-    delete:
-      summary: Delete category
+  /categories/{categoryId}/submit-for-approval:
+    post:
+      summary: Submit category for approval
       tags: [Categories]
       description: |
-        Soft delete a category
+        Submit a draft category for approval workflow
       parameters:
         - in: path
-          name: id
+          name: categoryId
           required: true
           schema:
             type: integer
           description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - submitted_by
+              properties:
+                submitted_by:
+                  type: string
+                  description: User ID who is submitting
+                comments:
+                  type: string
+                  description: Optional submission comments
       responses:
         '200':
-          description: Category deleted successfully
+          description: Category submitted for approval successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Category is not in draft status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/approve:
+    post:
+      summary: Approve category
+      tags: [Categories]
+      description: |
+        Approve a pending category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approved_by
+              properties:
+                approved_by:
+                  type: string
+                  description: User ID who is approving
+                comments:
+                  type: string
+                  description: Optional approval comments
+      responses:
+        '200':
+          description: Category approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Category is not pending approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/clone:
+    post:
+      summary: Clone category
+      tags: [Categories]
+      description: |
+        Clone a category with all its attributes and subcategories
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID to clone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - new_name
+              properties:
+                new_name:
+                  type: string
+                  description: Name for the cloned category
+                new_parent_id:
+                  type: integer
+                  description: New parent category ID
+                include_children:
+                  type: boolean
+                  default: true
+                  description: Whether to clone child categories
+                include_attributes:
+                  type: boolean
+                  default: true
+                  description: Whether to clone attributes
+      responses:
+        '201':
+          description: Category cloned successfully
           content:
             application/json:
               schema:
@@ -3004,151 +3607,311 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
 
-  /categories/tree:
+  /categories/{categoryId}/analytics:
     get:
-      summary: Get category tree
+      summary: Get comprehensive category analytics
       tags: [Categories]
       description: |
-        Get the complete category tree structure
-      parameters:
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [active, inactive]
-          description: Filter by category status
-        - in: query
-          name: includeInactive
-          schema:
-            type: boolean
-            default: false
-          description: Include inactive categories
-      responses:
-        '200':
-          description: Category tree
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /categories/search:
-    get:
-      summary: Search categories
-      tags: [Categories]
-      description: |
-        Search categories with filters and pagination
-      parameters:
-        - in: query
-          name: name
-          schema:
-            type: string
-          description: Category name to search for
-        - in: query
-          name: parent_id
-          schema:
-            type: integer
-          description: Filter by parent category ID
-        - in: query
-          name: status
-          schema:
-            type: string
-            enum: [active, inactive]
-          description: Filter by category status
-        - in: query
-          name: includeInactive
-          schema:
-            type: boolean
-            default: false
-          description: Include inactive categories
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-          description: Page number
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          description: Number of items per page
-      responses:
-        '200':
-          description: Search results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Category'
-                  pagination:
-                    type: object
-                    properties:
-                      page:
-                        type: integer
-                        description: Current page number
-                      limit:
-                        type: integer
-                        description: Items per page
-                      total:
-                        type: integer
-                        description: Total number of items
-                      pages:
-                        type: integer
-                        description: Total number of pages
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-
-  /categories/slug/{slug}:
-    get:
-      summary: Get category by slug
-      tags: [Categories]
-      description: |
-        Get detailed information about a specific category using its slug
+        Get detailed analytics for a category including trends, performance, and insights
       parameters:
         - in: path
-          name: slug
+          name: categoryId
           required: true
           schema:
-            type: string
-          description: Category slug
+            type: integer
+          description: Category ID
         - in: query
-          name: includeChildren
+          name: includeSubcategories
           schema:
             type: boolean
             default: true
-          description: Include child categories
+          description: Include subcategory data
         - in: query
-          name: depth
+          name: includeProducts
           schema:
-            type: integer
-            default: 2
-          description: Depth of child categories to include
+            type: boolean
+            default: true
+          description: Include product analytics
+        - in: query
+          name: includeAttributes
+          schema:
+            type: boolean
+            default: true
+          description: Include attribute analytics
+        - in: query
+          name: dateRange
+          schema:
+            type: string
+            enum: [7d, 30d, 90d, 1y, all]
+            default: "30d"
+          description: Date range for analytics
+        - in: query
+          name: groupBy
+          schema:
+            type: string
+            enum: [day, week, month, year]
+            default: "day"
+          description: Grouping for trend data
       responses:
         '200':
-          description: Category details
+          description: Category analytics data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAnalytics'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/insights:
+    get:
+      summary: Get category insights and recommendations
+      tags: [Categories]
+      description: |
+        Get AI-powered insights, opportunities, and recommendations for a category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category insights
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryInsights'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/analytics/hierarchy:
+    get:
+      summary: Get category hierarchy analytics
+      tags: [Categories]
+      description: |
+        Get analytics for the complete category hierarchy
+      parameters:
+        - in: query
+          name: rootCategoryId
+          schema:
+            type: integer
+          description: Root category ID (optional)
+        - in: query
+          name: maxDepth
+          schema:
+            type: integer
+            default: 3
+          description: Maximum depth to analyze
+      responses:
+        '200':
+          description: Hierarchy analytics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryHierarchy'
+
+  /categories/analytics/comparison:
+    post:
+      summary: Compare multiple categories
+      tags: [Categories]
+      description: |
+        Compare performance metrics across multiple categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categoryIds
+              properties:
+                categoryIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array of category IDs to compare
+                dateRange:
+                  type: string
+                  enum: [7d, 30d, 90d, 1y]
+                  default: "30d"
+                  description: Date range for comparison
+                metrics:
+                  type: array
+                  items:
+                    type: string
+                    enum: [products, views, sales, revenue, conversion]
+                  default: ["products", "views", "sales"]
+                  description: Metrics to compare
+            example:
+              categoryIds: [1, 2, 3]
+              dateRange: "30d"
+              metrics: ["products", "views", "sales"]
+      responses:
+        '200':
+          description: Category comparison data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryComparison'
+
+  /categories/templates:
+    post:
+      summary: Create category template
+      tags: [Categories]
+      description: |
+        Create a template from an existing category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - category_id
+              properties:
+                name:
+                  type: string
+                  description: Template name
+                description:
+                  type: string
+                  description: Template description
+                category_id:
+                  type: integer
+                  description: Source category ID
+                is_public:
+                  type: boolean
+                  default: false
+                  description: Whether template is public
+                created_by:
+                  type: string
+                  description: Template creator
+      responses:
+        '201':
+          description: Template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryTemplate'
+
+    get:
+      summary: Get category templates
+      tags: [Categories]
+      description: |
+        Get available category templates
+      parameters:
+        - in: query
+          name: is_public
+          schema:
+            type: boolean
+          description: Filter by public templates
+        - in: query
+          name: created_by
+          schema:
+            type: string
+          description: Filter by creator
+      responses:
+        '200':
+          description: List of templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryTemplate'
+
+  /categories/from-template:
+    post:
+      summary: Create category from template
+      tags: [Categories]
+      description: |
+        Create a new category using a template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - template_id
+                - name
+              properties:
+                template_id:
+                  type: integer
+                  description: Template ID
+                name:
+                  type: string
+                  description: New category name
+                parent_id:
+                  type: integer
+                  description: Parent category ID
+                description:
+                  type: string
+                  description: Category description
+                status:
+                  type: string
+                  enum: [draft, active]
+                  default: "draft"
+                  description: Initial status
+      responses:
+        '201':
+          description: Category created from template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+
+  /categories/{categoryId}/clone:
+    post:
+      summary: Clone category
+      tags: [Categories]
+      description: |
+        Clone a category with all its attributes and subcategories
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID to clone
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - new_name
+              properties:
+                new_name:
+                  type: string
+                  description: Name for the cloned category
+                new_parent_id:
+                  type: integer
+                  description: New parent category ID
+                include_children:
+                  type: boolean
+                  default: true
+                  description: Whether to clone child categories
+                include_attributes:
+                  type: boolean
+                  default: true
+                  description: Whether to clone attributes
+      responses:
+        '201':
+          description: Category cloned successfully
           content:
             application/json:
               schema:
@@ -3159,95 +3922,210 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Server error
+
+  /categories/{categoryId}/approve:
+    post:
+      summary: Approve category
+      tags: [Categories]
+      description: |
+        Approve a pending category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - approved_by
+              properties:
+                approved_by:
+                  type: string
+                  description: User ID who is approving
+                comments:
+                  type: string
+                  description: Optional approval comments
+      responses:
+        '200':
+          description: Category approved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Category is not pending approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /products/statistics:
-    get:
-      summary: Get product statistics
-      tags: [Products]
+  /categories/{categoryId}/reject:
+    post:
+      summary: Reject category
+      tags: [Categories]
       description: |
-        Get overall product statistics with various metrics and caching
+        Reject a pending category
       parameters:
-        - in: query
-          name: category_id
+        - in: path
+          name: categoryId
+          required: true
           schema:
             type: integer
-          description: Filter statistics by category
-        - in: query
-          name: period
-          schema:
-            type: string
-            enum: [day, week, month, year]
-            default: "month"
-          description: Time period for statistics
+          description: Category ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rejected_by
+                - reason
+              properties:
+                rejected_by:
+                  type: string
+                  description: User ID who is rejecting
+                reason:
+                  type: string
+                  description: Rejection reason
+                comments:
+                  type: string
+                  description: Additional comments
       responses:
         '200':
-          description: Product statistics
+          description: Category rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '400':
+          description: Category is not pending approval
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/workflow:
+    get:
+      summary: Get category workflow status
+      tags: [Categories]
+      description: |
+        Get the current workflow status and history for a category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category workflow information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryWorkflow'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/growth-analysis:
+    get:
+      summary: Get category growth analysis
+      tags: [Categories]
+      description: |
+        Get detailed growth analysis for a category across different time periods
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+        - in: query
+          name: periods
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [7d, 30d, 90d, 1y]
+            default: ["7d", "30d", "90d", "1y"]
+          description: Time periods to analyze
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [products, views, sales, revenue, conversion]
+            default: ["products", "views", "sales"]
+          description: Metrics to analyze
+      responses:
+        '200':
+          description: Growth analysis data
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  total_products:
-                    type: integer
-                  active_products:
-                    type: integer
-                  average_price:
-                    type: number
-                  price_range:
+                  category:
                     type: object
                     properties:
-                      min:
-                        type: number
-                      max:
-                        type: number
-                  category_distribution:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      slug:
+                        type: string
+                  growth_data:
                     type: object
-                  status_distribution:
-                    type: object
-              example:
-                total_products: 1500
-                active_products: 1200
-                average_price: 499.99
-
-  /categories/featured:
-    get:
-      summary: Get featured categories
-      tags: [Categories]
-      description: |
-        Get a list of featured categories
-      parameters:
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-          description: Number of categories to return
-      responses:
-        '200':
-          description: List of featured categories
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-        '500':
-          description: Server error
+                    additionalProperties:
+                      type: object
+                      properties:
+                        products:
+                          type: object
+                        views:
+                          type: object
+                        sales:
+                          type: object
+                        revenue:
+                          type: object
+                        conversion:
+                          type: object
+        '404':
+          description: Category not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /categories/{categoryId}/breadcrumb:
+  /categories/{categoryId}/performance:
     get:
-      summary: Get category breadcrumb
+      summary: Get category performance metrics
       tags: [Categories]
+      description: |
+        Get detailed performance metrics for a category
       parameters:
         - in: path
           name: categoryId
@@ -3255,63 +4133,63 @@ paths:
           schema:
             type: integer
           description: Category ID
-      responses:
-        '200':
-          description: Category breadcrumb
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-              example:
-                - id: 1
-                  name: "Electronics"
-                  slug: "electronics"
-                - id: 2
-                  name: "Smartphones"
-                  slug: "smartphones"
-                - id: 3
-                  name: "Android Phones"
-                  slug: "android-phones"
-
-  /categories/{categoryId}/stats:
-    get:
-      summary: Get category statistics
-      tags: [Categories]
-      parameters:
-        - in: path
-          name: categoryId
-          required: true
+        - in: query
+          name: dateRange
           schema:
-            type: integer
-          description: Category ID
+            type: string
+            enum: [7d, 30d, 90d, 1y]
+            default: "30d"
+          description: Date range for metrics
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [views, sales, revenue, conversion]
+            default: ["views", "sales", "revenue"]
+          description: Metrics to include
       responses:
         '200':
-          description: Category statistics
+          description: Performance metrics
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  total_products:
-                    type: integer
-                  active_products:
-                    type: integer
-                  avg_price:
-                    type: number
-                  total_sales:
-                    type: number
-              example:
-                total_products: 150
-                active_products: 120
-                avg_price: 499.99
-                total_sales: 50000
+                  category:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      slug:
+                        type: string
+                  performance:
+                    type: object
+                    properties:
+                      views:
+                        type: object
+                      sales:
+                        type: object
+                      revenue:
+                        type: object
+                      conversion:
+                        type: object
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /categories/reorder:
     post:
       summary: Reorder categories
       tags: [Categories]
+      description: |
+        Reorder categories by providing an array of category IDs in the desired order
       requestBody:
         required: true
         content:
@@ -3325,6 +4203,7 @@ paths:
                   type: array
                   items:
                     type: integer
+                  description: Array of category IDs in desired order
             example:
               orderedIds: [5, 2, 3, 1, 4]
       responses:
@@ -3337,16 +4216,17 @@ paths:
                 properties:
                   success:
                     type: boolean
+                  updated:
+                    type: integer
                   message:
                     type: string
-              example:
-                success: true
-                message: "Categories reordered successfully"
 
   /categories/bulk:
     put:
       summary: Bulk update categories
       tags: [Categories]
+      description: |
+        Update multiple categories simultaneously
       requestBody:
         required: true
         content:
@@ -3359,7 +4239,22 @@ paths:
                 categories:
                   type: array
                   items:
-                    $ref: '#/components/schemas/Category'
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        description: Category ID
+                      name:
+                        type: string
+                      description:
+                        type: string
+                      status:
+                        type: string
+                        enum: [active, inactive, draft, archived]
+                      is_featured:
+                        type: boolean
+                      order:
+                        type: integer
             example:
               categories:
                 - id: 1
@@ -3378,10 +4273,615 @@ paths:
                 items:
                   $ref: '#/components/schemas/Category'
 
+    delete:
+      summary: Bulk delete categories
+      tags: [Categories]
+      description: |
+        Delete multiple categories simultaneously
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categoryIds
+              properties:
+                categoryIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Array of category IDs to delete
+            example:
+              categoryIds: [1, 2, 3]
+      responses:
+        '200':
+          description: Categories deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                    description: Total number of categories
+                  success:
+                    type: integer
+                    description: Number of successfully deleted categories
+                  failed:
+                    type: integer
+                    description: Number of failed deletions
+
+  /categories/export/{format}:
+    get:
+      summary: Export categories
+      tags: [Categories]
+      description: |
+        Export categories in various formats (CSV, JSON, XML)
+      parameters:
+        - in: path
+          name: format
+          required: true
+          schema:
+            type: string
+            enum: [csv, json, xml]
+          description: Export format
+        - in: query
+          name: includeSubcategories
+          schema:
+            type: boolean
+            default: true
+          description: Include subcategories in export
+        - in: query
+          name: includeAttributes
+          schema:
+            type: boolean
+            default: true
+          description: Include attributes in export
+      responses:
+        '200':
+          description: Categories exported successfully
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          description: Invalid export format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/import:
+    post:
+      summary: Import categories
+      tags: [Categories]
+      description: |
+        Import categories from various formats
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - format
+                - data
+              properties:
+                format:
+                  type: string
+                  enum: [csv, json, xml]
+                  description: Import format
+                data:
+                  type: string
+                  description: Import data
+                options:
+                  type: object
+                  properties:
+                    updateExisting:
+                      type: boolean
+                      default: false
+                    skipDuplicates:
+                      type: boolean
+                      default: true
+            example:
+              format: "json"
+              data: "[{\"name\":\"Electronics\",\"description\":\"Electronic devices\"}]"
+              options:
+                updateExisting: false
+                skipDuplicates: true
+      responses:
+        '200':
+          description: Categories imported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: integer
+                    description: Number of successfully imported categories
+                  failed:
+                    type: integer
+                    description: Number of failed imports
+                  errors:
+                    type: array
+                    items:
+                      type: string
+
+  /categories/search/advanced:
+    get:
+      summary: Advanced category search
+      tags: [Categories]
+      description: |
+        Advanced search with multiple filters and options
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+          description: Category name to search for
+        - in: query
+          name: description
+          schema:
+            type: string
+          description: Search in description
+        - in: query
+          name: parent_id
+          schema:
+            type: integer
+          description: Filter by parent category ID
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, draft, archived, pending_approval]
+          description: Filter by category status
+        - in: query
+          name: level
+          schema:
+            type: integer
+          description: Filter by category level
+        - in: query
+          name: is_featured
+          schema:
+            type: boolean
+          description: Filter by featured status
+        - in: query
+          name: created_after
+          schema:
+            type: string
+            format: date
+          description: Filter by creation date (after)
+        - in: query
+          name: created_before
+          schema:
+            type: string
+            format: date
+          description: Filter by creation date (before)
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [name_asc, name_desc, created_asc, created_desc, order_asc, order_desc]
+            default: name_asc
+          description: Sort order
+      responses:
+        '200':
+          description: Advanced search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /categories/status/{status}:
+    get:
+      summary: Get categories by status
+      tags: [Categories]
+      description: |
+        Get all categories with a specific status
+      parameters:
+        - in: path
+          name: status
+          required: true
+          schema:
+            type: string
+            enum: [active, inactive, draft, archived, pending_approval]
+          description: Category status
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Categories with specified status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /categories/level/{level}:
+    get:
+      summary: Get categories by level
+      tags: [Categories]
+      description: |
+        Get all categories at a specific hierarchy level
+      parameters:
+        - in: path
+          name: level
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+          description: Category level
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Categories at specified level
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /categories/parent/{parentId}:
+    get:
+      summary: Get categories by parent
+      tags: [Categories]
+      description: |
+        Get all subcategories of a specific parent category
+      parameters:
+        - in: path
+          name: parentId
+          required: true
+          schema:
+            type: integer
+          description: Parent category ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: Subcategories of specified parent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /categories/{categoryId}/path:
+    get:
+      summary: Get category path (breadcrumb)
+      tags: [Categories]
+      description: |
+        Get the full path/breadcrumb for a category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category path/breadcrumb
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/descendants:
+    get:
+      summary: Get category descendants
+      tags: [Categories]
+      description: |
+        Get all descendant categories (children, grandchildren, etc.)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category descendants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    slug:
+                      type: string
+                    parent_id:
+                      type: integer
+                    level:
+                      type: integer
+                    order:
+                      type: integer
+                    status:
+                      type: string
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/ancestors:
+    get:
+      summary: Get category ancestors
+      tags: [Categories]
+      description: |
+        Get all ancestor categories (parent, grandparent, etc.)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category ancestors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    slug:
+                      type: string
+                    parent_id:
+                      type: integer
+                    level:
+                      type: integer
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/siblings:
+    get:
+      summary: Get category siblings
+      tags: [Categories]
+      description: |
+        Get all sibling categories (same parent)
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Category siblings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                    name:
+                      type: string
+                    slug:
+                      type: string
+                    parent_id:
+                      type: integer
+                    level:
+                      type: integer
+                    order:
+                      type: integer
+                    status:
+                      type: string
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/statistics:
+    get:
+      summary: Get detailed category statistics
+      tags: [Categories]
+      description: |
+        Get comprehensive statistics for a category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Detailed category statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_products:
+                    type: integer
+                  active_products:
+                    type: integer
+                  avg_price:
+                    type: number
+                  total_sales:
+                    type: number
+                  total_views:
+                    type: integer
+                  conversion_rate:
+                    type: number
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/{categoryId}/full:
+    get:
+      summary: Get category with full details
+      tags: [Categories]
+      description: |
+        Get complete category information including children, stats, and all details
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: integer
+          description: Category ID
+      responses:
+        '200':
+          description: Complete category information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+        '404':
+          description: Category not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /categories/{categoryId}/attributes:
     post:
       summary: Add category attribute
       tags: [Categories]
+      description: |
+        Add a new attribute to a category
       parameters:
         - in: path
           name: categoryId
@@ -3401,21 +4901,27 @@ paths:
               properties:
                 name:
                   type: string
+                  description: Attribute name
                 type:
                   type: string
-                  enum: [text, number, select, multiselect]
+                  enum: [string, number, enum]
+                  description: Attribute type
                 required:
                   type: boolean
+                  default: false
+                  description: Whether the attribute is required
                 order:
                   type: integer
+                  default: 0
+                  description: Display order
             example:
               name: "Color"
-              type: "select"
+              type: "enum"
               required: true
               order: 1
       responses:
         '201':
-          description: Attribute created successfully
+          description: Attribute added successfully
           content:
             application/json:
               schema:
@@ -3424,6 +4930,8 @@ paths:
     get:
       summary: Get category attributes
       tags: [Categories]
+      description: |
+        Get all attributes for a category
       parameters:
         - in: path
           name: categoryId
@@ -3433,29 +4941,20 @@ paths:
           description: Category ID
       responses:
         '200':
-          description: List of category attributes
+          description: Category attributes
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryAttribute'
-              example:
-                - id: 1
-                  name: "Color"
-                  type: "select"
-                  required: true
-                  order: 1
-                - id: 2
-                  name: "Size"
-                  type: "select"
-                  required: true
-                  order: 2
 
   /categories/attributes/{attributeId}:
     put:
       summary: Update category attribute
       tags: [Categories]
+      description: |
+        Update an existing category attribute
       parameters:
         - in: path
           name: attributeId
@@ -3472,13 +4971,17 @@ paths:
               properties:
                 name:
                   type: string
+                  description: Attribute name
                 type:
                   type: string
-                  enum: [text, number, select, multiselect]
+                  enum: [string, number, enum]
+                  description: Attribute type
                 required:
                   type: boolean
+                  description: Whether the attribute is required
                 order:
                   type: integer
+                  description: Display order
             example:
               name: "Updated Color"
               required: false
@@ -3494,6 +4997,8 @@ paths:
     delete:
       summary: Delete category attribute
       tags: [Categories]
+      description: |
+        Delete a category attribute
       parameters:
         - in: path
           name: attributeId
@@ -3504,11 +5009,19 @@ paths:
       responses:
         '204':
           description: Attribute deleted successfully
+        '404':
+          description: Attribute not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /categories/attributes/{attributeId}/options:
     post:
       summary: Add attribute option
       tags: [Categories]
+      description: |
+        Add a new option to a category attribute
       parameters:
         - in: path
           name: attributeId
@@ -3527,14 +5040,17 @@ paths:
               properties:
                 value:
                   type: string
+                  description: Option value
                 order:
                   type: integer
+                  default: 0
+                  description: Display order
             example:
               value: "Red"
               order: 1
       responses:
         '201':
-          description: Option created successfully
+          description: Option added successfully
           content:
             application/json:
               schema:
@@ -3543,6 +5059,8 @@ paths:
     get:
       summary: Get attribute options
       tags: [Categories]
+      description: |
+        Get all options for a category attribute
       parameters:
         - in: path
           name: attributeId
@@ -3552,28 +5070,20 @@ paths:
           description: Attribute ID
       responses:
         '200':
-          description: List of attribute options
+          description: Attribute options
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/CategoryAttributeOption'
-              example:
-                - id: 1
-                  value: "Red"
-                  order: 1
-                - id: 2
-                  value: "Blue"
-                  order: 2
-                - id: 3
-                  value: "Green"
-                  order: 3
 
-  /categories/options/{optionId}:
+  /categories/attributes/options/{optionId}:
     put:
       summary: Update attribute option
       tags: [Categories]
+      description: |
+        Update an existing attribute option
       parameters:
         - in: path
           name: optionId
@@ -3590,8 +5100,10 @@ paths:
               properties:
                 value:
                   type: string
+                  description: Option value
                 order:
                   type: integer
+                  description: Display order
             example:
               value: "Dark Red"
               order: 2
@@ -3606,6 +5118,8 @@ paths:
     delete:
       summary: Delete attribute option
       tags: [Categories]
+      description: |
+        Delete an attribute option
       parameters:
         - in: path
           name: optionId
@@ -3616,11 +5130,53 @@ paths:
       responses:
         '204':
           description: Option deleted successfully
+        '404':
+          description: Option not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-  /categories/products-with-attributes:
-    post:
-      summary: Create product with attributes
+  /categories/templates/{templateId}:
+    get:
+      summary: Get category template
       tags: [Categories]
+      description: |
+        Get a specific category template
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema:
+            type: integer
+          description: Template ID
+      responses:
+        '200':
+          description: Category template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryTemplate'
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/templates/{templateId}/create:
+    post:
+      summary: Create category from template
+      tags: [Categories]
+      description: |
+        Create a new category using a specific template
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema:
+            type: integer
+          description: Template ID
       requestBody:
         required: true
         content:
@@ -3628,54 +5184,26 @@ paths:
             schema:
               type: object
               required:
-                - product
-                - attributes
+                - name
               properties:
-                product:
-                  type: object
-                  required:
-                    - name
-                    - price
-                  properties:
-                    name:
-                      type: string
-                    price:
-                      type: number
-                    description:
-                      type: string
-                attributes:
-                  type: array
-                  items:
-                    type: object
-                    required:
-                      - category_attribute_id
-                      - value
-                    properties:
-                      category_attribute_id:
-                        type: integer
-                      value:
-                        type: string
-            example:
-              product:
-                name: "Samsung Galaxy S21"
-                price: 799.99
-                description: "Latest Samsung flagship phone"
-              attributes:
-                - category_attribute_id: 1
-                  value: "Black"
-                - category_attribute_id: 2
-                  value: "256GB"
+                name:
+                  type: string
+                  description: New category name
+                parent_id:
+                  type: integer
+                  description: Parent category ID
+                description:
+                  type: string
+                  description: Category description
+                status:
+                  type: string
+                  enum: [draft, active]
+                  default: "draft"
+                  description: Initial status
       responses:
         '201':
-          description: Product created successfully with attributes
+          description: Category created from template
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  product:
-                    $ref: '#/components/schemas/Product'
-                  attributes:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/ProductAttribute' 
+                $ref: '#/components/schemas/Category'
