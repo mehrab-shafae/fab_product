@@ -17,6 +17,7 @@ import { sequelize } from './src/models/index.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './src/models/index.js';
+import { generateSlug } from './src/utils/slugGenerator.js';
 
 // ======================================================================
 const __filename = fileURLToPath(import.meta.url);
@@ -503,15 +504,10 @@ function getProductById(id) {
       return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
 }
 
-function generateSlug(name) {
-      return name
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '-')
-            .replace(/(^-|-$)/g, '');
-}
-
 function createCategory(categoryData) {
       const { name, parent_id } = categoryData;
+      
+      // Use the improved slug generator
       const slug = generateSlug(name);
 
       const query = `
@@ -1109,7 +1105,12 @@ function requestLogger(req, res, next) {
 
 function updateCategory(categoryId, categoryData) {
       const { name, parent_id } = categoryData;
-      const slug = name ? generateSlug(name) : undefined;
+      
+      // Only generate new slug if name is provided
+      let slug = undefined;
+      if (name) {
+            slug = generateSlug(name);
+      }
 
       const query = `
         UPDATE categories 

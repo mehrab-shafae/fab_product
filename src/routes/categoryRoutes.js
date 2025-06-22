@@ -8,7 +8,8 @@ import {
       checkCategoryExists, 
       checkParentCategoryExists, 
       preventCircularReference,
-      logCategoryOperation 
+      logCategoryOperation,
+      validateSlugParam
 } from '../middlewares/categoryMiddleware.js';
 import { Op } from 'sequelize';
 
@@ -124,7 +125,7 @@ router.get('/',
 );
 
 // Get category by slug - This must come before /:id to avoid conflicts
-router.get('/slug/:slug', async (req, res) => {
+router.get('/slug/:slug', validateSlugParam, async (req, res) => {
       try {
             const category = await categoryService.getBySlug(req.params.slug, {
                   includeChildren: true,
@@ -1192,5 +1193,64 @@ router.get('/:id/full',
             }
       }
 );
+
+// Add slug redirect
+router.post('/:id/redirects', async (req, res) => {
+      try {
+            const { oldSlug } = req.body;
+            if (!oldSlug) {
+                  return res.status(400).json({
+                        status: 'error',
+                        message: 'Slug قدیمی الزامی است'
+                  });
+            }
+
+            const category = await categoryService.addSlugRedirect(req.params.id, oldSlug);
+            res.json({
+                  status: 'success',
+                  data: category,
+                  message: 'Redirect با موفقیت اضافه شد'
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: error.message
+            });
+      }
+});
+
+// Remove slug redirect
+router.delete('/:id/redirects/:oldSlug', async (req, res) => {
+      try {
+            const category = await categoryService.removeSlugRedirect(req.params.id, req.params.oldSlug);
+            res.json({
+                  status: 'success',
+                  data: category,
+                  message: 'Redirect با موفقیت حذف شد'
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: error.message
+            });
+      }
+});
+
+// Get slug redirects
+router.get('/:id/redirects', async (req, res) => {
+      try {
+            const redirects = await categoryService.getSlugRedirects(req.params.id);
+            res.json({
+                  status: 'success',
+                  data: redirects,
+                  message: 'Redirect ها با موفقیت دریافت شدند'
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: error.message
+            });
+      }
+});
 
 export default router;

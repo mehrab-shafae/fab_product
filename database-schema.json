@@ -137,6 +137,15 @@
                         "CREATE TABLE IF NOT EXISTS category_attribute_options (id SERIAL PRIMARY KEY, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, value VARCHAR(255) NOT NULL, \"order\" INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                         "CREATE TABLE IF NOT EXISTS product_attribute_values (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, value TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, category_attribute_id))"
                   ]
+            },
+            {
+                  "version": 14,
+                  "name": "Add slug_redirects to categories",
+                  "queries": [
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS slug_redirects JSONB DEFAULT '[]'",
+                        "CREATE INDEX IF NOT EXISTS idx_categories_slug_redirects ON categories USING GIN (slug_redirects)",
+                        "COMMENT ON COLUMN categories.slug_redirects IS 'Array of old slugs for redirect purposes'"
+                  ]
             }
       ],
       "indexes": [

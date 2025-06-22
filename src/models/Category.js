@@ -17,6 +17,11 @@ const Category = sequelize.define(
                   type: DataTypes.STRING(255),
                   allowNull: true,
             },
+            slug_redirects: {
+                  type: DataTypes.JSONB,
+                  defaultValue: [],
+                  comment: 'Array of old slugs for redirect purposes',
+            },
             description: {
                   type: DataTypes.TEXT,
                   allowNull: true,
@@ -103,28 +108,36 @@ const Category = sequelize.define(
             paranoid: true,
             indexes: [
                   {
+                        name: 'categories_slug_idx',
+                        fields: ['slug'],
                         unique: true,
-                        fields: ['name', 'slug'],
                         where: {
                               deleted_at: null,
                         },
-                        name: 'categories_name_slug_key',
                   },
                   {
-                        fields: ['parent_id'],
+                        name: 'categories_name_idx',
+                        fields: ['name'],
+                        unique: true,
+                        where: {
+                              deleted_at: null,
+                        },
+                  },
+                  {
                         name: 'categories_parent_id_idx',
+                        fields: ['parent_id'],
                   },
                   {
-                        fields: ['level'],
-                        name: 'categories_level_idx',
-                  },
-                  {
-                        fields: ['status'],
                         name: 'categories_status_idx',
+                        fields: ['status'],
                   },
                   {
-                        fields: ['is_featured'],
-                        name: 'categories_is_featured_idx',
+                        name: 'categories_level_idx',
+                        fields: ['level'],
+                  },
+                  {
+                        name: 'categories_order_idx',
+                        fields: ['order'],
                   },
             ],
       }

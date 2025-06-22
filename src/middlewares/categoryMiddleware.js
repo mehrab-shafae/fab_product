@@ -1,5 +1,6 @@
 import { Category } from '../models/index.js';
 import { body, param, query, validationResult } from 'express-validator';
+import { isValidSlug, getSlugConfig } from '../utils/slugGenerator.js';
 
 export const categoryMiddleware = {
       // Validate category ID
@@ -16,26 +17,41 @@ export const categoryMiddleware = {
             }
       },
 
-      // Validate category data
+      // Validate category data including slug
       validateCategoryData(req, res, next) {
-            const { name, parent_id } = req.body;
+            const { name, slug, parent_id } = req.body;
+            const errors = [];
 
-            if (!name) {
-                  return res.error('Category name is required', 400);
+            // Validate name
+            if (!name || typeof name !== 'string' || name.trim().length === 0) {
+                  errors.push('نام دسته‌بندی الزامی است');
+            } else if (name.trim().length < 2) {
+                  errors.push('نام دسته‌بندی باید حداقل ۲ کاراکتر باشد');
+            } else if (name.trim().length > 255) {
+                  errors.push('نام دسته‌بندی نمی‌تواند بیشتر از ۲۵۵ کاراکتر باشد');
             }
 
-            if (name.length < 2) {
-                  return res.error('Category name must be at least 2 characters long', 400);
-            }
-
-            if (name.length > 255) {
-                  return res.error('Category name must not exceed 255 characters', 400);
-            }
-
-            if (parent_id) {
-                  if (isNaN(parent_id)) {
-                        return res.error('Parent ID must be a number', 400);
+            // Validate custom slug if provided
+            if (slug && typeof slug === 'string') {
+                  if (!isValidSlug(slug)) {
+                        const config = getSlugConfig();
+                        errors.push(`Slug نامعتبر است. باید بین ${config.MIN_LENGTH} تا ${config.MAX_LENGTH} کاراکتر باشد و فقط شامل حروف، اعداد و خط تیره باشد`);
                   }
+            }
+
+            // Validate parent_id
+            if (parent_id !== undefined && parent_id !== null) {
+                  if (!Number.isInteger(Number(parent_id)) || Number(parent_id) < 0) {
+                        errors.push('شناسه دسته‌بندی والد نامعتبر است');
+                  }
+            }
+
+            if (errors.length > 0) {
+                  return res.status(400).json({
+                        status: 'error',
+                        message: 'خطا در اعتبارسنجی داده‌ها',
+                        errors
+                  });
             }
 
             next();
@@ -373,6 +389,27 @@ export const handleValidationErrors = (req, res, next) => {
                   }))
             });
       }
+      next();
+};
+
+// Middleware to validate slug parameter
+export const validateSlugParam = (req, res, next) => {
+      const { slug } = req.params;
+
+      if (!slug || typeof slug !== 'string') {
+            return res.status(400).json({
+                  status: 'error',
+                  message: 'Slug نامعتبر است'
+            });
+      }
+
+      if (!isValidSlug(slug)) {
+            return res.status(400).json({
+                  status: 'error',
+                  message: 'فرمت slug نامعتبر است'
+            });
+      }
+
       next();
 };
 

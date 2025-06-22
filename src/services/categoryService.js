@@ -1,11 +1,11 @@
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from '../models/index.js';
 import { Op, fn, col, literal, QueryTypes } from 'sequelize';
-import { generateCategorySlug } from '../utils/slugGenerator.js';
+import { generateCategorySlug, generateCustomSlug } from '../utils/slugGenerator.js';
 
 export const categoryService = {
       // Create a new category
       async create(categoryData) {
-            const { name, parent_id, description, meta_title, meta_description, meta_keywords, attributes, settings, image_url, icon_url, order, status, is_featured } = categoryData;
+            const { name, parent_id, description, meta_title, meta_description, meta_keywords, attributes, settings, image_url, icon_url, order, status, is_featured, slug: customSlug } = categoryData;
 
             // Get parent category if exists
             let parentSlug = null;
@@ -16,8 +16,28 @@ export const categoryService = {
                   }
             }
 
-            // Generate slug
-            const slug = await generateCategorySlug(name, parentSlug, Category);
+            // Generate or validate slug
+            let slug;
+            if (customSlug) {
+                  // Use custom slug if provided
+                  const existingCategories = await Category.findAll({
+                        attributes: ['slug'],
+                        where: { deleted_at: null },
+                        raw: true,
+                  });
+                  const existingSlugs = existingCategories.map(cat => cat.slug).filter(Boolean);
+                  
+                  slug = generateCustomSlug(customSlug, existingSlugs);
+                  
+                  // If there's a parent, prepend its slug
+                  if (parentSlug) {
+                        const parentSlugClean = parentSlug.replace(/\/$/, '');
+                        slug = `${parentSlugClean}/${slug}`;
+                  }
+            } else {
+                  // Generate automatic slug
+                  slug = await generateCategorySlug(name, parentSlug, Category);
+            }
 
             return await Category.create({
                   name,
@@ -87,7 +107,7 @@ export const categoryService = {
             });
       },
 
-      // Get category by slug with optimized loading
+      // Get category by slug with redirect support
       async getBySlug(slug, { includeChildren = true, depth = 2, includeStats = false } = {}) {
             const include = [];
 
@@ -125,7 +145,8 @@ export const categoryService = {
                   });
             }
 
-            return await Category.findOne({
+            // First try to find by current slug
+            let category = await Category.findOne({
                   where: { slug, status: 'active' },
                   include,
                   attributes: [
@@ -135,6 +156,25 @@ export const categoryService = {
                         'level', 'path', 'created_at', 'updated_at'
                   ],
             });
+
+            // If not found, check redirects
+            if (!category) {
+                  category = await Category.findOne({
+                        where: {
+                              slug_redirects: { [Op.contains]: [slug] },
+                              status: 'active'
+                        },
+                        include,
+                        attributes: [
+                              'id', 'name', 'slug', 'parent_id', 'description', 
+                              'meta_title', 'meta_description', 'meta_keywords',
+                              'image_url', 'icon_url', 'order', 'status', 'is_featured',
+                              'level', 'path', 'created_at', 'updated_at'
+                        ],
+                  });
+            }
+
+            return category;
       },
 
       // Get optimized category tree with materialized path
@@ -197,10 +237,39 @@ export const categoryService = {
             const category = await Category.findByPk(id);
             if (!category) return null;
 
-            const { name, parent_id, description, meta_title, meta_description, meta_keywords, attributes, settings, image_url, icon_url, order, status, is_featured } = categoryData;
+            const { name, parent_id, description, meta_title, meta_description, meta_keywords, attributes, settings, image_url, icon_url, order, status, is_featured, slug: customSlug } = categoryData;
 
-            // Only regenerate slug if name or parent_id changed
-            if (name || parent_id) {
+            // Store old slug for redirect
+            const oldSlug = category.slug;
+            let newSlug = oldSlug;
+
+            // Handle slug generation/update
+            if (customSlug) {
+                  // Use custom slug if provided
+                  const existingCategories = await Category.findAll({
+                        attributes: ['slug'],
+                        where: { 
+                              deleted_at: null,
+                              id: { [Op.ne]: id } // Exclude current category
+                        },
+                        raw: true,
+                  });
+                  const existingSlugs = existingCategories.map(cat => cat.slug).filter(Boolean);
+                  
+                  newSlug = generateCustomSlug(customSlug, existingSlugs);
+                  
+                  // If there's a parent, prepend its slug
+                  if (parent_id) {
+                        const parentCategory = await Category.findByPk(parent_id);
+                        if (parentCategory) {
+                              const parentSlugClean = parentCategory.slug.replace(/\/$/, '');
+                              newSlug = `${parentSlugClean}/${newSlug}`;
+                        }
+                  }
+                  
+                  categoryData.slug = newSlug;
+            } else if (name || parent_id) {
+                  // Regenerate slug if name or parent_id changed
                   let parentSlug = null;
                   if (parent_id) {
                         const parentCategory = await Category.findByPk(parent_id);
@@ -209,7 +278,17 @@ export const categoryService = {
                         }
                   }
 
-                  categoryData.slug = await generateCategorySlug(name || category.name, parentSlug, Category);
+                  newSlug = await generateCategorySlug(name || category.name, parentSlug, Category);
+                  categoryData.slug = newSlug;
+            }
+
+            // Add redirect if slug changed
+            if (oldSlug && newSlug && oldSlug !== newSlug) {
+                  const redirects = category.slug_redirects || [];
+                  if (!redirects.includes(oldSlug)) {
+                        redirects.push(oldSlug);
+                        categoryData.slug_redirects = redirects;
+                  }
             }
 
             return await category.update({
@@ -226,6 +305,8 @@ export const categoryService = {
                   order,
                   status,
                   is_featured,
+                  slug: categoryData.slug,
+                  slug_redirects: categoryData.slug_redirects,
             });
       },
 
@@ -1281,5 +1362,48 @@ export const categoryService = {
                   .replace(/>/g, '&gt;')
                   .replace(/"/g, '&quot;')
                   .replace(/'/g, '&#39;');
+      },
+
+      // Add slug redirect
+      async addSlugRedirect(categoryId, oldSlug) {
+            const category = await Category.findByPk(categoryId);
+            if (!category) {
+                  throw new Error('Category not found');
+            }
+
+            const redirects = category.slug_redirects || [];
+            if (!redirects.includes(oldSlug)) {
+                  redirects.push(oldSlug);
+                  await category.update({ slug_redirects: redirects });
+            }
+
+            return category;
+      },
+
+      // Remove slug redirect
+      async removeSlugRedirect(categoryId, oldSlug) {
+            const category = await Category.findByPk(categoryId);
+            if (!category) {
+                  throw new Error('Category not found');
+            }
+
+            const redirects = category.slug_redirects || [];
+            const updatedRedirects = redirects.filter(redirect => redirect !== oldSlug);
+            
+            await category.update({ slug_redirects: updatedRedirects });
+            return category;
+      },
+
+      // Get all redirects for a category
+      async getSlugRedirects(categoryId) {
+            const category = await Category.findByPk(categoryId, {
+                  attributes: ['id', 'name', 'slug', 'slug_redirects']
+            });
+            
+            if (!category) {
+                  throw new Error('Category not found');
+            }
+
+            return category.slug_redirects || [];
       },
 };
