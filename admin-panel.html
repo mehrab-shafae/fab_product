@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Admin Panel - Read Only</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 300;
+        }
+
+        .container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            width: 300px;
+            background: white;
+            border-right: 1px solid #ddd;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .table-list {
+            list-style: none;
+        }
+
+        .table-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .table-item:hover {
+            background: #f8f9fa;
+        }
+
+        .table-item.active {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+
+        .table-name {
+            font-weight: 500;
+            color: #2c3e50;
+        }
+
+        .table-count {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .data-table {
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .table-header h2 {
+            color: #2c3e50;
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .table-info {
+            display: flex;
+            gap: 2rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .table-content {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #ddd;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #eee;
+            word-break: break-word;
+            max-width: 300px;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .json-data {
+            background: #f8f9fa;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 1rem;
+            padding: 1rem;
+        }
+
+        .pagination button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .pagination button:hover {
+            background: #f8f9fa;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .search-box {
+            padding: 1rem;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: #666;
+        }
+
+        .refresh-btn {
+            background: #2196f3;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 1rem;
+        }
+
+        .refresh-btn:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📊 Database Admin Panel - Read Only</h1>
+    </div>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="search-box">
+                <input type="text" id="tableSearch" placeholder="Search tables...">
+            </div>
+            <ul class="table-list" id="tableList">
+                <li class="loading">Loading tables...</li>
+            </ul>
+        </div>
+
+        <div class="main-content">
+            <div id="content">
+                <div class="loading">Select a table to view data</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class DatabaseAdminPanel {
+            constructor() {
+                this.currentTable = null;
+                this.currentPage = 1;
+                this.pageSize = 50;
+                this.tables = [];
+                this.init();
+            }
+
+            async init() {
+                await this.loadTables();
+                this.setupEventListeners();
+            }
+
+            setupEventListeners() {
+                document.getElementById('tableSearch').addEventListener('input', (e) => {
+                    this.filterTables(e.target.value);
+                });
+            }
+
+            async loadTables() {
+                try {
+                    console.log('Loading tables...');
+                    const response = await fetch('/api/admin/tables');
+                    console.log('Response status:', response.status);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Response data:', data);
+                    
+                    if (data.status === 'success') {
+                        this.tables = data.data;
+                        this.renderTableList();
+                    } else {
+                        throw new Error(data.message || 'Unknown error');
+                    }
+                } catch (error) {
+                    console.error('Error loading tables:', error);
+                    this.showError('Failed to load tables: ' + error.message);
+                }
+            }
+
+            renderTableList() {
+                const tableList = document.getElementById('tableList');
+                tableList.innerHTML = '';
+
+                this.tables.forEach(table => {
+                    const li = document.createElement('li');
+                    li.className = 'table-item';
+                    li.innerHTML = `
+                        <div class="table-name">${table.name}</div>
+                        <div class="table-count">${table.row_count} rows</div>
+                    `;
+                    li.addEventListener('click', () => this.loadTableData(table.name));
+                    tableList.appendChild(li);
+                });
+            }
+
+            filterTables(searchTerm) {
+                const tableItems = document.querySelectorAll('.table-item');
+                tableItems.forEach(item => {
+                    const tableName = item.querySelector('.table-name').textContent.toLowerCase();
+                    if (tableName.includes(searchTerm.toLowerCase())) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            }
+
+            async loadTableData(tableName) {
+                this.currentTable = tableName;
+                this.currentPage = 1;
+                
+                // Update active state
+                document.querySelectorAll('.table-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                event.target.closest('.table-item').classList.add('active');
+
+                this.showLoading();
+                await this.fetchTableData();
+            }
+
+            async fetchTableData() {
+                try {
+                    const response = await fetch(`/api/admin/tables/${this.currentTable}?page=${this.currentPage}&limit=${this.pageSize}`);
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        this.renderTableData(data.data);
+                    } else {
+                        throw new Error(data.message);
+                    }
+                } catch (error) {
+                    this.showError('Failed to load table data: ' + error.message);
+                }
+            }
+
+            renderTableData(data) {
+                const content = document.getElementById('content');
+                
+                if (!data.columns || data.rows.length === 0) {
+                    content.innerHTML = `
+                        <div class="data-table">
+                            <div class="table-header">
+                                <h2>${this.currentTable}</h2>
+                                <div class="table-info">
+                                    <span>0 rows</span>
+                                    <button class="refresh-btn" onclick="adminPanel.fetchTableData()">🔄 Refresh</button>
+                                </div>
+                            </div>
+                            <div class="no-data">No data available</div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const columns = data.columns;
+                const rows = data.rows;
+                const totalRows = data.total || rows.length;
+
+                let tableHTML = `
+                    <div class="data-table">
+                        <div class="table-header">
+                            <h2>${this.currentTable}</h2>
+                            <div class="table-info">
+                                <span>${totalRows} total rows</span>
+                                <span>Page ${this.currentPage} of ${Math.ceil(totalRows / this.pageSize)}</span>
+                                <button class="refresh-btn" onclick="adminPanel.fetchTableData()">🔄 Refresh</button>
+                            </div>
+                        </div>
+                        <div class="table-content">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        ${columns.map(col => `<th>${col}</th>`).join('')}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                rows.forEach(row => {
+                    tableHTML += '<tr>';
+                    columns.forEach(col => {
+                        const value = row[col];
+                        let displayValue = value;
+                        
+                        if (value === null || value === undefined) {
+                            displayValue = '<em>null</em>';
+                        } else if (typeof value === 'object') {
+                            displayValue = `<div class="json-data">${JSON.stringify(value, null, 2)}</div>`;
+                        } else if (typeof value === 'boolean') {
+                            displayValue = value ? '✅ true' : '❌ false';
+                        } else if (typeof value === 'string' && value.length > 100) {
+                            displayValue = value.substring(0, 100) + '...';
+                        }
+                        
+                        tableHTML += `<td>${displayValue}</td>`;
+                    });
+                    tableHTML += '</tr>';
+                });
+
+                tableHTML += `
+                                </tbody>
+                            </table>
+                        </div>
+                `;
+
+                // Add pagination if needed
+                if (totalRows > this.pageSize) {
+                    tableHTML += this.renderPagination(totalRows);
+                }
+
+                tableHTML += '</div>';
+                content.innerHTML = tableHTML;
+            }
+
+            renderPagination(totalRows) {
+                const totalPages = Math.ceil(totalRows / this.pageSize);
+                const currentPage = this.currentPage;
+
+                return `
+                    <div class="pagination">
+                        <button onclick="adminPanel.goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>
+                            ⏮️ First
+                        </button>
+                        <button onclick="adminPanel.goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                            ◀️ Previous
+                        </button>
+                        <span>Page ${currentPage} of ${totalPages}</span>
+                        <button onclick="adminPanel.goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                            Next ▶️
+                        </button>
+                        <button onclick="adminPanel.goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>
+                            Last ⏭️
+                        </button>
+                    </div>
+                `;
+            }
+
+            async goToPage(page) {
+                this.currentPage = page;
+                await this.fetchTableData();
+            }
+
+            showLoading() {
+                document.getElementById('content').innerHTML = '<div class="loading">Loading data...</div>';
+            }
+
+            showError(message) {
+                document.getElementById('content').innerHTML = `
+                    <div class="error">
+                        <strong>Error:</strong> ${message}
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize the admin panel
+        const adminPanel = new DatabaseAdminPanel();
+    </script>
+</body>
+</html>

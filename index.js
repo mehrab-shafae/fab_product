@@ -239,7 +239,35 @@ async function init() {
       const app = express();
       const apiV1Router = express.Router();
 
-      app.use(helmet());
+      if(isDevelopment) {
+            // Configure Helmet with CSP that allows inline scripts for admin panel
+            app.use(helmet({
+                  contentSecurityPolicy: {
+                        directives: {
+                              defaultSrc: ["'self'"],
+                              scriptSrc: ["'self'", "'unsafe-inline'"],
+                              styleSrc: ["'self'", "'unsafe-inline'"],
+                              imgSrc: ["'self'", "data:", "https:"],
+                              connectSrc: ["'self'"],
+                              fontSrc: ["'self'"],
+                              objectSrc: ["'none'"],
+                              mediaSrc: ["'self'"],
+                              frameSrc: ["'none'"],
+                              workerSrc: ["'self'"],
+                              manifestSrc: ["'self'"],
+                              baseUri: ["'self'"],
+                              formAction: ["'self'"],
+                              frameAncestors: ["'none'"],
+                              upgradeInsecureRequests: [],
+                        },
+                  },
+                  crossOriginEmbedderPolicy: false,
+                  crossOriginResourcePolicy: { policy: "cross-origin" },
+            }));
+      }else{
+            app.use(helmet());
+      }
+
       app.use(
             cors({
                   origin: ['http://localhost:3000'],
@@ -248,8 +276,10 @@ async function init() {
       );
       app.use(express.json({ limit: '1mb' }));
       app.use(express.urlencoded({ limit: '1mb', extended: true }));
-      // app.use(limiter);
-      // app.use(speedLimiter);
+      if(!isDevelopment) {
+            app.use(limiter);
+            app.use(speedLimiter);
+      }
       app.use(requestLogger);
       app.use(errorLogger);
 
@@ -338,6 +368,102 @@ async function init() {
 
       app.use('/api/product/v1', apiV1Router);
 
+      if(isDevelopment) {
+      // Make pgPool available to routes
+      app.locals.pgPool = pgPool;
+
+      // Admin Panel Routes
+      app.get('/admin', (req, res) => {
+            res.sendFile(join(__dirname, 'admin-panel.html'));
+      });
+
+      // Admin API endpoints
+      app.get('/api/admin/tables', async (req, res) => {
+            try {
+                  console.log('Admin tables endpoint called');
+                  
+                  // Simple query to get all tables
+                  const query = `
+                        SELECT table_name as name
+                        FROM information_schema.tables 
+                        WHERE table_schema = 'public'
+                        AND table_type = 'BASE TABLE'
+                        ORDER BY table_name
+                  `;
+                  
+                  console.log('Executing query:', query);
+                  const result = await pgPool.query(query);
+                  console.log('Query result:', result.rows);
+                  
+                  // Get row counts for each table
+                  const tablesWithCounts = [];
+                  
+                  for (const table of result.rows) {
+                        try {
+                              const countQuery = `SELECT COUNT(*) as count FROM "${table.name}"`;
+                              const countResult = await pgPool.query(countQuery);
+                              tablesWithCounts.push({
+                                    name: table.name,
+                                    row_count: parseInt(countResult.rows[0].count)
+                              });
+                        } catch (error) {
+                              console.log(`Error counting rows for table ${table.name}:`, error.message);
+                              tablesWithCounts.push({
+                                    name: table.name,
+                                    row_count: 0
+                              });
+                        }
+                  }
+                  
+                  console.log('Final result:', tablesWithCounts);
+                  res.success(tablesWithCounts);
+            } catch (error) {
+                  console.error('Error in admin tables endpoint:', error);
+                  res.error(error);
+            }
+      });
+
+      app.get('/api/admin/tables/:tableName', async (req, res) => {
+            try {
+                  const { tableName } = req.params;
+                  const page = parseInt(req.query.page) || 1;
+                  const limit = parseInt(req.query.limit) || 50;
+                  const offset = (page - 1) * limit;
+
+                  // Get table columns
+                  const columnsQuery = `
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_schema = 'public' 
+                        AND table_name = $1 
+                        ORDER BY ordinal_position
+                  `;
+                  const columnsResult = await pgPool.query(columnsQuery, [tableName]);
+                  const columns = columnsResult.rows.map(row => row.column_name);
+
+                  // Get total count
+                  const countQuery = `SELECT COUNT(*) as total FROM "${tableName}"`;
+                  const countResult = await pgPool.query(countQuery);
+                  const total = parseInt(countResult.rows[0].total);
+
+                  // Get data with pagination
+                  const dataQuery = `SELECT * FROM "${tableName}" ORDER BY 1 LIMIT $1 OFFSET $2`;
+                  const dataResult = await pgPool.query(dataQuery, [limit, offset]);
+
+                  res.success({
+                        columns,
+                        rows: dataResult.rows,
+                        total,
+                        page,
+                        limit
+                  });
+            } catch (error) {
+                  res.error(error);
+            }
+      });
+
+}
+
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
                   error: err.message,
@@ -352,6 +478,9 @@ async function init() {
       app.listen(PORT, function () {
             console.log(`Product service is running on port ${PORT}`);
             console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
+            if(isDevelopment) {
+                  console.log(`Database Admin Panel available at http://localhost:${PORT}/admin`);
+            }
       });
 }
 
