@@ -2,7 +2,6 @@ import express from 'express';
 import { categoryService } from '../services/categoryService.js';
 import { categoryAnalyticsService } from '../services/categoryAnalyticsService.js';
 import { Category } from '../models/index.js';
-import { validateRequiredFieldsMiddleware } from '../middleware/validation.js';
 import { 
       categoryValidation, 
       handleValidationErrors, 
