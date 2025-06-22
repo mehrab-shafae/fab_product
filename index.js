@@ -240,32 +240,34 @@ async function init() {
       const app = express();
       const apiV1Router = express.Router();
 
-      if(isDevelopment) {
+      if (isDevelopment) {
             // Configure Helmet with CSP that allows inline scripts for admin panel
-            app.use(helmet({
-                  contentSecurityPolicy: {
-                        directives: {
-                              defaultSrc: ["'self'"],
-                              scriptSrc: ["'self'", "'unsafe-inline'"],
-                              styleSrc: ["'self'", "'unsafe-inline'"],
-                              imgSrc: ["'self'", "data:", "https:"],
-                              connectSrc: ["'self'"],
-                              fontSrc: ["'self'"],
-                              objectSrc: ["'none'"],
-                              mediaSrc: ["'self'"],
-                              frameSrc: ["'none'"],
-                              workerSrc: ["'self'"],
-                              manifestSrc: ["'self'"],
-                              baseUri: ["'self'"],
-                              formAction: ["'self'"],
-                              frameAncestors: ["'none'"],
-                              upgradeInsecureRequests: [],
+            app.use(
+                  helmet({
+                        contentSecurityPolicy: {
+                              directives: {
+                                    defaultSrc: ["'self'"],
+                                    scriptSrc: ["'self'", "'unsafe-inline'"],
+                                    styleSrc: ["'self'", "'unsafe-inline'"],
+                                    imgSrc: ["'self'", 'data:', 'https:'],
+                                    connectSrc: ["'self'"],
+                                    fontSrc: ["'self'"],
+                                    objectSrc: ["'none'"],
+                                    mediaSrc: ["'self'"],
+                                    frameSrc: ["'none'"],
+                                    workerSrc: ["'self'"],
+                                    manifestSrc: ["'self'"],
+                                    baseUri: ["'self'"],
+                                    formAction: ["'self'"],
+                                    frameAncestors: ["'none'"],
+                                    upgradeInsecureRequests: [],
+                              },
                         },
-                  },
-                  crossOriginEmbedderPolicy: false,
-                  crossOriginResourcePolicy: { policy: "cross-origin" },
-            }));
-      }else{
+                        crossOriginEmbedderPolicy: false,
+                        crossOriginResourcePolicy: { policy: 'cross-origin' },
+                  })
+            );
+      } else {
             app.use(helmet());
       }
 
@@ -277,7 +279,7 @@ async function init() {
       );
       app.use(express.json({ limit: '1mb' }));
       app.use(express.urlencoded({ limit: '1mb', extended: true }));
-      if(!isDevelopment) {
+      if (!isDevelopment) {
             app.use(limiter);
             app.use(speedLimiter);
       }
@@ -336,11 +338,11 @@ async function init() {
             // Initialize Sequelize
             await sequelize.authenticate();
             console.log('Sequelize connection has been established successfully.');
-            
+
             // Create database schema first
             await createDatabaseSchema();
             console.log('Database schema created successfully.');
-            
+
             // Sync models with database - use force: false to preserve existing data
             // and alter: false to not modify existing tables
             try {
@@ -369,14 +371,14 @@ async function init() {
 
       app.use('/api/product/v1', apiV1Router);
 
-      if(isDevelopment) {
-      // Make pgPool available to routes
-      app.locals.pgPool = pgPool;
+      if (isDevelopment) {
+            // Make pgPool available to routes
+            app.locals.pgPool = pgPool;
 
-      // Admin Panel Routes - Only available in development
-      app.use('/admin', adminRoutes);
-      app.use('/api/admin', adminRoutes);
-}
+            // Admin Panel Routes - Only available in development
+            app.use('/admin', adminRoutes);
+            app.use('/api/admin', adminRoutes);
+      }
 
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
@@ -392,7 +394,7 @@ async function init() {
       app.listen(PORT, function () {
             console.log(`Product service is running on port ${PORT}`);
             console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
-            if(isDevelopment) {
+            if (isDevelopment) {
                   console.log(`Database Admin Panel available at http://localhost:${PORT}/admin`);
             }
       });
@@ -1590,23 +1592,23 @@ async function addMissingColumnsForSequelize() {
 
             // Add missing columns to categories table
             const categoryColumns = [
-                  'attribute_metadata JSONB DEFAULT \'{}\'',
+                  "attribute_metadata JSONB DEFAULT '{}'",
                   'slug VARCHAR(255)',
                   'description TEXT',
                   'level INTEGER DEFAULT 1',
-                  'path INTEGER[] DEFAULT \'{}\'',
+                  "path INTEGER[] DEFAULT '{}'",
                   '"order" INTEGER DEFAULT 0',
-                  'status VARCHAR(20) DEFAULT \'active\'',
+                  "status VARCHAR(20) DEFAULT 'active'",
                   'is_featured BOOLEAN DEFAULT false',
                   'image_url VARCHAR(500)',
                   'icon_url VARCHAR(500)',
                   'meta_title VARCHAR(255)',
                   'meta_description TEXT',
-                  'meta_keywords VARCHAR(255)[] DEFAULT \'{}\'',
-                  'settings JSONB DEFAULT \'{}\'',
+                  "meta_keywords VARCHAR(255)[] DEFAULT '{}'",
+                  "settings JSONB DEFAULT '{}'",
                   'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
                   'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'deleted_at TIMESTAMP'
+                  'deleted_at TIMESTAMP',
             ];
 
             for (const column of categoryColumns) {
@@ -1618,13 +1620,7 @@ async function addMissingColumnsForSequelize() {
             }
 
             // Add missing columns to products table
-            const productColumns = [
-                  'status VARCHAR(20) DEFAULT \'active\'',
-                  'metadata JSONB DEFAULT \'{}\'',
-                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'deleted_at TIMESTAMP'
-            ];
+            const productColumns = ["status VARCHAR(20) DEFAULT 'active'", "metadata JSONB DEFAULT '{}'", 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'deleted_at TIMESTAMP'];
 
             for (const column of productColumns) {
                   try {
@@ -1889,18 +1885,18 @@ async function healthCheckController(req, res) {
 }
 
 async function createProductController(req, res) {
-    try {
-        const { attributes, ...productData } = req.body;
-        if (attributes && Array.isArray(attributes)) {
-            const product = await createProductWithAttributes(productData, attributes);
-            res.success(product, 'Product created successfully');
-        } else {
-            const result = await createProduct(productData);
-            res.success(result.rows[0], 'Product created successfully');
-        }
-    } catch (error) {
-        res.error(error);
-    }
+      try {
+            const { attributes, ...productData } = req.body;
+            if (attributes && Array.isArray(attributes)) {
+                  const product = await createProductWithAttributes(productData, attributes);
+                  res.success(product, 'Product created successfully');
+            } else {
+                  const result = await createProduct(productData);
+                  res.success(result.rows[0], 'Product created successfully');
+            }
+      } catch (error) {
+            res.error(error);
+      }
 }
 
 async function getProductByIdController(req, res) {
@@ -2614,48 +2610,48 @@ main();
 // ======================================================================
 
 async function createProductWithAttributes(productData, attributeValues) {
-    // productData: {name, price, description, category_id, ...}
-    // attributeValues: [{category_attribute_id, value}]
-    // دریافت attributeهای اجباری دسته و والدها
-    let attributes = [];
-    let currentCategoryId = productData.category_id;
-    while (currentCategoryId) {
-        const attrs = await CategoryAttribute.findAll({
-            where: { category_id: currentCategoryId, required: true },
-            include: [{ model: CategoryAttributeOption, as: 'options' }]
-        });
-        attributes = [...attrs, ...attributes];
-        const cat = await Category.findByPk(currentCategoryId);
-        currentCategoryId = cat && cat.parent_id ? cat.parent_id : null;
-    }
-    // اعتبارسنجی attributeهای اجباری
-    for (const attr of attributes) {
-        const val = attributeValues.find(v => v.category_attribute_id == attr.id);
-        if (!val || val.value === undefined || val.value === null || val.value === '') {
-            throw new Error(`Attribute '${attr.name}' is required`);
-        }
-        if (attr.type === 'number' && isNaN(Number(val.value))) {
-            throw new Error(`Attribute '${attr.name}' must be a number`);
-        }
-        if (attr.type === 'enum') {
-            const allowed = attr.options.map(o => o.value);
-            if (!allowed.includes(val.value)) {
-                throw new Error(`Attribute '${attr.name}' must be one of: ${allowed.join(', ')}`);
+      // productData: {name, price, description, category_id, ...}
+      // attributeValues: [{category_attribute_id, value}]
+      // دریافت attributeهای اجباری دسته و والدها
+      let attributes = [];
+      let currentCategoryId = productData.category_id;
+      while (currentCategoryId) {
+            const attrs = await CategoryAttribute.findAll({
+                  where: { category_id: currentCategoryId, required: true },
+                  include: [{ model: CategoryAttributeOption, as: 'options' }],
+            });
+            attributes = [...attrs, ...attributes];
+            const cat = await Category.findByPk(currentCategoryId);
+            currentCategoryId = cat && cat.parent_id ? cat.parent_id : null;
+      }
+      // اعتبارسنجی attributeهای اجباری
+      for (const attr of attributes) {
+            const val = attributeValues.find(v => v.category_attribute_id == attr.id);
+            if (!val || val.value === undefined || val.value === null || val.value === '') {
+                  throw new Error(`Attribute '${attr.name}' is required`);
             }
-        }
-    }
-    // ساخت محصول
-    const result = await createProduct(productData);
-    const product = result.rows[0];
-    // ذخیره attributeها
-    for (const attrVal of attributeValues) {
-        await ProductAttributeValue.create({
-            product_id: product.id,
-            category_attribute_id: attrVal.category_attribute_id,
-            value: attrVal.value
-        });
-    }
-    return product;
+            if (attr.type === 'number' && isNaN(Number(val.value))) {
+                  throw new Error(`Attribute '${attr.name}' must be a number`);
+            }
+            if (attr.type === 'enum') {
+                  const allowed = attr.options.map(o => o.value);
+                  if (!allowed.includes(val.value)) {
+                        throw new Error(`Attribute '${attr.name}' must be one of: ${allowed.join(', ')}`);
+                  }
+            }
+      }
+      // ساخت محصول
+      const result = await createProduct(productData);
+      const product = result.rows[0];
+      // ذخیره attributeها
+      for (const attrVal of attributeValues) {
+            await ProductAttributeValue.create({
+                  product_id: product.id,
+                  category_attribute_id: attrVal.category_attribute_id,
+                  value: attrVal.value,
+            });
+      }
+      return product;
 }
 
 async function createMissingTablesForSequelize() {

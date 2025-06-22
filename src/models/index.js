@@ -7,11 +7,11 @@ import Product from './Product.js';
 
 // Initialize all models
 const models = {
-    Category,
-    CategoryAttribute,
-    CategoryAttributeOption,
-    Product,
-    ProductAttributeValue
+      Category,
+      CategoryAttribute,
+      CategoryAttributeOption,
+      Product,
+      ProductAttributeValue,
 };
 
 // Define associations
@@ -19,13 +19,6 @@ Category.hasMany(CategoryAttribute, { foreignKey: 'category_id', as: 'categoryAt
 CategoryAttribute.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 
 // Export models and sequelize instance
-export {
-    sequelize,
-    Category,
-    CategoryAttribute,
-    CategoryAttributeOption,
-    Product,
-    ProductAttributeValue
-};
+export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue };
 
-export default models; 
+export default models;
