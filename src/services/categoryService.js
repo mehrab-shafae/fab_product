@@ -26,9 +26,9 @@ export const categoryService = {
                         raw: true,
                   });
                   const existingSlugs = existingCategories.map(cat => cat.slug).filter(Boolean);
-                  
+
                   slug = generateCustomSlug(customSlug, existingSlugs);
-                  
+
                   // If there's a parent, prepend its slug
                   if (parentSlug) {
                         const parentSlugClean = parentSlug.replace(/\/$/, '');
@@ -98,12 +98,7 @@ export const categoryService = {
             return await Category.findOne({
                   where: { id, status: 'active' },
                   include,
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description', 
-                        'meta_title', 'meta_description', 'meta_keywords',
-                        'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                        'level', 'path', 'created_at', 'updated_at'
-                  ],
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
             });
       },
 
@@ -149,12 +144,7 @@ export const categoryService = {
             let category = await Category.findOne({
                   where: { slug, status: 'active' },
                   include,
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description', 
-                        'meta_title', 'meta_description', 'meta_keywords',
-                        'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                        'level', 'path', 'created_at', 'updated_at'
-                  ],
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
             });
 
             // If not found, check redirects
@@ -162,15 +152,10 @@ export const categoryService = {
                   category = await Category.findOne({
                         where: {
                               slug_redirects: { [Op.contains]: [slug] },
-                              status: 'active'
+                              status: 'active',
                         },
                         include,
-                        attributes: [
-                              'id', 'name', 'slug', 'parent_id', 'description', 
-                              'meta_title', 'meta_description', 'meta_keywords',
-                              'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                              'level', 'path', 'created_at', 'updated_at'
-                        ],
+                        attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
                   });
             }
 
@@ -215,12 +200,7 @@ export const categoryService = {
                         },
                         ...include,
                   ],
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description', 
-                        'meta_title', 'meta_description', 'meta_keywords',
-                        'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                        'level', 'path', 'created_at', 'updated_at'
-                  ],
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
                   order: [
                         ['order', 'ASC'],
                         ['name', 'ASC'],
@@ -248,16 +228,16 @@ export const categoryService = {
                   // Use custom slug if provided
                   const existingCategories = await Category.findAll({
                         attributes: ['slug'],
-                        where: { 
+                        where: {
                               deleted_at: null,
-                              id: { [Op.ne]: id } // Exclude current category
+                              id: { [Op.ne]: id }, // Exclude current category
                         },
                         raw: true,
                   });
                   const existingSlugs = existingCategories.map(cat => cat.slug).filter(Boolean);
-                  
+
                   newSlug = generateCustomSlug(customSlug, existingSlugs);
-                  
+
                   // If there's a parent, prepend its slug
                   if (parent_id) {
                         const parentCategory = await Category.findByPk(parent_id);
@@ -266,7 +246,7 @@ export const categoryService = {
                               newSlug = `${parentSlugClean}/${newSlug}`;
                         }
                   }
-                  
+
                   categoryData.slug = newSlug;
             } else if (name || parent_id) {
                   // Regenerate slug if name or parent_id changed
@@ -382,13 +362,11 @@ export const categoryService = {
             const { count, rows } = await Category.findAndCountAll({
                   where,
                   include,
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description', 
-                        'meta_title', 'meta_description', 'meta_keywords',
-                        'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                        'level', 'path', 'created_at', 'updated_at'
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
+                  order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
                   ],
-                  order: [['order', 'ASC'], ['name', 'ASC']],
                   limit,
                   offset,
             });
@@ -411,11 +389,7 @@ export const categoryService = {
 
             // Full-text search
             if (searchParams.q) {
-                  where[Op.or] = [
-                        { name: { [Op.iLike]: `%${searchParams.q}%` } },
-                        { description: { [Op.iLike]: `%${searchParams.q}%` } },
-                        { slug: { [Op.iLike]: `%${searchParams.q}%` } },
-                  ];
+                  where[Op.or] = [{ name: { [Op.iLike]: `%${searchParams.q}%` } }, { description: { [Op.iLike]: `%${searchParams.q}%` } }, { slug: { [Op.iLike]: `%${searchParams.q}%` } }];
             }
 
             // Status filter
@@ -449,16 +423,8 @@ export const categoryService = {
 
             const { count, rows } = await Category.findAndCountAll({
                   where,
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description', 
-                        'meta_title', 'meta_description', 'meta_keywords',
-                        'image_url', 'icon_url', 'order', 'status', 'is_featured',
-                        'level', 'path', 'created_at', 'updated_at'
-                  ],
-                  order: [
-                        searchParams.sort_by ? [searchParams.sort_by, searchParams.sort_order || 'ASC'] : ['order', 'ASC'],
-                        ['name', 'ASC']
-                  ],
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_url', 'icon_url', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
+                  order: [searchParams.sort_by ? [searchParams.sort_by, searchParams.sort_order || 'ASC'] : ['order', 'ASC'], ['name', 'ASC']],
                   limit,
                   offset,
             });
@@ -484,7 +450,7 @@ export const categoryService = {
 
                   for (const category of categories) {
                         const { id, name, parent_id, description, status, is_featured, order } = category;
-                        
+
                         const result = await Category.update(
                               {
                                     name,
@@ -574,10 +540,7 @@ export const categoryService = {
                   }));
 
                   for (const update of updates) {
-                        await Category.update(
-                              { order: update.order },
-                              { where: { id: update.id }, transaction }
-                        );
+                        await Category.update({ order: update.order }, { where: { id: update.id }, transaction });
                   }
 
                   await transaction.commit();
@@ -648,15 +611,15 @@ export const categoryService = {
       // Get featured categories with optimized query
       async getFeaturedCategories(limit = 10) {
             return await Category.findAll({
-                  where: { 
-                        is_featured: true, 
-                        status: 'active' 
+                  where: {
+                        is_featured: true,
+                        status: 'active',
                   },
-                  attributes: [
-                        'id', 'name', 'slug', 'parent_id', 'description',
-                        'image_url', 'icon_url', 'order'
+                  attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'image_url', 'icon_url', 'order'],
+                  order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
                   ],
-                  order: [['order', 'ASC'], ['name', 'ASC']],
                   limit,
             });
       },
@@ -705,12 +668,14 @@ export const categoryService = {
       async getAttributes(categoryId) {
             return await CategoryAttribute.findAll({
                   where: { category_id: categoryId },
-                  include: [{
-                        model: CategoryAttributeOption,
-                        as: 'options',
-                        attributes: ['id', 'value', 'order'],
-                        order: [['order', 'ASC']],
-                  }],
+                  include: [
+                        {
+                              model: CategoryAttributeOption,
+                              as: 'options',
+                              attributes: ['id', 'value', 'order'],
+                              order: [['order', 'ASC']],
+                        },
+                  ],
                   order: [['order', 'ASC']],
             });
       },
@@ -799,11 +764,14 @@ export const categoryService = {
 
                   // Create attribute values
                   for (const attrVal of attributeValues) {
-                        await ProductAttributeValue.create({
-                              product_id: product.id,
-                              category_attribute_id: attrVal.category_attribute_id,
-                              value: attrVal.value,
-                        }, { transaction });
+                        await ProductAttributeValue.create(
+                              {
+                                    product_id: product.id,
+                                    category_attribute_id: attrVal.category_attribute_id,
+                                    value: attrVal.value,
+                              },
+                              { transaction }
+                        );
                   }
 
                   await transaction.commit();
@@ -850,14 +818,18 @@ export const categoryService = {
 
             try {
                   const originalCategory = await Category.findByPk(categoryId, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options'
-                              }]
-                        }]
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    include: [
+                                          {
+                                                model: CategoryAttributeOption,
+                                                as: 'options',
+                                          },
+                                    ],
+                              },
+                        ],
                   });
 
                   if (!originalCategory) {
@@ -876,39 +848,48 @@ export const categoryService = {
                   const newSlug = await generateCategorySlug(newName, parentSlug, Category);
 
                   // Create new category
-                  const newCategory = await Category.create({
-                        name: newName,
-                        slug: newSlug,
-                        parent_id: newParentId,
-                        description: originalCategory.description,
-                        meta_title: originalCategory.meta_title,
-                        meta_description: originalCategory.meta_description,
-                        meta_keywords: originalCategory.meta_keywords,
-                        image_url: originalCategory.image_url,
-                        icon_url: originalCategory.icon_url,
-                        order: originalCategory.order,
-                        status: 'draft', // Start as draft
-                        is_featured: false,
-                        level: newParentId ? (await Category.findByPk(newParentId)).level + 1 : 1,
-                  }, { transaction });
+                  const newCategory = await Category.create(
+                        {
+                              name: newName,
+                              slug: newSlug,
+                              parent_id: newParentId,
+                              description: originalCategory.description,
+                              meta_title: originalCategory.meta_title,
+                              meta_description: originalCategory.meta_description,
+                              meta_keywords: originalCategory.meta_keywords,
+                              image_url: originalCategory.image_url,
+                              icon_url: originalCategory.icon_url,
+                              order: originalCategory.order,
+                              status: 'draft', // Start as draft
+                              is_featured: false,
+                              level: newParentId ? (await Category.findByPk(newParentId)).level + 1 : 1,
+                        },
+                        { transaction }
+                  );
 
                   // Clone attributes
                   for (const attr of originalCategory.attributes) {
-                        const newAttr = await CategoryAttribute.create({
-                              category_id: newCategory.id,
-                              name: attr.name,
-                              type: attr.type,
-                              required: attr.required,
-                              order: attr.order,
-                        }, { transaction });
+                        const newAttr = await CategoryAttribute.create(
+                              {
+                                    category_id: newCategory.id,
+                                    name: attr.name,
+                                    type: attr.type,
+                                    required: attr.required,
+                                    order: attr.order,
+                              },
+                              { transaction }
+                        );
 
                         // Clone attribute options
                         for (const option of attr.options) {
-                              await CategoryAttributeOption.create({
-                                    category_attribute_id: newAttr.id,
-                                    value: option.value,
-                                    order: option.order,
-                              }, { transaction });
+                              await CategoryAttributeOption.create(
+                                    {
+                                          category_attribute_id: newAttr.id,
+                                          value: option.value,
+                                          order: option.order,
+                                    },
+                                    { transaction }
+                              );
                         }
                   }
 
@@ -923,14 +904,18 @@ export const categoryService = {
       // NEW: Get category template
       async getCategoryTemplate(templateId) {
             return await Category.findByPk(templateId, {
-                  include: [{
-                        model: CategoryAttribute,
-                        as: 'attributes',
-                        include: [{
-                              model: CategoryAttributeOption,
-                              as: 'options'
-                        }]
-                  }]
+                  include: [
+                        {
+                              model: CategoryAttribute,
+                              as: 'attributes',
+                              include: [
+                                    {
+                                          model: CategoryAttributeOption,
+                                          as: 'options',
+                                    },
+                              ],
+                        },
+                  ],
             });
       },
 
@@ -957,39 +942,48 @@ export const categoryService = {
                   const slug = await generateCategorySlug(categoryData.name, parentSlug, Category);
 
                   // Create category
-                  const category = await Category.create({
-                        name: categoryData.name,
-                        slug,
-                        parent_id: categoryData.parent_id,
-                        description: categoryData.description || template.description,
-                        meta_title: categoryData.meta_title || template.meta_title,
-                        meta_description: categoryData.meta_description || template.meta_description,
-                        meta_keywords: categoryData.meta_keywords || template.meta_keywords,
-                        image_url: categoryData.image_url || template.image_url,
-                        icon_url: categoryData.icon_url || template.icon_url,
-                        order: categoryData.order || template.order,
-                        status: categoryData.status || 'draft',
-                        is_featured: categoryData.is_featured || false,
-                        level: categoryData.parent_id ? (await Category.findByPk(categoryData.parent_id)).level + 1 : 1,
-                  }, { transaction });
+                  const category = await Category.create(
+                        {
+                              name: categoryData.name,
+                              slug,
+                              parent_id: categoryData.parent_id,
+                              description: categoryData.description || template.description,
+                              meta_title: categoryData.meta_title || template.meta_title,
+                              meta_description: categoryData.meta_description || template.meta_description,
+                              meta_keywords: categoryData.meta_keywords || template.meta_keywords,
+                              image_url: categoryData.image_url || template.image_url,
+                              icon_url: categoryData.icon_url || template.icon_url,
+                              order: categoryData.order || template.order,
+                              status: categoryData.status || 'draft',
+                              is_featured: categoryData.is_featured || false,
+                              level: categoryData.parent_id ? (await Category.findByPk(categoryData.parent_id)).level + 1 : 1,
+                        },
+                        { transaction }
+                  );
 
                   // Copy attributes from template
                   for (const attr of template.attributes) {
-                        const newAttr = await CategoryAttribute.create({
-                              category_id: category.id,
-                              name: attr.name,
-                              type: attr.type,
-                              required: attr.required,
-                              order: attr.order,
-                        }, { transaction });
+                        const newAttr = await CategoryAttribute.create(
+                              {
+                                    category_id: category.id,
+                                    name: attr.name,
+                                    type: attr.type,
+                                    required: attr.required,
+                                    order: attr.order,
+                              },
+                              { transaction }
+                        );
 
                         // Copy attribute options
                         for (const option of attr.options) {
-                              await CategoryAttributeOption.create({
-                                    category_attribute_id: newAttr.id,
-                                    value: option.value,
-                                    order: option.order,
-                              }, { transaction });
+                              await CategoryAttributeOption.create(
+                                    {
+                                          category_attribute_id: newAttr.id,
+                                          value: option.value,
+                                          order: option.order,
+                                    },
+                                    { transaction }
+                              );
                         }
                   }
 
@@ -1059,32 +1053,51 @@ export const categoryService = {
       // NEW: Export categories
       async exportCategories(format, options = {}) {
             const { includeSubcategories = true, includeAttributes = true } = options;
-            
+
             let categories;
             if (includeSubcategories) {
                   categories = await Category.findAll({
-                        include: includeAttributes ? [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options'
-                              }]
-                        }] : [],
-                        order: [['level', 'ASC'], ['order', 'ASC'], ['name', 'ASC']]
+                        include: includeAttributes
+                              ? [
+                                      {
+                                            model: CategoryAttribute,
+                                            as: 'attributes',
+                                            include: [
+                                                  {
+                                                        model: CategoryAttributeOption,
+                                                        as: 'options',
+                                                  },
+                                            ],
+                                      },
+                                ]
+                              : [],
+                        order: [
+                              ['level', 'ASC'],
+                              ['order', 'ASC'],
+                              ['name', 'ASC'],
+                        ],
                   });
             } else {
                   categories = await Category.findAll({
                         where: { parent_id: null },
-                        include: includeAttributes ? [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options'
-                              }]
-                        }] : [],
-                        order: [['order', 'ASC'], ['name', 'ASC']]
+                        include: includeAttributes
+                              ? [
+                                      {
+                                            model: CategoryAttribute,
+                                            as: 'attributes',
+                                            include: [
+                                                  {
+                                                        model: CategoryAttributeOption,
+                                                        as: 'options',
+                                                  },
+                                            ],
+                                      },
+                                ]
+                              : [],
+                        order: [
+                              ['order', 'ASC'],
+                              ['name', 'ASC'],
+                        ],
                   });
             }
 
@@ -1103,7 +1116,7 @@ export const categoryService = {
       // NEW: Import categories
       async importCategories(format, data, options = {}) {
             const { updateExisting = false, skipErrors = false } = options;
-            
+
             let categories;
             try {
                   switch (format.toLowerCase()) {
@@ -1127,7 +1140,7 @@ export const categoryService = {
                   total: categories.length,
                   success: 0,
                   failed: 0,
-                  errors: []
+                  errors: [],
             };
 
             const { sequelize } = await import('../models/index.js');
@@ -1153,9 +1166,9 @@ export const categoryService = {
                               results.failed++;
                               results.errors.push({
                                     category: categoryData.name || 'Unknown',
-                                    error: error.message
+                                    error: error.message,
                               });
-                              
+
                               if (!skipErrors) {
                                     throw error;
                               }
@@ -1180,22 +1193,10 @@ export const categoryService = {
             const csvRows = [headers.join(',')];
 
             for (const category of categories) {
-                  const row = [
-                        category.id,
-                        `"${category.name}"`,
-                        category.slug,
-                        category.parent_id || '',
-                        `"${category.description || ''}"`,
-                        category.status,
-                        category.is_featured ? 'true' : 'false',
-                        category.order,
-                        category.level
-                  ];
+                  const row = [category.id, `"${category.name}"`, category.slug, category.parent_id || '', `"${category.description || ''}"`, category.status, category.is_featured ? 'true' : 'false', category.order, category.level];
 
                   if (includeAttributes && category.attributes) {
-                        const attributes = category.attributes.map(attr => 
-                              `${attr.name}:${attr.type}:${attr.required ? 'required' : 'optional'}`
-                        ).join(';');
+                        const attributes = category.attributes.map(attr => `${attr.name}:${attr.type}:${attr.required ? 'required' : 'optional'}`).join(';');
                         row.push(`"${attributes}"`);
                   }
 
@@ -1259,7 +1260,7 @@ export const categoryService = {
 
             for (let i = 1; i < lines.length; i++) {
                   if (!lines[i].trim()) continue;
-                  
+
                   const values = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
                   const category = {};
 
@@ -1291,7 +1292,7 @@ export const categoryService = {
             if (categoryMatches) {
                   for (const match of categoryMatches) {
                         const category = {};
-                        
+
                         // Extract basic fields
                         const idMatch = match.match(/<id>(.*?)<\/id>/);
                         if (idMatch) category.id = parseInt(idMatch[1]);
@@ -1325,11 +1326,11 @@ export const categoryService = {
                         if (attributesMatch) {
                               category.attributes = [];
                               const attributeMatches = attributesMatch[1].match(/<attribute>([\s\S]*?)<\/attribute>/g);
-                              
+
                               if (attributeMatches) {
                                     for (const attrMatch of attributeMatches) {
                                           const attribute = {};
-                                          
+
                                           const attrNameMatch = attrMatch.match(/<name>(.*?)<\/name>/);
                                           if (attrNameMatch) attribute.name = attrNameMatch[1];
 
@@ -1356,12 +1357,7 @@ export const categoryService = {
 
       // Helper method to escape XML special characters
       _escapeXML(text) {
-            return text
-                  .replace(/&/g, '&amp;')
-                  .replace(/</g, '&lt;')
-                  .replace(/>/g, '&gt;')
-                  .replace(/"/g, '&quot;')
-                  .replace(/'/g, '&#39;');
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
       },
 
       // Add slug redirect
@@ -1389,7 +1385,7 @@ export const categoryService = {
 
             const redirects = category.slug_redirects || [];
             const updatedRedirects = redirects.filter(redirect => redirect !== oldSlug);
-            
+
             await category.update({ slug_redirects: updatedRedirects });
             return category;
       },
@@ -1397,9 +1393,9 @@ export const categoryService = {
       // Get all redirects for a category
       async getSlugRedirects(categoryId) {
             const category = await Category.findByPk(categoryId, {
-                  attributes: ['id', 'name', 'slug', 'slug_redirects']
+                  attributes: ['id', 'name', 'slug', 'slug_redirects'],
             });
-            
+
             if (!category) {
                   throw new Error('Category not found');
             }

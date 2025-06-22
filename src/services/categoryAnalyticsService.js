@@ -9,7 +9,7 @@ export const categoryAnalyticsService = {
                   includeProducts = true,
                   includeAttributes = true,
                   dateRange = '30d', // 7d, 30d, 90d, 1y, all
-                  groupBy = 'day' // day, week, month, year
+                  groupBy = 'day', // day, week, month, year
             } = options;
 
             const category = await Category.findByPk(categoryId);
@@ -18,9 +18,7 @@ export const categoryAnalyticsService = {
             }
 
             const dateFilter = this._buildDateFilter(dateRange);
-            const categoryIds = includeSubcategories 
-                  ? await this._getCategoryAndDescendants(categoryId)
-                  : [categoryId];
+            const categoryIds = includeSubcategories ? await this._getCategoryAndDescendants(categoryId) : [categoryId];
 
             const analytics = {
                   category: {
@@ -28,14 +26,14 @@ export const categoryAnalyticsService = {
                         name: category.name,
                         slug: category.slug,
                         level: category.level,
-                        path: category.path
+                        path: category.path,
                   },
                   overview: await this._getCategoryOverview(categoryIds, dateFilter),
                   trends: await this._getCategoryTrends(categoryIds, dateFilter, groupBy),
                   products: includeProducts ? await this._getProductAnalytics(categoryIds, dateFilter) : null,
                   attributes: includeAttributes ? await this._getAttributeAnalytics(categoryIds) : null,
                   performance: await this._getPerformanceMetrics(categoryIds, dateFilter),
-                  comparisons: await this._getCategoryComparisons(categoryId, dateFilter)
+                  comparisons: await this._getCategoryComparisons(categoryId, dateFilter),
             };
 
             return analytics;
@@ -71,33 +69,40 @@ export const categoryAnalyticsService = {
       // Get category hierarchy analytics
       async getHierarchyAnalytics(rootCategoryId = null) {
             const where = rootCategoryId ? { id: rootCategoryId } : { parent_id: null };
-            
+
             const categories = await Category.findAll({
                   where,
-                  include: [{
-                        model: Category,
-                        as: 'children',
-                        include: [{
+                  include: [
+                        {
                               model: Category,
-                              as: 'children'
-                        }]
-                  }],
-                  order: [['order', 'ASC'], ['name', 'ASC']]
+                              as: 'children',
+                              include: [
+                                    {
+                                          model: Category,
+                                          as: 'children',
+                                    },
+                              ],
+                        },
+                  ],
+                  order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
+                  ],
             });
 
             const hierarchyAnalytics = await Promise.all(
-                  categories.map(async (category) => {
+                  categories.map(async category => {
                         const descendants = await this._getCategoryAndDescendants(category.id);
-                        
+
                         return {
                               category: {
                                     id: category.id,
                                     name: category.name,
                                     slug: category.slug,
-                                    level: category.level
+                                    level: category.level,
                               },
                               metrics: await this._getHierarchyMetrics(descendants),
-                              children: await this._getChildrenAnalytics(category.children)
+                              children: await this._getChildrenAnalytics(category.children),
                         };
                   })
             );
@@ -108,13 +113,13 @@ export const categoryAnalyticsService = {
       // Get category growth analysis
       async getGrowthAnalysis(categoryId, options = {}) {
             const { periods = ['7d', '30d', '90d', '1y'], metrics = ['products', 'views', 'sales'] } = options;
-            
+
             const growthData = {};
 
             for (const period of periods) {
                   const dateFilter = this._buildDateFilter(period);
                   const categoryIds = await this._getCategoryAndDescendants(categoryId);
-                  
+
                   growthData[period] = {};
 
                   for (const metric of metrics) {
@@ -131,12 +136,12 @@ export const categoryAnalyticsService = {
             const dateFilter = this._buildDateFilter(dateRange);
 
             const comparison = await Promise.all(
-                  categoryIds.map(async (categoryId) => {
+                  categoryIds.map(async categoryId => {
                         const category = await Category.findByPk(categoryId);
                         const descendants = await this._getCategoryAndDescendants(categoryId);
-                        
+
                         const categoryMetrics = {};
-                        
+
                         for (const metric of metrics) {
                               categoryMetrics[metric] = await this._getComparisonMetric(descendants, dateFilter, metric);
                         }
@@ -145,9 +150,9 @@ export const categoryAnalyticsService = {
                               category: {
                                     id: category.id,
                                     name: category.name,
-                                    slug: category.slug
+                                    slug: category.slug,
                               },
-                              metrics: categoryMetrics
+                              metrics: categoryMetrics,
                         };
                   })
             );
@@ -167,12 +172,12 @@ export const categoryAnalyticsService = {
                   category: {
                         id: category.id,
                         name: category.name,
-                        slug: category.slug
+                        slug: category.slug,
                   },
                   performance: await this._getPerformanceInsights(descendants),
                   opportunities: await this._getOpportunityInsights(descendants),
                   recommendations: await this._getRecommendations(descendants),
-                  risks: await this._getRiskInsights(descendants)
+                  risks: await this._getRiskInsights(descendants),
             };
 
             return insights;
@@ -182,19 +187,19 @@ export const categoryAnalyticsService = {
       async _getCategoryAndDescendants(categoryId) {
             const descendants = [categoryId];
             const queue = [categoryId];
-            
+
             while (queue.length > 0) {
                   const currentId = queue.shift();
                   const children = await Category.findAll({
-                        where: { parent_id: currentId }
+                        where: { parent_id: currentId },
                   });
-                  
+
                   for (const child of children) {
                         descendants.push(child.id);
                         queue.push(child.id);
                   }
             }
-            
+
             return descendants;
       },
 
@@ -220,36 +225,38 @@ export const categoryAnalyticsService = {
                         startDate = null;
             }
 
-            return startDate ? {
-                  [Op.gte]: startDate
-            } : {};
+            return startDate
+                  ? {
+                          [Op.gte]: startDate,
+                    }
+                  : {};
       },
 
       async _getCategoryOverview(categoryIds, dateFilter) {
             const productCount = await Product.count({
                   where: {
                         category_id: { [Op.in]: categoryIds },
-                        ...dateFilter
-                  }
+                        ...dateFilter,
+                  },
             });
 
             const subcategoryCount = await Category.count({
                   where: {
-                        parent_id: { [Op.in]: categoryIds }
-                  }
+                        parent_id: { [Op.in]: categoryIds },
+                  },
             });
 
             const attributeCount = await CategoryAttribute.count({
                   where: {
-                        category_id: { [Op.in]: categoryIds }
-                  }
+                        category_id: { [Op.in]: categoryIds },
+                  },
             });
 
             return {
                   totalProducts: productCount,
                   totalSubcategories: subcategoryCount,
                   totalAttributes: attributeCount,
-                  averageProductsPerCategory: categoryIds.length > 0 ? productCount / categoryIds.length : 0
+                  averageProductsPerCategory: categoryIds.length > 0 ? productCount / categoryIds.length : 0,
             };
       },
 
@@ -260,7 +267,7 @@ export const categoryAnalyticsService = {
                   productGrowth: [],
                   viewGrowth: [],
                   salesGrowth: [],
-                  revenueGrowth: []
+                  revenueGrowth: [],
             };
       },
 
@@ -268,75 +275,62 @@ export const categoryAnalyticsService = {
             const products = await Product.findAll({
                   where: {
                         category_id: { [Op.in]: categoryIds },
-                        ...dateFilter
+                        ...dateFilter,
                   },
-                  attributes: [
-                        'id',
-                        'name',
-                        'price',
-                        'status',
-                        [fn('COUNT', col('id')), 'total_count'],
-                        [fn('AVG', col('price')), 'avg_price'],
-                        [fn('MIN', col('price')), 'min_price'],
-                        [fn('MAX', col('price')), 'max_price']
-                  ],
-                  group: ['status']
+                  attributes: ['id', 'name', 'price', 'status', [fn('COUNT', col('id')), 'total_count'], [fn('AVG', col('price')), 'avg_price'], [fn('MIN', col('price')), 'min_price'], [fn('MAX', col('price')), 'max_price']],
+                  group: ['status'],
             });
 
             const priceDistribution = await Product.findAll({
                   where: {
                         category_id: { [Op.in]: categoryIds },
-                        ...dateFilter
+                        ...dateFilter,
                   },
                   attributes: [
-                        [literal('CASE WHEN price < 100 THEN \'0-100\' WHEN price < 500 THEN \'100-500\' WHEN price < 1000 THEN \'500-1000\' ELSE \'1000+\' END'), 'price_range'],
-                        [fn('COUNT', col('id')), 'count']
+                        [literal("CASE WHEN price < 100 THEN '0-100' WHEN price < 500 THEN '100-500' WHEN price < 1000 THEN '500-1000' ELSE '1000+' END"), 'price_range'],
+                        [fn('COUNT', col('id')), 'count'],
                   ],
-                  group: ['price_range']
+                  group: ['price_range'],
             });
 
             return {
                   totalProducts: products.reduce((sum, p) => sum + parseInt(p.dataValues.total_count), 0),
                   byStatus: products.map(p => ({
                         status: p.status,
-                        count: parseInt(p.dataValues.total_count)
+                        count: parseInt(p.dataValues.total_count),
                   })),
                   priceStats: {
                         average: parseFloat(products[0]?.dataValues.avg_price || 0),
                         min: parseFloat(products[0]?.dataValues.min_price || 0),
-                        max: parseFloat(products[0]?.dataValues.max_price || 0)
+                        max: parseFloat(products[0]?.dataValues.max_price || 0),
                   },
                   priceDistribution: priceDistribution.map(p => ({
                         range: p.dataValues.price_range,
-                        count: parseInt(p.dataValues.count)
-                  }))
+                        count: parseInt(p.dataValues.count),
+                  })),
             };
       },
 
       async _getAttributeAnalytics(categoryIds) {
             const attributes = await CategoryAttribute.findAll({
                   where: {
-                        category_id: { [Op.in]: categoryIds }
+                        category_id: { [Op.in]: categoryIds },
                   },
-                  include: [{
-                        model: CategoryAttributeOption,
-                        as: 'options'
-                  }],
-                  attributes: [
-                        'id',
-                        'name',
-                        'type',
-                        'required',
-                        [fn('COUNT', col('options.id')), 'option_count']
+                  include: [
+                        {
+                              model: CategoryAttributeOption,
+                              as: 'options',
+                        },
                   ],
-                  group: ['CategoryAttribute.id', 'options.id']
+                  attributes: ['id', 'name', 'type', 'required', [fn('COUNT', col('options.id')), 'option_count']],
+                  group: ['CategoryAttribute.id', 'options.id'],
             });
 
             return {
                   totalAttributes: attributes.length,
                   byType: this._groupBy(attributes, 'type'),
                   requiredAttributes: attributes.filter(attr => attr.required).length,
-                  attributeUsage: await this._getAttributeUsage(categoryIds)
+                  attributeUsage: await this._getAttributeUsage(categoryIds),
             };
       },
 
@@ -346,22 +340,22 @@ export const categoryAnalyticsService = {
                   views: {
                         total: Math.floor(Math.random() * 10000),
                         average: Math.floor(Math.random() * 1000),
-                        trend: Math.random() > 0.5 ? 'up' : 'down'
+                        trend: Math.random() > 0.5 ? 'up' : 'down',
                   },
                   sales: {
                         total: Math.floor(Math.random() * 1000),
                         average: Math.floor(Math.random() * 100),
-                        trend: Math.random() > 0.5 ? 'up' : 'down'
+                        trend: Math.random() > 0.5 ? 'up' : 'down',
                   },
                   revenue: {
                         total: Math.floor(Math.random() * 100000),
                         average: Math.floor(Math.random() * 10000),
-                        trend: Math.random() > 0.5 ? 'up' : 'down'
+                        trend: Math.random() > 0.5 ? 'up' : 'down',
                   },
                   conversion: {
                         rate: Math.random() * 10,
-                        trend: Math.random() > 0.5 ? 'up' : 'down'
-                  }
+                        trend: Math.random() > 0.5 ? 'up' : 'down',
+                  },
             };
       },
 
@@ -370,22 +364,22 @@ export const categoryAnalyticsService = {
             const siblings = await Category.findAll({
                   where: {
                         parent_id: category.parent_id,
-                        id: { [Op.ne]: categoryId }
-                  }
+                        id: { [Op.ne]: categoryId },
+                  },
             });
 
             const comparisons = await Promise.all(
-                  siblings.map(async (sibling) => {
+                  siblings.map(async sibling => {
                         const siblingDescendants = await this._getCategoryAndDescendants(sibling.id);
                         const siblingMetrics = await this._getCategoryOverview(siblingDescendants, dateFilter);
-                        
+
                         return {
                               category: {
                                     id: sibling.id,
                                     name: sibling.name,
-                                    slug: sibling.slug
+                                    slug: sibling.slug,
                               },
-                              metrics: siblingMetrics
+                              metrics: siblingMetrics,
                         };
                   })
             );
@@ -395,17 +389,17 @@ export const categoryAnalyticsService = {
 
       async _getHierarchyMetrics(categoryIds) {
             const productCount = await Product.count({
-                  where: { category_id: { [Op.in]: categoryIds } }
+                  where: { category_id: { [Op.in]: categoryIds } },
             });
 
             const subcategoryCount = await Category.count({
-                  where: { parent_id: { [Op.in]: categoryIds } }
+                  where: { parent_id: { [Op.in]: categoryIds } },
             });
 
             return {
                   totalProducts: productCount,
                   totalSubcategories: subcategoryCount,
-                  depth: Math.max(...categoryIds.map(id => this._getCategoryDepth(id)))
+                  depth: Math.max(...categoryIds.map(id => this._getCategoryDepth(id))),
             };
       },
 
@@ -413,16 +407,16 @@ export const categoryAnalyticsService = {
             if (!children || children.length === 0) return [];
 
             return await Promise.all(
-                  children.map(async (child) => {
+                  children.map(async child => {
                         const descendants = await this._getCategoryAndDescendants(child.id);
                         return {
                               category: {
                                     id: child.id,
                                     name: child.name,
-                                    slug: child.slug
+                                    slug: child.slug,
                               },
                               metrics: await this._getHierarchyMetrics(descendants),
-                              children: await this._getChildrenAnalytics(child.children)
+                              children: await this._getChildrenAnalytics(child.children),
                         };
                   })
             );
@@ -434,7 +428,7 @@ export const categoryAnalyticsService = {
                   current: Math.floor(Math.random() * 1000),
                   previous: Math.floor(Math.random() * 1000),
                   growth: Math.random() * 100 - 50, // -50% to +50%
-                  trend: Math.random() > 0.5 ? 'up' : 'down'
+                  trend: Math.random() > 0.5 ? 'up' : 'down',
             };
       },
 
@@ -443,80 +437,43 @@ export const categoryAnalyticsService = {
             return {
                   value: Math.floor(Math.random() * 1000),
                   rank: Math.floor(Math.random() * 10) + 1,
-                  percentile: Math.random() * 100
+                  percentile: Math.random() * 100,
             };
       },
 
       async _getPerformanceInsights(descendants) {
             // Mock performance insights
             return {
-                  strengths: [
-                        'High product variety',
-                        'Good price range',
-                        'Active subcategories'
-                  ],
-                  weaknesses: [
-                        'Low conversion rate',
-                        'Limited attribute coverage'
-                  ],
-                  opportunities: [
-                        'Expand product range',
-                        'Improve SEO optimization'
-                  ]
+                  strengths: ['High product variety', 'Good price range', 'Active subcategories'],
+                  weaknesses: ['Low conversion rate', 'Limited attribute coverage'],
+                  opportunities: ['Expand product range', 'Improve SEO optimization'],
             };
       },
 
       async _getOpportunityInsights(descendants) {
             // Mock opportunity insights
             return {
-                  marketGaps: [
-                        'Premium product segment',
-                        'Eco-friendly options'
-                  ],
-                  growthAreas: [
-                        'International markets',
-                        'Digital products'
-                  ],
-                  optimization: [
-                        'Price optimization',
-                        'Inventory management'
-                  ]
+                  marketGaps: ['Premium product segment', 'Eco-friendly options'],
+                  growthAreas: ['International markets', 'Digital products'],
+                  optimization: ['Price optimization', 'Inventory management'],
             };
       },
 
       async _getRecommendations(descendants) {
             // Mock recommendations
             return {
-                  immediate: [
-                        'Add more product attributes',
-                        'Optimize category descriptions'
-                  ],
-                  shortTerm: [
-                        'Launch promotional campaigns',
-                        'Improve product images'
-                  ],
-                  longTerm: [
-                        'Expand to new markets',
-                        'Develop private label products'
-                  ]
+                  immediate: ['Add more product attributes', 'Optimize category descriptions'],
+                  shortTerm: ['Launch promotional campaigns', 'Improve product images'],
+                  longTerm: ['Expand to new markets', 'Develop private label products'],
             };
       },
 
       async _getRiskInsights(descendants) {
             // Mock risk insights
             return {
-                  high: [
-                        'Dependency on few suppliers',
-                        'Seasonal demand fluctuations'
-                  ],
-                  medium: [
-                        'Competition from new entrants',
-                        'Price sensitivity'
-                  ],
-                  low: [
-                        'Brand recognition',
-                        'Customer loyalty'
-                  ]
+                  high: ['Dependency on few suppliers', 'Seasonal demand fluctuations'],
+                  medium: ['Competition from new entrants', 'Price sensitivity'],
+                  low: ['Brand recognition', 'Customer loyalty'],
             };
       },
 
@@ -525,7 +482,7 @@ export const categoryAnalyticsService = {
             return {
                   mostUsed: ['Color', 'Size', 'Brand'],
                   leastUsed: ['Material', 'Warranty', 'Origin'],
-                  coverage: Math.random() * 100
+                  coverage: Math.random() * 100,
             };
       },
 
@@ -548,7 +505,7 @@ export const categoryAnalyticsService = {
             return {
                   total: Math.floor(Math.random() * 10000),
                   unique: Math.floor(Math.random() * 5000),
-                  average: Math.floor(Math.random() * 1000)
+                  average: Math.floor(Math.random() * 1000),
             };
       },
 
@@ -556,7 +513,7 @@ export const categoryAnalyticsService = {
             return {
                   total: Math.floor(Math.random() * 1000),
                   average: Math.floor(Math.random() * 100),
-                  topProducts: []
+                  topProducts: [],
             };
       },
 
@@ -564,7 +521,7 @@ export const categoryAnalyticsService = {
             return {
                   total: Math.floor(Math.random() * 100000),
                   average: Math.floor(Math.random() * 10000),
-                  growth: Math.random() * 100 - 50
+                  growth: Math.random() * 100 - 50,
             };
       },
 
@@ -574,8 +531,8 @@ export const categoryAnalyticsService = {
                   funnel: {
                         views: Math.floor(Math.random() * 10000),
                         cart: Math.floor(Math.random() * 1000),
-                        purchase: Math.floor(Math.random() * 100)
-                  }
+                        purchase: Math.floor(Math.random() * 100),
+                  },
             };
-      }
-}; 
+      },
+};

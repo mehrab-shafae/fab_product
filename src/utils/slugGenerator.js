@@ -7,22 +7,30 @@ const SLUG_CONFIG = {
       ALLOWED_CHARS: /[a-z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF-]/g,
       REMOVE_CHARS: /[*+~.()'"!:@#$%^&*()_+=<>?{}[\]\\|`~]/g,
       PERSIAN_NUMBERS: {
-            '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4',
-            '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9'
-      }
+            '۰': '0',
+            '۱': '1',
+            '۲': '2',
+            '۳': '3',
+            '۴': '4',
+            '۵': '5',
+            '۶': '6',
+            '۷': '7',
+            '۸': '8',
+            '۹': '9',
+      },
 };
 
 /**
  * Convert Persian numbers to English
  */
-const convertPersianNumbers = (text) => {
-      return text.replace(/[۰-۹]/g, (match) => SLUG_CONFIG.PERSIAN_NUMBERS[match]);
+const convertPersianNumbers = text => {
+      return text.replace(/[۰-۹]/g, match => SLUG_CONFIG.PERSIAN_NUMBERS[match]);
 };
 
 /**
  * Clean and normalize text for slug generation
  */
-const normalizeText = (text) => {
+const normalizeText = text => {
       if (!text || typeof text !== 'string') {
             throw new Error('Text must be a non-empty string');
       }
@@ -42,7 +50,7 @@ const normalizeText = (text) => {
 /**
  * Validate slug format and length
  */
-const validateSlug = (slug) => {
+const validateSlug = slug => {
       if (!slug || typeof slug !== 'string') {
             throw new Error('Slug must be a non-empty string');
       }
@@ -80,7 +88,7 @@ const validateSlug = (slug) => {
 export const generateSlug = (text, existingSlugs = []) => {
       try {
             const normalizedText = normalizeText(text);
-            
+
             // Generate base slug using slugify with Persian support
             let baseSlug = slugify(normalizedText, {
                   lower: true,
@@ -115,14 +123,14 @@ export const generateSlug = (text, existingSlugs = []) => {
             while (existingSlugs.includes(finalSlug)) {
                   const suffix = `-${counter}`;
                   const maxBaseLength = SLUG_CONFIG.MAX_LENGTH - suffix.length;
-                  
+
                   if (baseSlug.length > maxBaseLength) {
                         baseSlug = baseSlug.substring(0, maxBaseLength).replace(/-+$/, '');
                   }
-                  
+
                   finalSlug = `${baseSlug}${suffix}`;
                   counter++;
-                  
+
                   // Prevent infinite loop
                   if (counter > 1000) {
                         throw new Error('Unable to generate unique slug after 1000 attempts');
@@ -148,7 +156,7 @@ export const generateCategorySlug = async (name, parentSlug = null, Category) =>
                   },
                   raw: true,
             });
-            
+
             const existingSlugs = existingCategories.map(cat => cat.slug).filter(Boolean);
 
             // Generate base slug
@@ -158,16 +166,16 @@ export const generateCategorySlug = async (name, parentSlug = null, Category) =>
             if (parentSlug) {
                   const parentSlugClean = parentSlug.replace(/\/$/, ''); // Remove trailing slash
                   baseSlug = `${parentSlugClean}/${baseSlug}`;
-                  
+
                   // Check if the full path slug already exists
                   if (existingSlugs.includes(baseSlug)) {
                         let counter = 1;
                         let finalSlug = baseSlug;
-                        
+
                         while (existingSlugs.includes(finalSlug)) {
                               finalSlug = `${baseSlug}-${counter}`;
                               counter++;
-                              
+
                               if (counter > 1000) {
                                     throw new Error('Unable to generate unique category slug after 1000 attempts');
                               }
@@ -188,7 +196,7 @@ export const generateCategorySlug = async (name, parentSlug = null, Category) =>
 export const generateCustomSlug = (customSlug, existingSlugs = []) => {
       try {
             const normalizedSlug = normalizeText(customSlug);
-            
+
             // Clean the custom slug
             let cleanSlug = normalizedSlug
                   .replace(/[^a-z0-9\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF-]/g, '')
@@ -217,7 +225,7 @@ export const generateCustomSlug = (customSlug, existingSlugs = []) => {
 /**
  * Validate if a slug is valid
  */
-export const isValidSlug = (slug) => {
+export const isValidSlug = slug => {
       try {
             validateSlug(slug);
             return true;

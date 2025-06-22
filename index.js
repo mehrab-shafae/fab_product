@@ -506,7 +506,7 @@ function getProductById(id) {
 
 function createCategory(categoryData) {
       const { name, parent_id } = categoryData;
-      
+
       // Use the improved slug generator
       const slug = generateSlug(name);
 
@@ -1105,7 +1105,7 @@ function requestLogger(req, res, next) {
 
 function updateCategory(categoryId, categoryData) {
       const { name, parent_id } = categoryData;
-      
+
       // Only generate new slug if name is provided
       let slug = undefined;
       if (name) {
