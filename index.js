@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import './cwd';
 // ======================================================================
 import express from 'express';
 // import { execSync } from 'child_process';
