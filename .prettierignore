@@ -1,6 +1,8 @@
 build/
 node_modules/
 
+**/*.sh
+**/*.yaml
 **/*.log
 **/*.bak
 
@@ -9,8 +11,6 @@ node_modules/
 **/*.key
 **/*.csr
 **/*.crt
-
-public
 
 .env*
 

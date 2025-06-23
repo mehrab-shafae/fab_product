@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "tsc && node index.js",
-    "pretty": "prettier --write \"**/*.{js,json,html}\""
+    "pretty": "prettier --write \"**/*.{js,json,html,ts}\""
   },
   "dependencies": {
     "cors": "^2.8.5",
