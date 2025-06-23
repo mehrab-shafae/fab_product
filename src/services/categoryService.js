@@ -1402,4 +1402,33 @@ export const categoryService = {
 
             return category.slug_redirects || [];
       },
+
+      // Get legacy category tree (flat + inline children)
+      async getLegacyTree() {
+            // Get all categories
+            const categories = await Category.findAll({
+                  order: [['order', 'ASC'], ['name', 'ASC']],
+                  raw: true,
+            });
+
+            // Build a map of id -> category
+            const categoryMap = {};
+            categories.forEach(cat => {
+                  categoryMap[cat.id] = { ...cat, children: [] };
+            });
+
+            // Build the tree structure
+            const roots = [];
+            categories.forEach(cat => {
+                  if (cat.parent_id) {
+                        if (categoryMap[cat.parent_id]) {
+                              categoryMap[cat.parent_id].children.push(categoryMap[cat.id]);
+                        }
+                  } else {
+                        roots.push(categoryMap[cat.id]);
+                  }
+            });
+
+            return { items: roots };
+      },
 };

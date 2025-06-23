@@ -4,6 +4,7 @@ import { categoryAnalyticsService } from '../services/categoryAnalyticsService.j
 import { Category } from '../models/index.js';
 import { categoryValidation, handleValidationErrors, checkCategoryExists, checkParentCategoryExists, preventCircularReference, logCategoryOperation, validateSlugParam } from '../middlewares/categoryMiddleware.js';
 import { Op } from 'sequelize';
+import { categoryController } from '../controllers/categoryController.js';
 
 const router = express.Router();
 
@@ -125,6 +126,11 @@ router.get('/slug/:slug', validateSlugParam, async (req, res) => {
                   message: error.message,
             });
       }
+});
+
+// Get legacy category tree - This must come before /:id to avoid conflicts
+router.get('/legacy-tree', async (req, res) => {
+      await categoryController.getLegacyTree(req, res);
 });
 
 // Get category by ID

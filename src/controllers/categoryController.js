@@ -134,4 +134,14 @@ export const categoryController = {
                   res.error(error);
             }
       },
+
+      // Get legacy category tree (flat + inline children)
+      async getLegacyTree(req, res) {
+            try {
+                  const result = await categoryService.getLegacyTree();
+                  res.success(result, 'Legacy tree retrieved successfully');
+            } catch (error) {
+                  res.error(error);
+            }
+      },
 };
