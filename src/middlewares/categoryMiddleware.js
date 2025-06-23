@@ -449,21 +449,21 @@ export const categoryRateLimit = (req, res, next) => {
 };
 
 // Simple logging implementation (in production, use a proper logging library)
-const logToFile = logData => {
-      const fs = require('fs');
-      const path = require('path');
+// const logToFile = logData => {
+//       // const fs = require('fs');
+//       // const path = require('path');
 
-      const logDir = path.join(process.cwd(), 'logs');
-      if (!fs.existsSync(logDir)) {
-            fs.mkdirSync(logDir, { recursive: true });
-      }
+//       const logDir = path.join(process.cwd(), 'logs');
+//       if (!fs.existsSync(logDir)) {
+//             fs.mkdirSync(logDir, { recursive: true });
+//       }
 
-      const logFile = path.join(logDir, 'category-operations.log');
-      const timestamp = new Date().toISOString();
-      const logEntry = `${timestamp} - ${JSON.stringify(logData)}\n`;
+//       const logFile = path.join(logDir, 'category-operations.log');
+//       const timestamp = new Date().toISOString();
+//       const logEntry = `${timestamp} - ${JSON.stringify(logData)}\n`;
 
-      fs.appendFileSync(logFile, logEntry);
-};
+//       fs.appendFileSync(logFile, logEntry);
+// };
 
 // Middleware to log category operations
 export const logCategoryOperation = operation => {
@@ -482,11 +482,11 @@ export const logCategoryOperation = operation => {
             };
 
             // Log to file
-            try {
-                  logToFile(logData);
-            } catch (error) {
-                  console.error('Failed to log category operation:', error);
-            }
+            // try {
+            //       logToFile(logData);
+            // } catch (error) {
+            //       console.error('Failed to log category operation:', error);
+            // }
 
             // Also log to console for development
             console.log('Category operation:', {
