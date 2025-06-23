@@ -9,8 +9,6 @@ import swaggerUi from 'swagger-ui-express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
 import { readFileSync, existsSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
@@ -21,8 +19,6 @@ import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductA
 import { generateSlug } from './src/utils/slugGenerator.js';
 
 // ======================================================================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const schemaConfig = JSON.parse(readFileSync(cwd('database-schema.json'), 'utf8'));
 
 const PORT = process.env.PORT || 5003;
@@ -319,16 +315,6 @@ async function init() {
                   },
             })
       );
-
-      app.get('/api-docs/fa', (req, res) => {
-            const docsPath = join(__dirname, 'docs-fa.html');
-            if (existsSync(docsPath)) {
-                  res.sendFile(docsPath);
-            } else {
-                  console.error(`Documentation file not found at: ${docsPath}`);
-                  res.status(404).send('Documentation file not found');
-            }
-      });
 
       app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
 
