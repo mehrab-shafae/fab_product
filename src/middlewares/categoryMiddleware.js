@@ -243,6 +243,7 @@ export const handleValidationErrors = (req, res, next) => {
                         message: error.msg,
                         value: error.value,
                   })),
+                  requestId: (typeof getRequestId === 'function' ? getRequestId(req) : (req.requestId || null)),
             });
       }
       next();

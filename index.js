@@ -17,6 +17,8 @@ import categoryRoutes from './src/routes/categoryRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './src/models/index.js';
 import { generateSlug } from './src/utils/slugGenerator.js';
+// =====================[ Request ID Utility ]=====================
+import { v4 as uuidv4 } from 'uuid';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('database-schema.json'), 'utf8'));
@@ -73,44 +75,15 @@ const DB_ERROR_CODES = {
       },
 };
 
-const responseHandler = (req, res, next) => {
-      res.success = (data, message = 'Success') => {
-            res.json({
-                  status: 'success',
-                  data,
-                  message,
-            });
-      };
-
-      res.error = (error, statusCode = 500) => {
-            if (typeof error === 'string') {
-                  return res.status(statusCode).json({
-                        status: 'error',
-                        message: error,
-                        data: null,
-                  });
-            }
-
-            logger.error('response Error', { error });
-            const handledError = handleDatabaseError(error);
-
-            res.status(handledError.statusCode).json({
-                  status: 'error',
-                  message: handledError.message,
-                  data: null,
-                  ...(handledError.details && { details: handledError.details }),
-            });
-      };
-
-      next();
-};
-
+// =====================[ Logger Enhancement ]=====================
 const logger = createLogger({
       level: process.env.LOG_LEVEL || 'info',
       format: combine(
             timestamp(),
-            printf(({ level, message, timestamp, ...metadata }) => {
-                  let msg = `${timestamp} [${level}] : ${message}`;
+            printf(({ level, message, timestamp, requestId, ...metadata }) => {
+                  let msg = `${timestamp} [${level}]`;
+                  if (requestId) msg += ` [${requestId}]`;
+                  msg += ` : ${message}`;
                   if (Object.keys(metadata).length > 0) {
                         msg += JSON.stringify(metadata);
                   }
@@ -122,8 +95,10 @@ const logger = createLogger({
                   format: combine(
                         colorize(),
                         timestamp(),
-                        printf(({ level, message, timestamp, ...metadata }) => {
-                              let msg = `${timestamp} [${level}] : ${message}`;
+                        printf(({ level, message, timestamp, requestId, ...metadata }) => {
+                              let msg = `${timestamp} [${level}]`;
+                              if (requestId) msg += ` [${requestId}]`;
+                              msg += ` : ${message}`;
                               if (Object.keys(metadata).length > 0) {
                                     msg += JSON.stringify(metadata);
                               }
@@ -136,8 +111,10 @@ const logger = createLogger({
                   level: 'error',
                   format: combine(
                         timestamp(),
-                        printf(({ level, message, timestamp, ...metadata }) => {
-                              let msg = `${timestamp} [${level}] : ${message}`;
+                        printf(({ level, message, timestamp, requestId, ...metadata }) => {
+                              let msg = `${timestamp} [${level}]`;
+                              if (requestId) msg += ` [${requestId}]`;
+                              msg += ` : ${message}`;
                               if (Object.keys(metadata).length > 0) {
                                     msg += JSON.stringify(metadata);
                               }
@@ -149,8 +126,10 @@ const logger = createLogger({
                   filename: 'combined.log',
                   format: combine(
                         timestamp(),
-                        printf(({ level, message, timestamp, ...metadata }) => {
-                              let msg = `${timestamp} [${level}] : ${message}`;
+                        printf(({ level, message, timestamp, requestId, ...metadata }) => {
+                              let msg = `${timestamp} [${level}]`;
+                              if (requestId) msg += ` [${requestId}]`;
+                              msg += ` : ${message}`;
                               if (Object.keys(metadata).length > 0) {
                                     msg += JSON.stringify(metadata);
                               }
@@ -317,8 +296,6 @@ async function init() {
       );
 
       app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
-
-      app.use(responseHandler);
 
       app.get('/health', healthCheckController);
 
@@ -618,55 +595,53 @@ function getChatMessages(chat_id, { page = 1, limit = 10 } = {}) {
       return pgPool.query(query, [chat_id, limit, offset]);
 }
 
+// =====================[ handleDatabaseError Enhancement ]=====================
 function handleDatabaseError(error) {
-      if (!error.code || !DB_ERROR_CODES[error.code]) {
-            return {
-                  message: error.message,
-                  statusCode: 500,
-            };
-      }
-
-      const errorConfig = DB_ERROR_CODES[error.code];
-      let message = errorConfig.default;
-      let statusCode = 400;
-
-      if (error.table && errorConfig[error.table]) {
-            if (error.constraint && errorConfig[error.table][error.constraint]) {
-                  message = errorConfig[error.table][error.constraint];
-            } else if (errorConfig[error.table].default) {
-                  message = errorConfig[error.table].default;
-            }
-      }
-
-      switch (error.code) {
-            case '23503':
-                  statusCode = 404;
-                  break;
-            case '23505':
-                  statusCode = 409;
-                  break;
-            case '23502':
-                  statusCode = 400;
-                  break;
-            case '23514':
-                  statusCode = 400;
-                  break;
-            default:
-                  statusCode = 500;
-      }
-
-      return {
-            message,
-            statusCode,
-            details:
-                  process.env.NODE_ENV === 'development'
-                        ? {
-                                code: error.code,
-                                table: error.table,
-                                constraint: error.constraint,
-                          }
-                        : undefined,
-      };
+    if (!error.code || !DB_ERROR_CODES[error.code]) {
+        return {
+            message: error.message,
+            statusCode: 500,
+            errorCode: 'INTERNAL_ERROR',
+        };
+    }
+    const errorConfig = DB_ERROR_CODES[error.code];
+    let message = errorConfig.default;
+    let statusCode = 400;
+    let errorCode = error.code;
+    if (error.table && errorConfig[error.table]) {
+        if (error.constraint && errorConfig[error.table][error.constraint]) {
+            message = errorConfig[error.table][error.constraint];
+        } else if (errorConfig[error.table].default) {
+            message = errorConfig[error.table].default;
+        }
+    }
+    switch (error.code) {
+        case '23503':
+            statusCode = 404;
+            break;
+        case '23505':
+            statusCode = 409;
+            break;
+        case '23502':
+        case '23514':
+            statusCode = 400;
+            break;
+        default:
+            statusCode = 500;
+    }
+    return {
+        message,
+        statusCode,
+        errorCode,
+        details:
+            process.env.NODE_ENV === 'development'
+                ? {
+                      code: error.code,
+                      table: error.table,
+                      constraint: error.constraint,
+                  }
+                : undefined,
+    };
 }
 
 function markChatMessagesAsRead(chat_id, user_id) {
@@ -1154,27 +1129,25 @@ function getCategoryBySlug(slug) {
       return pgPool.query(query, [slug]);
 }
 
+// =====================[ errorLogger Enhancement ]=====================
 function errorLogger(err, req, res, next) {
-      const requestId = req.requestId || Math.random().toString(36).substring(7);
-
-      logger.error('Unhandled error', {
+    const requestId = getRequestId(req);
+    logger.error('Unhandled error', {
+        requestId,
+        error: err.message,
+        stack: err.stack,
+        method: req.method,
+        url: req.originalUrl,
+        ip: req.ip,
+        userAgent: req.get('user-agent'),
+    });
+    if (req.method !== 'GET' && req.body) {
+        logger.debug('Request body at error', {
             requestId,
-            error: err.message,
-            stack: err.stack,
-            method: req.method,
-            url: req.originalUrl,
-            ip: req.ip,
-            userAgent: req.get('user-agent'),
-      });
-
-      if (req.method !== 'GET' && req.body) {
-            logger.debug('Request body at error', {
-                  requestId,
-                  body: req.body,
-            });
-      }
-
-      next(err);
+            body: req.body,
+        });
+    }
+    next(err);
 }
 
 function getProductAttributes(product_id) {
@@ -1809,6 +1782,7 @@ function validateProductIdMiddleware(req, res, next) {
       if (!productId || isNaN(parseInt(productId))) {
             return res.status(400).json({
                   error: 'Invalid product ID. Must be a valid integer.',
+                  requestId: getRequestId(req),
             });
       }
       next();
@@ -1819,6 +1793,7 @@ function validateVariantIdMiddleware(req, res, next) {
       if (variantId && isNaN(parseInt(variantId))) {
             return res.status(400).json({
                   error: 'Invalid variant ID. Must be a valid integer.',
+                  requestId: getRequestId(req),
             });
       }
       next();
@@ -1830,6 +1805,7 @@ function validateRequiredFieldsMiddleware(requiredFields) {
             if (missingFields.length > 0) {
                   return res.status(400).json({
                         error: `Missing required fields: ${missingFields.join(', ')}`,
+                        requestId: getRequestId(req),
                   });
             }
             next();
@@ -1865,7 +1841,7 @@ async function healthCheckController(req, res) {
                   timestamp: Date.now(),
                   postgres: pgPool ? 'connected' : 'disconnected',
             };
-            res.json(health);
+            res.json({ ...health, requestId: getRequestId(req) });
       } catch (error) {
             logger.error('Health check failed', { error: error.message });
             res.status(500).json({ error: 'Health check failed' });
@@ -2425,6 +2401,7 @@ async function updateProductController(req, res) {
             if (result.rows.length === 0) {
                   return res.status(404).json({
                         error: 'Product not found or already deleted',
+                        requestId: getRequestId(req),
                   });
             }
 
@@ -2440,6 +2417,7 @@ async function deleteProductController(req, res) {
             if (result.rows.length === 0) {
                   return res.status(404).json({
                         error: 'Product not found or already deleted',
+                        requestId: getRequestId(req),
                   });
             }
 
@@ -2455,6 +2433,7 @@ async function updateProductStatusController(req, res) {
             if (result.rows.length === 0) {
                   return res.status(404).json({
                         error: 'Product not found or already deleted',
+                        requestId: getRequestId(req),
                   });
             }
             res.success(result.rows[0], 'Product status updated successfully');
@@ -2469,6 +2448,7 @@ async function bulkUpdateProductStatusController(req, res) {
             if (!Array.isArray(productIds) || productIds.length === 0) {
                   return res.status(400).json({
                         error: 'Invalid product IDs array',
+                        requestId: getRequestId(req),
                   });
             }
             const result = await bulkUpdateProductStatus(productIds, status);
@@ -2614,4 +2594,12 @@ async function createMissingTablesForSequelize() {
       } finally {
             client.release();
       }
+}
+
+// =====================[ Request ID Utility ]=====================
+function getRequestId(req) {
+    if (req.requestId) return req.requestId;
+    const id = uuidv4();
+    req.requestId = id;
+    return id;
 }
