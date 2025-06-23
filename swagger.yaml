@@ -6198,6 +6198,38 @@ paths:
       tags: [Categories]
       description: |
         Get all categories in a hierarchical (parent/child) tree structure. Only root categories (parent_id = null) are at the top level, and their children are nested recursively in the `children` property.
+        
+        **Query Parameters:**
+        - `status`: Filter by category status (default: active)
+        - `includeInactive`: Include inactive categories (default: false)
+        - `includeStats`: Include product statistics for each category (default: false)
+        - `maxDepth`: Maximum depth of children to include (default: 3)
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, draft, archived]
+            default: active
+          description: Filter by category status
+        - in: query
+          name: includeInactive
+          schema:
+            type: boolean
+            default: false
+          description: Include inactive categories
+        - in: query
+          name: includeStats
+          schema:
+            type: boolean
+            default: false
+          description: Include product statistics for each category
+        - in: query
+          name: maxDepth
+          schema:
+            type: integer
+            default: 3
+          description: Maximum depth of children to include
       responses:
         '200':
           description: List of categories in tree structure
@@ -6252,5 +6284,4 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
                 $ref: '#/components/schemas/Error'
