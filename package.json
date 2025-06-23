@@ -10,7 +10,8 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "start": "tsc && node index.js",
+    "start": "node index.js",
+    "build": "tsc",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""
   },
   "dependencies": {
