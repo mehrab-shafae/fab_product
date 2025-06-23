@@ -1,18 +1,19 @@
-dist
-node_modules
+build/
+node_modules/
 
 **/*.log
 **/*.bak
 
+**/*lock*
+
 **/*.key
 **/*.csr
 **/*.crt
+
 public
 
 .env*
 
 yarn.lock
 package-lock.json
-
-# package.json is formatted by package managers, so we ignore it here
 package.json
