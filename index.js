@@ -2082,7 +2082,7 @@ async function getProductVersionsController(req, res) {
       }
 }
 
-async function getCategoriesController(req, res) {
+export async function getCategoriesController(req, res) {
       try {
             const { page, limit, offset } = req.pagination;
 

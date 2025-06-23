@@ -6191,3 +6191,66 @@ paths:
                 $ref: '#/components/schemas/Category'
                 $ref: '#/components/schemas/Category'
                 $ref: '#/components/schemas/Category'
+
+  /categories/tree:
+    get:
+      summary: Get all categories as a hierarchical tree
+      tags: [Categories]
+      description: |
+        Get all categories in a hierarchical (parent/child) tree structure. Only root categories (parent_id = null) are at the top level, and their children are nested recursively in the `children` property.
+      responses:
+        '200':
+          description: List of categories in tree structure
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /categories/legacy-tree:
+    get:
+      summary: Get legacy category tree (flat + inline children)
+      tags: [Categories]
+      description: |
+        Returns the legacy tree structure of categories. Only root categories (parent_id = null) are in the top-level `items` array, and their children are nested inline in the `children` property of each parent. This is for legacy compatibility. For new integrations, use `/categories/tree`.
+      responses:
+        '200':
+          description: Legacy tree structure of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                        description: Current page number
+                      limit:
+                        type: integer
+                        description: Items per page
+                      total:
+                        type: integer
+                        description: Total number of items
+                      pages:
+                        type: integer
+                        description: Total number of pages
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/Error'
