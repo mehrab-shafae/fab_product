@@ -51,6 +51,11 @@ const Product = sequelize.define(
                   type: DataTypes.DATE,
                   allowNull: true,
             },
+            image_ids: {
+                  type: DataTypes.ARRAY(DataTypes.TEXT),
+                  allowNull: true,
+                  defaultValue: [],
+            },
       },
       {
             tableName: 'products',

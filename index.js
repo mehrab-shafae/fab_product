@@ -372,7 +372,7 @@ function apiV1Routers(app) {
       app.post('/products/:productId/chats', validateProductIdMiddleware, requestLogger, createProductChatController);
       app.post('/chats/:chatId/messages', validateRequiredFieldsMiddleware(['content', 'user_id']), requestLogger, addChatMessageController);
       app.post('/chats/:chatId/read', validateRequiredFieldsMiddleware(['user_id']), requestLogger, markChatMessagesAsReadController);
-      app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['url', 'alt_text']), validateProductIdMiddleware, requestLogger, addProductImageController);
+      app.post('/products/:productId/images', validateRequiredFieldsMiddleware(['image_id', 'alt_text']), validateProductIdMiddleware, requestLogger, addProductImageController);
       app.post('/products/:productId/variants', validateRequiredFieldsMiddleware(['name', 'price', 'sku']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, createProductVariantController);
       app.post('/products/:productId/inventory', validateRequiredFieldsMiddleware(['quantity', 'variant_id']), validateProductIdMiddleware, validateVariantIdMiddleware, requestLogger, updateInventoryController);
       app.post('/products/:productId/reviews', validateRequiredFieldsMiddleware(['rating', 'content', 'user_id']), validateProductIdMiddleware, requestLogger, addProductReviewController);
@@ -771,13 +771,13 @@ function getProductVariants(product_id) {
 }
 
 function addProductImage(imageData) {
-      const { product_id, variant_id, image_url, is_primary, order_index } = imageData;
+      const { product_id, variant_id, image_id, is_primary, order_index } = imageData;
       const query = `
-        INSERT INTO product_images (product_id, variant_id, image_url, is_primary, order_index)
+        INSERT INTO product_images (product_id, variant_id, image_id, is_primary, order_index)
         VALUES ($1, $2, $3, $4, $5)
         RETURNING *
     `;
-      return pgPool.query(query, [product_id, variant_id, image_url, is_primary, order_index]);
+      return pgPool.query(query, [product_id, variant_id, image_id, is_primary, order_index]);
 }
 
 function getProductImages(product_id) {
@@ -1561,8 +1561,7 @@ async function addMissingColumnsForSequelize() {
                   '"order" INTEGER DEFAULT 0',
                   "status VARCHAR(20) DEFAULT 'active'",
                   'is_featured BOOLEAN DEFAULT false',
-                  'image_url VARCHAR(500)',
-                  'icon_url VARCHAR(500)',
+                  'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]',
                   'meta_title VARCHAR(255)',
                   'meta_description TEXT',
                   "meta_keywords VARCHAR(255)[] DEFAULT '{}'",
@@ -1581,7 +1580,14 @@ async function addMissingColumnsForSequelize() {
             }
 
             // Add missing columns to products table
-            const productColumns = ["status VARCHAR(20) DEFAULT 'active'", "metadata JSONB DEFAULT '{}'", 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'deleted_at TIMESTAMP'];
+            const productColumns = [
+                  "status VARCHAR(20) DEFAULT 'active'",
+                  "metadata JSONB DEFAULT '{}'",
+                  'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]',
+                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
+                  'deleted_at TIMESTAMP',
+            ];
 
             for (const column of productColumns) {
                   try {
@@ -2579,6 +2585,20 @@ async function createMissingTablesForSequelize() {
                       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                       UNIQUE(product_id, category_attribute_id)
+                  )
+            `);
+
+            // Create product_images table
+            await client.query(`
+                  CREATE TABLE IF NOT EXISTS product_images (
+                      id SERIAL PRIMARY KEY,
+                      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
+                      variant_id INTEGER,
+                      image_id TEXT NOT NULL, -- شناسه یونیک عکس
+                      is_primary BOOLEAN DEFAULT false,
+                      order_index INTEGER DEFAULT 0,
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                   )
             `);
 

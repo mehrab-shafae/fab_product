@@ -54,14 +54,6 @@ const Category = sequelize.define(
                   type: DataTypes.BOOLEAN,
                   defaultValue: false,
             },
-            image_url: {
-                  type: DataTypes.STRING(500),
-                  allowNull: true,
-            },
-            icon_url: {
-                  type: DataTypes.STRING(500),
-                  allowNull: true,
-            },
             meta_title: {
                   type: DataTypes.STRING(255),
                   allowNull: true,
@@ -97,6 +89,12 @@ const Category = sequelize.define(
             deleted_at: {
                   type: DataTypes.DATE,
                   allowNull: true,
+            },
+            image_ids: {
+                  type: DataTypes.ARRAY(DataTypes.TEXT),
+                  allowNull: true,
+                  defaultValue: [],
+                  // Always an array of image IDs (never null). Used for category images.
             },
       },
       {
