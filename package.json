@@ -11,6 +11,7 @@
   },
   "scripts": {
     "start": "node .",
+    "start:minio": "node build/src/minio/index.js",
     "build": "tsc",
     "run": "tsc && node .",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""
@@ -19,24 +20,29 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "express-fileupload": "^1.5.1",
     "express-rate-limit": "^7.5.0",
     "express-slow-down": "^2.1.0",
     "express-validator": "^7.2.1",
     "helmet": "^7.1.0",
+    "minio": "^8.0.5",
     "pg": "^8.11.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7",
     "slugify": "^1.6.6",
     "swagger-ui-express": "^5.0.1",
+    "uuid": "^9.0.0",
     "winston": "^3.11.0",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
+    "@types/express-fileupload": "^1.5.1",
     "@types/node": "^22.10.2",
     "@types/pg": "^8.15.4",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/uuid": "^9.0.0",
     "@types/yamljs": "^0.2.34",
     "prettier": "^3.6.0",
     "typescript": "^5.8.3"
