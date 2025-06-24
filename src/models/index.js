@@ -35,7 +35,54 @@ CategoryAttributeOption.hasMany(CategoryAttributeOptionTranslation, { foreignKey
 
 Product.hasMany(ProductTranslation, { foreignKey: 'product_id', as: 'translations' });
 
+// Add a seed function for languages
+async function seedDefaultLanguages() {
+      const defaultLanguages = [
+            {
+                  code: 'fa',
+                  name: 'Persian',
+                  native_name: 'فارسی',
+                  is_default: true,
+                  is_active: true,
+                  direction: 'rtl',
+            },
+            {
+                  code: 'en',
+                  name: 'English',
+                  native_name: 'English',
+                  is_default: false,
+                  is_active: true,
+                  direction: 'ltr',
+            },
+            {
+                  code: 'ar',
+                  name: 'Arabic',
+                  native_name: 'العربية',
+                  is_default: false,
+                  is_active: true,
+                  direction: 'rtl',
+            },
+      ];
+      // Ensure only one default
+      await Language.update({ is_default: false }, { where: {} });
+      for (const lang of defaultLanguages) {
+            const [language, created] = await Language.findOrCreate({
+                  where: { code: lang.code },
+                  defaults: lang,
+            });
+            if (!created) {
+                  await language.update({
+                        name: lang.name,
+                        native_name: lang.native_name,
+                        is_active: lang.is_active,
+                        direction: lang.direction,
+                        is_default: lang.is_default,
+                  });
+            }
+      }
+}
+
 // Export models and sequelize instance
-export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation };
+export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation, seedDefaultLanguages };
 
 export default models;

@@ -12,7 +12,7 @@ import { readFileSync, existsSync } from 'fs';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
-import { sequelize } from './src/models/index.js';
+import { sequelize, seedDefaultLanguages } from './src/models/index.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
 import i18nRoutes from './src/routes/i18nRoutes.js';
@@ -370,6 +370,9 @@ async function init() {
             // Initialize Sequelize
             await sequelize.authenticate();
             console.log('Sequelize connection has been established successfully.');
+
+            // Seed default languages (fa, en, ar)
+            await seedDefaultLanguages();
 
             // Create database schema first
             await createDatabaseSchema();

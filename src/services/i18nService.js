@@ -2,8 +2,8 @@ import { Language, CategoryTranslation, ProductTranslation, CategoryAttributeTra
 
 class I18nService {
       constructor() {
-            this.defaultLanguage = 'en';
-            this.supportedLanguages = ['en', 'fa', 'ar'];
+            this.defaultLanguage = 'fa';
+            this.supportedLanguages = ['fa', 'en', 'ar'];
             this.languageCache = new Map();
             this.translationCache = new Map();
       }
@@ -68,7 +68,7 @@ class I18nService {
        * @param {string} languageCode - Language code
        * @returns {Promise<Object>} Category with translations
        */
-      async getCategoryWithTranslation(categoryId, languageCode = 'en') {
+      async getCategoryWithTranslation(categoryId, languageCode = 'fa') {
             const cacheKey = `category_${categoryId}_${languageCode}`;
             if (this.translationCache.has(cacheKey)) {
                   return this.translationCache.get(cacheKey);
@@ -124,7 +124,7 @@ class I18nService {
        * @param {string} languageCode - Language code
        * @returns {Promise<Object>} Product with translations
        */
-      async getProductWithTranslation(productId, languageCode = 'en') {
+      async getProductWithTranslation(productId, languageCode = 'fa') {
             const cacheKey = `product_${productId}_${languageCode}`;
             if (this.translationCache.has(cacheKey)) {
                   return this.translationCache.get(cacheKey);
@@ -328,7 +328,7 @@ class I18nService {
        * @param {string} fallbackLanguage - Fallback language code
        * @returns {string} Translated text
        */
-      getTranslatedText(entity, field, languageCode, fallbackLanguage = 'en') {
+      getTranslatedText(entity, field, languageCode, fallbackLanguage = 'fa') {
             if (!entity || !entity.translations) {
                   return entity?.[field] || '';
             }
@@ -346,6 +346,21 @@ class I18nService {
             return entity[field] || '';
       }
 }
+
+// Simple offline Persian-to-English transliteration utility
+function persianToEnglishTransliterate(text) {
+      // Only basic replacements for offline, fast, and local use
+      const map = {
+            'ا': 'a', 'آ': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ث': 's', 'ج': 'j', 'چ': 'ch',
+            'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'z', 'ر': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's',
+            'ش': 'sh', 'ص': 's', 'ض': 'z', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f',
+            'ق': 'gh', 'ک': 'k', 'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n', 'و': 'v', 'ه': 'h',
+            'ی': 'y', 'ء': '', ' ': '-', '‌': '-', 'ٔ': '', 'ً': '', 'ٌ': '', 'ٍ': '', 'َ': '', 'ُ': '', 'ِ': '', 'ّ': '', 'ْ': '', 'ٰ': '',
+      };
+      return text.split('').map(c => map[c] !== undefined ? map[c] : c).join('').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+}
+
+export { persianToEnglishTransliterate };
 
 export const i18nService = new I18nService();
 export default i18nService;

@@ -30,9 +30,9 @@ export const i18nMiddleware = (req, res, next) => {
       } catch (error) {
             console.error('I18n middleware error:', error);
             // Fallback to default language
-            req.language = 'en';
-            req.languageCode = 'en';
-            res.locals.language = 'en';
+            req.language = 'fa';
+            req.languageCode = 'fa';
+            res.locals.language = 'fa';
             next();
       }
 };
@@ -89,7 +89,7 @@ export const addLanguageInfoMiddleware = async (req, res, next) => {
  */
 export const translationFallbackMiddleware = (req, res, next) => {
       // Add translation helper to response
-      res.translate = (entity, field, fallbackLanguage = 'en') => {
+      res.translate = (entity, field, fallbackLanguage = 'fa') => {
             return i18nService.getTranslatedText(entity, field, req.languageCode, fallbackLanguage);
       };
 

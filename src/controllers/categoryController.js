@@ -1,15 +1,32 @@
 import { categoryService } from '../services/categoryService.js';
+import { persianToEnglishTransliterate } from '../services/i18nService.js';
 
 export const categoryController = {
       // Create a new category
       async create(req, res) {
             try {
-                  const category = await categoryService.create(req.body);
-                  res.success(category, 'Category created successfully');
-            } catch (error) {
-                  if (error.name === 'SequelizeUniqueConstraintError') {
+                  let { name, parent_id, slug } = req.body;
+                  // If name is Persian (contains Persian letters), transliterate for unique fields
+                  const persianRegex = /[\u0600-\u06FF]/;
+                  if (persianRegex.test(name)) {
+                        const enName = persianToEnglishTransliterate(name);
+                        req.body.name = enName;
+                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
+                        // Store Persian in translation
+                        req.body.translation = { fa: { name } };
+                  } else {
+                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
+                  }
+                  const result = await categoryService.create(req.body);
+                  if (result.rows.length === 0) {
                         return res.error('A category with this name or slug already exists', 409);
                   }
+                  // If translation was set, upsert translation
+                  if (req.body.translation && req.body.translation.fa) {
+                        await i18nService.upsertCategoryTranslation(result.rows[0].id, 'fa', { name: req.body.translation.fa.name });
+                  }
+                  res.success(result.rows[0], 'Category created successfully');
+            } catch (error) {
                   res.error(error);
             }
       },
@@ -67,15 +84,31 @@ export const categoryController = {
       // Update category
       async update(req, res) {
             try {
-                  const category = await categoryService.update(req.params.id, req.body);
-                  if (!category) {
-                        return res.error('Category not found', 404);
+                  let { name, parent_id, slug } = req.body;
+                  const persianRegex = /[\u0600-\u06FF]/;
+                  if (name && persianRegex.test(name)) {
+                        const enName = persianToEnglishTransliterate(name);
+                        req.body.name = enName;
+                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
+                        req.body.translation = { fa: { name } };
+                  } else if (name) {
+                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
                   }
-                  res.success(category, 'Category updated successfully');
-            } catch (error) {
-                  if (error.name === 'SequelizeUniqueConstraintError') {
+                  const result = await categoryService.update(req.params.id, req.body);
+                  if (result.rows.length === 0) {
+                        // Check if the category exists
+                        const categoryExists = await categoryService.getById(req.params.id);
+                        if (!categoryExists) {
+                              return res.error('Category not found', 404);
+                        }
                         return res.error('A category with this name or slug already exists', 409);
                   }
+                  // If translation was set, upsert translation
+                  if (req.body.translation && req.body.translation.fa) {
+                        await i18nService.upsertCategoryTranslation(result.rows[0].id, 'fa', { name: req.body.translation.fa.name });
+                  }
+                  res.success(result.rows[0], 'Category updated successfully');
+            } catch (error) {
                   res.error(error);
             }
       },
