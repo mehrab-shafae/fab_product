@@ -286,7 +286,7 @@ export const categoryService = {
       },
 
       // Get optimized category tree with materialized path
-      async getTree({ status = 'active', includeInactive = false, includeStats = false, maxDepth = 3, includeAttributes = true } = {}) {
+      async getTree({ status = 'active', includeInactive = false, includeStats = false, maxDepth = 3, includeAttributes = true, page = 1, limit = 10 } = {}) {
             const where = includeInactive ? {} : { status };
 
             const include = [];
@@ -315,6 +315,15 @@ export const categoryService = {
                         ],
                   });
             }
+
+            // Count total root categories for pagination
+            const total = await Category.count({
+                  where: {
+                        ...where,
+                        parent_id: null,
+                  },
+            });
+            const offset = (page - 1) * limit;
 
             const result = await Category.findAll({
                   where: {
@@ -349,6 +358,8 @@ export const categoryService = {
                         [{ model: Category, as: 'children' }, { model: Category, as: 'children' }, 'order', 'ASC'],
                         [{ model: Category, as: 'children' }, { model: Category, as: 'children' }, 'name', 'ASC'],
                   ],
+                  limit,
+                  offset,
             });
 
             const plainResults = result.map(category => {
@@ -356,7 +367,15 @@ export const categoryService = {
                   normalizeImageIds(plain);
                   return plain;
             });
-            return plainResults;
+            return {
+                  data: plainResults,
+                  pagination: {
+                        page,
+                        limit,
+                        total,
+                        pages: Math.ceil(total / limit),
+                  },
+            };
       },
 
       // Update category with optimized slug regeneration

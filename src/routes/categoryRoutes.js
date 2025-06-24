@@ -45,13 +45,18 @@ router.get('/featured', async (req, res) => {
 // Get category tree - This must come before /:id to avoid conflicts
 router.get('/tree', async (req, res) => {
       try {
-            const tree = await categoryService.getTree({
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 10;
+            const treeResult = await categoryService.getTree({
                   status: req.query.status,
                   includeInactive: req.query.includeInactive === 'true',
+                  page,
+                  limit,
             });
             res.json({
                   status: 'success',
-                  data: tree,
+                  data: treeResult.data,
+                  pagination: treeResult.pagination,
                   message: 'درخت دسته‌ها با موفقیت دریافت شد',
             });
       } catch (error) {
