@@ -371,12 +371,12 @@ async function init() {
             await sequelize.authenticate();
             console.log('Sequelize connection has been established successfully.');
 
-            // Seed default languages (fa, en, ar)
-            await seedDefaultLanguages();
-
             // Create database schema first
             await createDatabaseSchema();
             console.log('Database schema created successfully.');
+
+            // Seed default languages (fa, en, ar)
+            await seedDefaultLanguages();
 
             // Sync models with database - use force: false to preserve existing data
             // and alter: false to not modify existing tables
