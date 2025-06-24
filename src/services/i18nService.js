@@ -1,4 +1,4 @@
-import { Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation } from '../models/index.js';
+import { Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation, CategoryAttribute, CategoryAttributeOption } from '../models/index.js';
 
 class I18nService {
       constructor() {
