@@ -43,4 +43,4 @@ router.put('/category-attribute-options/:optionId/translations', upsertCategoryA
 // Cache management routes
 router.delete('/cache/translations', clearTranslationCacheController);
 
-export default router; 
+export default router;

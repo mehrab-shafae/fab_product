@@ -63,4 +63,4 @@ const ProductTranslation = sequelize.define(
 ProductTranslation.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
 ProductTranslation.belongsTo(Language, { foreignKey: 'language_code', targetKey: 'code', as: 'language' });
 
-export default ProductTranslation; 
+export default ProductTranslation;

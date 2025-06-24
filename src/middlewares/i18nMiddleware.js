@@ -10,22 +10,22 @@ export const i18nMiddleware = (req, res, next) => {
       try {
             // Get language from request
             const languageCode = i18nService.getLanguageFromRequest(req);
-            
+
             // Set language in request object
             req.language = languageCode;
             req.languageCode = languageCode;
-            
+
             // Add language info to response locals for templates
             res.locals.language = languageCode;
-            
+
             // Add helper methods to response object
             res.getLanguage = () => languageCode;
-            res.setLanguage = (lang) => {
+            res.setLanguage = lang => {
                   req.language = lang;
                   req.languageCode = lang;
                   res.locals.language = lang;
             };
-            
+
             next();
       } catch (error) {
             console.error('I18n middleware error:', error);
@@ -46,7 +46,7 @@ export const i18nMiddleware = (req, res, next) => {
 export const validateLanguageMiddleware = (req, res, next) => {
       const { lang, language } = req.query;
       const languageCode = lang || language;
-      
+
       if (languageCode && !i18nService.supportedLanguages.includes(languageCode)) {
             return res.status(400).json({
                   error: 'Unsupported language',
@@ -54,7 +54,7 @@ export const validateLanguageMiddleware = (req, res, next) => {
                   supportedLanguages: i18nService.supportedLanguages,
             });
       }
-      
+
       next();
 };
 
@@ -69,11 +69,11 @@ export const addLanguageInfoMiddleware = async (req, res, next) => {
             // Get available languages
             const languages = await i18nService.getLanguages();
             const currentLanguage = languages.find(lang => lang.code === req.languageCode);
-            
+
             // Add language info to response locals only
             res.locals.languages = languages;
             res.locals.currentLanguage = currentLanguage;
-            
+
             next();
       } catch (error) {
             console.error('Add language info middleware error:', error);
@@ -92,7 +92,7 @@ export const translationFallbackMiddleware = (req, res, next) => {
       res.translate = (entity, field, fallbackLanguage = 'en') => {
             return i18nService.getTranslatedText(entity, field, req.languageCode, fallbackLanguage);
       };
-      
+
       next();
 };
 
@@ -101,4 +101,4 @@ export default {
       validateLanguageMiddleware,
       addLanguageInfoMiddleware,
       translationFallbackMiddleware,
-}; 
+};

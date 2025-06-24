@@ -49,44 +49,53 @@ export const categoryService = {
             const transaction = await sequelize.transaction();
 
             try {
-                  const category = await Category.create({
-                        name,
-                        slug,
-                        parent_id,
-                        description,
-                        meta_title: meta_title || name,
-                        meta_description,
-                        meta_keywords,
-                        settings,
-                        image_ids,
-                        icon_ids,
-                        order,
-                        status,
-                        is_featured,
-                  }, { transaction });
+                  const category = await Category.create(
+                        {
+                              name,
+                              slug,
+                              parent_id,
+                              description,
+                              meta_title: meta_title || name,
+                              meta_description,
+                              meta_keywords,
+                              settings,
+                              image_ids,
+                              icon_ids,
+                              order,
+                              status,
+                              is_featured,
+                        },
+                        { transaction }
+                  );
 
                   // Handle attributes if provided
                   if (attributes && Array.isArray(attributes)) {
                         for (const attr of attributes) {
                               const { name: attrName, type, required = false, order: attrOrder = 0, options = [] } = attr;
-                              
+
                               // Create the attribute
-                              const categoryAttribute = await CategoryAttribute.create({
-                                    category_id: category.id,
-                                    name: attrName,
-                                    type,
-                                    required,
-                                    order: attrOrder,
-                              }, { transaction });
+                              const categoryAttribute = await CategoryAttribute.create(
+                                    {
+                                          category_id: category.id,
+                                          name: attrName,
+                                          type,
+                                          required,
+                                          order: attrOrder,
+                                    },
+                                    { transaction }
+                              );
 
                               // Create options if provided and type is enum
                               if (type === 'enum' && options && Array.isArray(options)) {
                                     for (let i = 0; i < options.length; i++) {
-                                          await CategoryAttributeOption.create({
-                                                category_attribute_id: categoryAttribute.id,
-                                                value: options[i],
-                                                order: i,
-                                          }, { transaction });
+                                          await CategoryAttributeOption.create(
+                                                {
+                                                      category_attribute_id: categoryAttribute.id,
+                                                      value: options[i],
+                                                      order: i,
+                                                },
+                                                { transaction }
+                                          );
                                     }
                               }
                         }
@@ -96,14 +105,18 @@ export const categoryService = {
 
                   // Fetch the category with its attributes
                   const categoryWithAttributes = await Category.findByPk(category.id, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options',
-                              }],
-                        }],
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    include: [
+                                          {
+                                                model: CategoryAttributeOption,
+                                                as: 'options',
+                                          },
+                                    ],
+                              },
+                        ],
                   });
 
                   const plain = categoryWithAttributes.get({ plain: true });
@@ -157,11 +170,16 @@ export const categoryService = {
                   include.push({
                         model: CategoryAttribute,
                         as: 'attributes',
-                        include: [{
-                              model: CategoryAttributeOption,
-                              as: 'options',
-                        }],
-                        order: [['order', 'ASC'], [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC']],
+                        include: [
+                              {
+                                    model: CategoryAttributeOption,
+                                    as: 'options',
+                              },
+                        ],
+                        order: [
+                              ['order', 'ASC'],
+                              [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC'],
+                        ],
                   });
             }
 
@@ -170,9 +188,9 @@ export const categoryService = {
                   include,
                   attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_ids', 'icon_ids', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
             });
-            
+
             if (!result) return null;
-            
+
             // If language code is provided and not default, get with translations
             if (languageCode && languageCode !== 'en') {
                   const categoryWithTranslation = await i18nService.getCategoryWithTranslation(id, languageCode);
@@ -181,7 +199,7 @@ export const categoryService = {
                         return categoryWithTranslation;
                   }
             }
-            
+
             const plain = result.get({ plain: true });
             normalizeImageIds(plain);
             return plain;
@@ -229,11 +247,16 @@ export const categoryService = {
                   include.push({
                         model: CategoryAttribute,
                         as: 'attributes',
-                        include: [{
-                              model: CategoryAttributeOption,
-                              as: 'options',
-                        }],
-                        order: [['order', 'ASC'], [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC']],
+                        include: [
+                              {
+                                    model: CategoryAttributeOption,
+                                    as: 'options',
+                              },
+                        ],
+                        order: [
+                              ['order', 'ASC'],
+                              [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC'],
+                        ],
                   });
             }
 
@@ -280,11 +303,16 @@ export const categoryService = {
                   include.push({
                         model: CategoryAttribute,
                         as: 'attributes',
-                        include: [{
-                              model: CategoryAttributeOption,
-                              as: 'options',
-                        }],
-                        order: [['order', 'ASC'], [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC']],
+                        include: [
+                              {
+                                    model: CategoryAttributeOption,
+                                    as: 'options',
+                              },
+                        ],
+                        order: [
+                              ['order', 'ASC'],
+                              [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC'],
+                        ],
                   });
             }
 
@@ -412,24 +440,30 @@ export const categoryService = {
                         // Create new attributes
                         for (const attr of attributes) {
                               const { name: attrName, type, required = false, order: attrOrder = 0, options = [] } = attr;
-                              
+
                               // Create the attribute
-                              const categoryAttribute = await CategoryAttribute.create({
-                                    category_id: id,
-                                    name: attrName,
-                                    type,
-                                    required,
-                                    order: attrOrder,
-                              }, { transaction });
+                              const categoryAttribute = await CategoryAttribute.create(
+                                    {
+                                          category_id: id,
+                                          name: attrName,
+                                          type,
+                                          required,
+                                          order: attrOrder,
+                                    },
+                                    { transaction }
+                              );
 
                               // Create options if provided and type is enum
                               if (type === 'enum' && options && Array.isArray(options)) {
                                     for (let i = 0; i < options.length; i++) {
-                                          await CategoryAttributeOption.create({
-                                                category_attribute_id: categoryAttribute.id,
-                                                value: options[i],
-                                                order: i,
-                                          }, { transaction });
+                                          await CategoryAttributeOption.create(
+                                                {
+                                                      category_attribute_id: categoryAttribute.id,
+                                                      value: options[i],
+                                                      order: i,
+                                                },
+                                                { transaction }
+                                          );
                                     }
                               }
                         }
@@ -439,14 +473,18 @@ export const categoryService = {
 
                   // Fetch the updated category with its attributes
                   const updatedCategory = await Category.findByPk(id, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options',
-                              }],
-                        }],
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    include: [
+                                          {
+                                                model: CategoryAttributeOption,
+                                                as: 'options',
+                                          },
+                                    ],
+                              },
+                        ],
                   });
 
                   const plain = updatedCategory.get({ plain: true });
@@ -531,11 +569,16 @@ export const categoryService = {
                   include.push({
                         model: CategoryAttribute,
                         as: 'attributes',
-                        include: [{
-                              model: CategoryAttributeOption,
-                              as: 'options',
-                        }],
-                        order: [['order', 'ASC'], [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC']],
+                        include: [
+                              {
+                                    model: CategoryAttributeOption,
+                                    as: 'options',
+                              },
+                        ],
+                        order: [
+                              ['order', 'ASC'],
+                              [{ model: CategoryAttributeOption, as: 'options' }, 'order', 'ASC'],
+                        ],
                   });
             }
 
@@ -813,7 +856,10 @@ export const categoryService = {
                   },
                   attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'image_ids', 'icon_ids', 'order'],
                   limit,
-                  order: [['order', 'ASC'], ['name', 'ASC']],
+                  order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
+                  ],
             });
             return categories.map(category => {
                   const plain = category.get({ plain: true });
@@ -1092,19 +1138,23 @@ export const categoryService = {
                   }
 
                   await transaction.commit();
-                  
+
                   // Fetch the cloned category with its attributes
                   const clonedCategoryWithAttributes = await Category.findByPk(newCategory.id, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options',
-                              }],
-                        }],
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    include: [
+                                          {
+                                                model: CategoryAttributeOption,
+                                                as: 'options',
+                                          },
+                                    ],
+                              },
+                        ],
                   });
-                  
+
                   return clonedCategoryWithAttributes;
             } catch (error) {
                   await transaction.rollback();
@@ -1204,19 +1254,23 @@ export const categoryService = {
                   }
 
                   await transaction.commit();
-                  
+
                   // Fetch the category with its attributes
                   const categoryWithAttributes = await Category.findByPk(category.id, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              include: [{
-                                    model: CategoryAttributeOption,
-                                    as: 'options',
-                              }],
-                        }],
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    include: [
+                                          {
+                                                model: CategoryAttributeOption,
+                                                as: 'options',
+                                          },
+                                    ],
+                              },
+                        ],
                   });
-                  
+
                   const plain = categoryWithAttributes.get({ plain: true });
                   normalizeImageIds(plain);
                   return plain;
@@ -1643,7 +1697,10 @@ export const categoryService = {
       async getLegacyTree() {
             // Get all categories
             const categories = await Category.findAll({
-                  order: [['order', 'ASC'], ['name', 'ASC']],
+                  order: [
+                        ['order', 'ASC'],
+                        ['name', 'ASC'],
+                  ],
                   raw: true,
             });
 
@@ -1671,16 +1728,16 @@ export const categoryService = {
 
 // Utility to ensure image_ids and icon_ids are always arrays and remove image_url/icon_url from output
 function normalizeImageIds(category) {
-    if (category) {
-        if (!Array.isArray(category.image_ids) || category.image_ids == null) {
-            category.image_ids = [];
-        }
-        if (!Array.isArray(category.icon_ids) || category.icon_ids == null) {
-            category.icon_ids = [];
-        }
-        // Remove deprecated fields if present
-      //   if ('image_url' in category) delete category.image_url;
-      //   if ('icon_url' in category) delete category.icon_url;
-    }
-    return category;
+      if (category) {
+            if (!Array.isArray(category.image_ids) || category.image_ids == null) {
+                  category.image_ids = [];
+            }
+            if (!Array.isArray(category.icon_ids) || category.icon_ids == null) {
+                  category.icon_ids = [];
+            }
+            // Remove deprecated fields if present
+            //   if ('image_url' in category) delete category.image_url;
+            //   if ('icon_url' in category) delete category.icon_url;
+      }
+      return category;
 }

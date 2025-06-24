@@ -51,4 +51,4 @@ const Language = sequelize.define(
       }
 );
 
-export default Language; 
+export default Language;

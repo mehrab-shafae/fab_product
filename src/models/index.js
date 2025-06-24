@@ -36,18 +36,6 @@ CategoryAttributeOption.hasMany(CategoryAttributeOptionTranslation, { foreignKey
 Product.hasMany(ProductTranslation, { foreignKey: 'product_id', as: 'translations' });
 
 // Export models and sequelize instance
-export { 
-      sequelize, 
-      Category, 
-      CategoryAttribute, 
-      CategoryAttributeOption, 
-      Product, 
-      ProductAttributeValue,
-      Language,
-      CategoryTranslation,
-      ProductTranslation,
-      CategoryAttributeTranslation,
-      CategoryAttributeOptionTranslation
-};
+export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation };
 
 export default models;

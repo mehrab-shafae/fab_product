@@ -14,7 +14,7 @@ export const getLanguagesController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -32,7 +32,7 @@ export const getDefaultLanguageController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -54,18 +54,14 @@ export const upsertCategoryTranslationController = async (req, res) => {
                   });
             }
 
-            const translation = await i18nService.upsertCategoryTranslation(
-                  parseInt(categoryId),
-                  language_code,
-                  { name, description, meta_title, meta_description }
-            );
+            const translation = await i18nService.upsertCategoryTranslation(parseInt(categoryId), language_code, { name, description, meta_title, meta_description });
 
             res.success(translation, 'Category translation updated successfully');
       } catch (error) {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -87,18 +83,14 @@ export const upsertProductTranslationController = async (req, res) => {
                   });
             }
 
-            const translation = await i18nService.upsertProductTranslation(
-                  parseInt(productId),
-                  language_code,
-                  { name, description }
-            );
+            const translation = await i18nService.upsertProductTranslation(parseInt(productId), language_code, { name, description });
 
             res.success(translation, 'Product translation updated successfully');
       } catch (error) {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -120,18 +112,14 @@ export const upsertCategoryAttributeTranslationController = async (req, res) => 
                   });
             }
 
-            const translation = await i18nService.upsertCategoryAttributeTranslation(
-                  parseInt(attributeId),
-                  language_code,
-                  { name }
-            );
+            const translation = await i18nService.upsertCategoryAttributeTranslation(parseInt(attributeId), language_code, { name });
 
             res.success(translation, 'Category attribute translation updated successfully');
       } catch (error) {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -153,18 +141,14 @@ export const upsertCategoryAttributeOptionTranslationController = async (req, re
                   });
             }
 
-            const translation = await i18nService.upsertCategoryAttributeOptionTranslation(
-                  parseInt(optionId),
-                  language_code,
-                  { value }
-            );
+            const translation = await i18nService.upsertCategoryAttributeOptionTranslation(parseInt(optionId), language_code, { value });
 
             res.success(translation, 'Category attribute option translation updated successfully');
       } catch (error) {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -179,10 +163,7 @@ export const getCategoryWithTranslationController = async (req, res) => {
             const { categoryId } = req.params;
             const languageCode = req.languageCode || 'en';
 
-            const category = await i18nService.getCategoryWithTranslation(
-                  parseInt(categoryId),
-                  languageCode
-            );
+            const category = await i18nService.getCategoryWithTranslation(parseInt(categoryId), languageCode);
 
             if (!category) {
                   return res.status(404).json({
@@ -196,7 +177,7 @@ export const getCategoryWithTranslationController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -211,10 +192,7 @@ export const getProductWithTranslationController = async (req, res) => {
             const { productId } = req.params;
             const languageCode = req.languageCode || 'en';
 
-            const product = await i18nService.getProductWithTranslation(
-                  parseInt(productId),
-                  languageCode
-            );
+            const product = await i18nService.getProductWithTranslation(parseInt(productId), languageCode);
 
             if (!product) {
                   return res.status(404).json({
@@ -228,7 +206,7 @@ export const getProductWithTranslationController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -253,11 +231,7 @@ export const bulkUpdateCategoryTranslationsController = async (req, res) => {
             const results = [];
             for (const translation of translations) {
                   const { language_code, ...translationData } = translation;
-                  const result = await i18nService.upsertCategoryTranslation(
-                        parseInt(categoryId),
-                        language_code,
-                        translationData
-                  );
+                  const result = await i18nService.upsertCategoryTranslation(parseInt(categoryId), language_code, translationData);
                   results.push(result);
             }
 
@@ -266,7 +240,7 @@ export const bulkUpdateCategoryTranslationsController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -291,11 +265,7 @@ export const bulkUpdateProductTranslationsController = async (req, res) => {
             const results = [];
             for (const translation of translations) {
                   const { language_code, ...translationData } = translation;
-                  const result = await i18nService.upsertProductTranslation(
-                        parseInt(productId),
-                        language_code,
-                        translationData
-                  );
+                  const result = await i18nService.upsertProductTranslation(parseInt(productId), language_code, translationData);
                   results.push(result);
             }
 
@@ -304,7 +274,7 @@ export const bulkUpdateProductTranslationsController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -322,7 +292,7 @@ export const clearTranslationCacheController = async (req, res) => {
             res.status(500).json({
                   status: 'error',
                   message: error.message || 'Internal server error',
-                  details: error
+                  details: error,
             });
       }
 };
@@ -339,4 +309,4 @@ export default {
       bulkUpdateCategoryTranslationsController,
       bulkUpdateProductTranslationsController,
       clearTranslationCacheController,
-}; 
+};

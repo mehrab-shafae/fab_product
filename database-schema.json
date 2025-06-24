@@ -31,9 +31,7 @@
             {
                   "version": 2,
                   "name": "Remove attributes field from categories table",
-                  "queries": [
-                        "ALTER TABLE categories DROP COLUMN IF EXISTS attributes"
-                  ]
+                  "queries": ["ALTER TABLE categories DROP COLUMN IF EXISTS attributes"]
             },
             {
                   "version": 3,
@@ -149,11 +147,7 @@
             {
                   "version": 15,
                   "name": "Add image_ids and image_id columns for new image system (no drop)",
-                  "queries": [
-                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]",
-                        "ALTER TABLE products ADD COLUMN IF NOT EXISTS image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]",
-                        "ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_id TEXT"
-                  ]
+                  "queries": ["ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]", "ALTER TABLE products ADD COLUMN IF NOT EXISTS image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]", "ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_id TEXT"]
             },
             {
                   "version": 16,
@@ -176,9 +170,7 @@
             {
                   "version": 17,
                   "name": "Add icon_ids column to categories table",
-                  "queries": [
-                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_ids TEXT[] DEFAULT ARRAY[]::TEXT[]"
-                  ]
+                  "queries": ["ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_ids TEXT[] DEFAULT ARRAY[]::TEXT[]"]
             }
       ],
       "indexes": [

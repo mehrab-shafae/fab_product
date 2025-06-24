@@ -59,4 +59,4 @@ const CategoryAttributeOptionTranslation = sequelize.define(
 CategoryAttributeOptionTranslation.belongsTo(CategoryAttributeOption, { foreignKey: 'category_attribute_option_id', as: 'option' });
 CategoryAttributeOptionTranslation.belongsTo(Language, { foreignKey: 'language_code', targetKey: 'code', as: 'language' });
 
-export default CategoryAttributeOptionTranslation; 
+export default CategoryAttributeOptionTranslation;

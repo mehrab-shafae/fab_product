@@ -43,7 +43,10 @@ class I18nService {
 
             const languages = await Language.findAll({
                   where: { is_active: true },
-                  order: [['is_default', 'DESC'], ['name', 'ASC']],
+                  order: [
+                        ['is_default', 'DESC'],
+                        ['name', 'ASC'],
+                  ],
             });
 
             this.languageCache.set(cacheKey, languages);
@@ -72,7 +75,7 @@ class I18nService {
             }
 
             const { Category } = await import('../models/index.js');
-            
+
             const category = await Category.findByPk(categoryId, {
                   include: [
                         {
@@ -128,7 +131,7 @@ class I18nService {
             }
 
             const { Product } = await import('../models/index.js');
-            
+
             const product = await Product.findByPk(productId, {
                   include: [
                         {
@@ -176,7 +179,7 @@ class I18nService {
             if (result.attributes) {
                   result.attributes = result.attributes.map(attr => {
                         const attrResult = { ...attr };
-                        
+
                         if (attr.translations && attr.translations.length > 0) {
                               attrResult.name = attr.translations[0].name || attr.name;
                         }
@@ -184,7 +187,7 @@ class I18nService {
                         if (attr.options) {
                               attrResult.options = attr.options.map(option => {
                                     const optionResult = { ...option };
-                                    
+
                                     if (option.translations && option.translations.length > 0) {
                                           optionResult.value = option.translations[0].value || option.value;
                                     }
@@ -345,4 +348,4 @@ class I18nService {
 }
 
 export const i18nService = new I18nService();
-export default i18nService; 
+export default i18nService;

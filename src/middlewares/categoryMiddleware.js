@@ -121,10 +121,17 @@ export const categoryValidation = {
 
             body('meta_description').optional().isLength({ max: 500 }).withMessage('توضیحات متا نمی‌تواند بیشتر از 500 کاراکتر باشد'),
 
-            body('image_ids').optional().isArray().withMessage('شناسه‌های عکس باید آرایه‌ای از رشته باشند')
-                  .custom(arr => arr == null || arr.every(id => typeof id === 'string' && id.trim().length > 0)).withMessage('هر مقدار در image_ids باید رشته غیرخالی باشد'),
+            body('image_ids')
+                  .optional()
+                  .isArray()
+                  .withMessage('شناسه‌های عکس باید آرایه‌ای از رشته باشند')
+                  .custom(arr => arr == null || arr.every(id => typeof id === 'string' && id.trim().length > 0))
+                  .withMessage('هر مقدار در image_ids باید رشته غیرخالی باشد'),
 
-            body('attributes').optional().isArray().withMessage('attributes باید آرایه باشد')
+            body('attributes')
+                  .optional()
+                  .isArray()
+                  .withMessage('attributes باید آرایه باشد')
                   .custom(arr => {
                         if (!arr) return true;
                         return arr.every(attr => {
@@ -139,7 +146,8 @@ export const categoryValidation = {
                               }
                               return true;
                         });
-                  }).withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
+                  })
+                  .withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
 
             //body('icon_url').optional().isURL().withMessage('آدرس آیکون باید URL معتبر باشد'),
       ],
@@ -166,7 +174,10 @@ export const categoryValidation = {
 
             body('order').optional().isInt({ min: 0 }).withMessage('ترتیب باید عدد صحیح غیرمنفی باشد'),
 
-            body('attributes').optional().isArray().withMessage('attributes باید آرایه باشد')
+            body('attributes')
+                  .optional()
+                  .isArray()
+                  .withMessage('attributes باید آرایه باشد')
                   .custom(arr => {
                         if (!arr) return true;
                         return arr.every(attr => {
@@ -181,7 +192,8 @@ export const categoryValidation = {
                               }
                               return true;
                         });
-                  }).withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
+                  })
+                  .withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
 
             //body('icon_url').optional().isURL().withMessage('آدرس آیکون باید URL معتبر باشد'),
       ],
@@ -280,7 +292,7 @@ export const handleValidationErrors = (req, res, next) => {
                         message: error.msg,
                         value: error.value,
                   })),
-                  requestId: (typeof getRequestId === 'function' ? getRequestId(req) : (req.requestId || null)),
+                  requestId: typeof getRequestId === 'function' ? getRequestId(req) : req.requestId || null,
             });
       }
       next();

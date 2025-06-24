@@ -19,7 +19,7 @@ export const categoryController = {
             try {
                   const { id } = req.params;
                   const languageCode = req.languageCode || 'en';
-                  
+
                   const category = await categoryService.getById(parseInt(id), {
                         includeChildren: true,
                         depth: 2,

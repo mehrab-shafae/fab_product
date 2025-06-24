@@ -278,30 +278,30 @@ async function init() {
             // Configure Helmet with CSP that allows inline scripts for admin panel
             app.use(
                   helmet({
-                    contentSecurityPolicy: {
-                      directives: {
-                        defaultSrc: ["'self'"],
-                        scriptSrc: ["'self'", "'unsafe-inline'"],
-                        styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-                        scriptSrcAttr: ["'unsafe-inline'"],
-                        imgSrc: ["'self'", 'data:', 'https:'],
-                        connectSrc: ["'self'"],
-                        fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
-                        objectSrc: ["'none'"],
-                        mediaSrc: ["'self'"],
-                        frameSrc: ["'none'"],
-                        workerSrc: ["'self'"],
-                        manifestSrc: ["'self'"],
-                        baseUri: ["'self'"],
-                        formAction: ["'self'"],
-                        frameAncestors: ["'none'"],
-                        upgradeInsecureRequests: [],
-                      },
-                    },
-                    crossOriginEmbedderPolicy: false,
-                    crossOriginResourcePolicy: { policy: 'cross-origin' },
+                        contentSecurityPolicy: {
+                              directives: {
+                                    defaultSrc: ["'self'"],
+                                    scriptSrc: ["'self'", "'unsafe-inline'"],
+                                    styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+                                    scriptSrcAttr: ["'unsafe-inline'"],
+                                    imgSrc: ["'self'", 'data:', 'https:'],
+                                    connectSrc: ["'self'"],
+                                    fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+                                    objectSrc: ["'none'"],
+                                    mediaSrc: ["'self'"],
+                                    frameSrc: ["'none'"],
+                                    workerSrc: ["'self'"],
+                                    manifestSrc: ["'self'"],
+                                    baseUri: ["'self'"],
+                                    formAction: ["'self'"],
+                                    frameAncestors: ["'none'"],
+                                    upgradeInsecureRequests: [],
+                              },
+                        },
+                        crossOriginEmbedderPolicy: false,
+                        crossOriginResourcePolicy: { policy: 'cross-origin' },
                   })
-                );
+            );
       } else {
             app.use(helmet());
       }
@@ -318,13 +318,13 @@ async function init() {
             app.use(limiter);
             app.use(speedLimiter);
       }
-      
+
       // Add i18n middleware
       app.use(i18nMiddleware);
       app.use(validateLanguageMiddleware);
       app.use(addLanguageInfoMiddleware);
       app.use(translationFallbackMiddleware);
-      
+
       app.use(requestLogger);
       app.use(errorLogger);
 
@@ -666,51 +666,51 @@ function getChatMessages(chat_id, { page = 1, limit = 10 } = {}) {
 
 // =====================[ handleDatabaseError Enhancement ]=====================
 function handleDatabaseError(error) {
-    if (!error.code || !DB_ERROR_CODES[error.code]) {
-        return {
-            message: error.message,
-            statusCode: 500,
-            errorCode: 'INTERNAL_ERROR',
-        };
-    }
-    const errorConfig = DB_ERROR_CODES[error.code];
-    let message = errorConfig.default;
-    let statusCode = 400;
-    let errorCode = error.code;
-    if (error.table && errorConfig[error.table]) {
-        if (error.constraint && errorConfig[error.table][error.constraint]) {
-            message = errorConfig[error.table][error.constraint];
-        } else if (errorConfig[error.table].default) {
-            message = errorConfig[error.table].default;
-        }
-    }
-    switch (error.code) {
-        case '23503':
-            statusCode = 404;
-            break;
-        case '23505':
-            statusCode = 409;
-            break;
-        case '23502':
-        case '23514':
-            statusCode = 400;
-            break;
-        default:
-            statusCode = 500;
-    }
-    return {
-        message,
-        statusCode,
-        errorCode,
-        details:
-            process.env.NODE_ENV === 'development'
-                ? {
-                      code: error.code,
-                      table: error.table,
-                      constraint: error.constraint,
-                  }
-                : undefined,
-    };
+      if (!error.code || !DB_ERROR_CODES[error.code]) {
+            return {
+                  message: error.message,
+                  statusCode: 500,
+                  errorCode: 'INTERNAL_ERROR',
+            };
+      }
+      const errorConfig = DB_ERROR_CODES[error.code];
+      let message = errorConfig.default;
+      let statusCode = 400;
+      let errorCode = error.code;
+      if (error.table && errorConfig[error.table]) {
+            if (error.constraint && errorConfig[error.table][error.constraint]) {
+                  message = errorConfig[error.table][error.constraint];
+            } else if (errorConfig[error.table].default) {
+                  message = errorConfig[error.table].default;
+            }
+      }
+      switch (error.code) {
+            case '23503':
+                  statusCode = 404;
+                  break;
+            case '23505':
+                  statusCode = 409;
+                  break;
+            case '23502':
+            case '23514':
+                  statusCode = 400;
+                  break;
+            default:
+                  statusCode = 500;
+      }
+      return {
+            message,
+            statusCode,
+            errorCode,
+            details:
+                  process.env.NODE_ENV === 'development'
+                        ? {
+                                code: error.code,
+                                table: error.table,
+                                constraint: error.constraint,
+                          }
+                        : undefined,
+      };
 }
 
 function markChatMessagesAsRead(chat_id, user_id) {
@@ -1200,23 +1200,23 @@ function getCategoryBySlug(slug) {
 
 // =====================[ errorLogger Enhancement ]=====================
 function errorLogger(err, req, res, next) {
-    const requestId = getRequestId(req);
-    logger.error('Unhandled error', {
-        requestId,
-        error: err.message,
-        stack: err.stack,
-        method: req.method,
-        url: req.originalUrl,
-        ip: req.ip,
-        userAgent: req.get('user-agent'),
-    });
-    if (req.method !== 'GET' && req.body) {
-        logger.debug('Request body at error', {
+      const requestId = getRequestId(req);
+      logger.error('Unhandled error', {
             requestId,
-            body: req.body,
-        });
-    }
-    next(err);
+            error: err.message,
+            stack: err.stack,
+            method: req.method,
+            url: req.originalUrl,
+            ip: req.ip,
+            userAgent: req.get('user-agent'),
+      });
+      if (req.method !== 'GET' && req.body) {
+            logger.debug('Request body at error', {
+                  requestId,
+                  body: req.body,
+            });
+      }
+      next(err);
 }
 
 function getProductAttributes(product_id) {
@@ -1649,14 +1649,7 @@ async function addMissingColumnsForSequelize() {
             }
 
             // Add missing columns to products table
-            const productColumns = [
-                  "status VARCHAR(20) DEFAULT 'active'",
-                  "metadata JSONB DEFAULT '{}'",
-                  'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]',
-                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'deleted_at TIMESTAMP',
-            ];
+            const productColumns = ["status VARCHAR(20) DEFAULT 'active'", "metadata JSONB DEFAULT '{}'", 'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]', 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'deleted_at TIMESTAMP'];
 
             for (const column of productColumns) {
                   try {
@@ -2687,8 +2680,8 @@ async function createMissingTablesForSequelize() {
 
 // =====================[ Request ID Utility ]=====================
 function getRequestId(req) {
-    if (req.requestId) return req.requestId;
-    const id = uuidv4();
-    req.requestId = id;
-    return id;
+      if (req.requestId) return req.requestId;
+      const id = uuidv4();
+      req.requestId = id;
+      return id;
 }

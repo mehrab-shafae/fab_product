@@ -71,4 +71,4 @@ const CategoryTranslation = sequelize.define(
 CategoryTranslation.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 CategoryTranslation.belongsTo(Language, { foreignKey: 'language_code', targetKey: 'code', as: 'language' });
 
-export default CategoryTranslation; 
+export default CategoryTranslation;
