@@ -5,8 +5,8 @@
                   "name": "Initial schema",
                   "queries": [
                         "CREATE EXTENSION IF NOT EXISTS pg_trgm",
-                        "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, slug VARCHAR(255), parent_id INTEGER REFERENCES categories(id), created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
-                        "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, price DECIMAL(10,2), category_id INTEGER REFERENCES categories(id), metadata JSONB, status VARCHAR(20) DEFAULT 'active', featured BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                        "CREATE TABLE IF NOT EXISTS categories (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, slug VARCHAR(255) UNIQUE, parent_id INTEGER REFERENCES categories(id), description TEXT, meta_title VARCHAR(255), meta_description TEXT, meta_keywords VARCHAR(255)[], settings JSONB DEFAULT '{}', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
+                        "CREATE TABLE IF NOT EXISTS products (id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL CHECK (price > 0), category_id INTEGER REFERENCES categories(id), sku VARCHAR(100) UNIQUE, status VARCHAR(20) DEFAULT 'active', metadata JSONB DEFAULT '{}', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, deleted_at TIMESTAMP)",
                         "CREATE TABLE IF NOT EXISTS product_attributes (id SERIAL PRIMARY KEY, name VARCHAR(100) NOT NULL, description TEXT, data_type VARCHAR(50) NOT NULL, is_required BOOLEAN DEFAULT false, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
                         "CREATE TABLE IF NOT EXISTS product_attribute_values (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, attribute_id INTEGER REFERENCES product_attributes(id) ON DELETE CASCADE, value TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, attribute_id))",
                         "CREATE TABLE IF NOT EXISTS product_variants (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, sku VARCHAR(100) UNIQUE, name VARCHAR(255), price DECIMAL(10,2), stock_quantity INTEGER DEFAULT 0, attributes JSONB, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
@@ -30,8 +30,10 @@
             },
             {
                   "version": 2,
-                  "name": "Add deleted_at to categories",
-                  "queries": ["ALTER TABLE categories ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP"]
+                  "name": "Remove attributes field from categories table",
+                  "queries": [
+                        "ALTER TABLE categories DROP COLUMN IF EXISTS attributes"
+                  ]
             },
             {
                   "version": 3,
@@ -74,7 +76,6 @@
                   "version": 10,
                   "name": "Enhance categories table with additional fields",
                   "queries": [
-                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS description TEXT",
                         "ALTER TABLE categories ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1",
                         "ALTER TABLE categories ADD COLUMN IF NOT EXISTS path INTEGER[] DEFAULT '{}'",
                         "ALTER TABLE categories ADD COLUMN IF NOT EXISTS \"order\" INTEGER DEFAULT 0",

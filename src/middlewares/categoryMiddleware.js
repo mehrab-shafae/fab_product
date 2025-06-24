@@ -124,6 +124,23 @@ export const categoryValidation = {
             body('image_ids').optional().isArray().withMessage('شناسه‌های عکس باید آرایه‌ای از رشته باشند')
                   .custom(arr => arr == null || arr.every(id => typeof id === 'string' && id.trim().length > 0)).withMessage('هر مقدار در image_ids باید رشته غیرخالی باشد'),
 
+            body('attributes').optional().isArray().withMessage('attributes باید آرایه باشد')
+                  .custom(arr => {
+                        if (!arr) return true;
+                        return arr.every(attr => {
+                              if (!attr.name || typeof attr.name !== 'string' || attr.name.trim().length === 0) {
+                                    return false;
+                              }
+                              if (!attr.type || !['string', 'number', 'enum'].includes(attr.type)) {
+                                    return false;
+                              }
+                              if (attr.type === 'enum' && (!attr.options || !Array.isArray(attr.options))) {
+                                    return false;
+                              }
+                              return true;
+                        });
+                  }).withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
+
             //body('icon_url').optional().isURL().withMessage('آدرس آیکون باید URL معتبر باشد'),
       ],
 
@@ -148,6 +165,25 @@ export const categoryValidation = {
             body('is_featured').optional().isBoolean().withMessage('is_featured باید true یا false باشد'),
 
             body('order').optional().isInt({ min: 0 }).withMessage('ترتیب باید عدد صحیح غیرمنفی باشد'),
+
+            body('attributes').optional().isArray().withMessage('attributes باید آرایه باشد')
+                  .custom(arr => {
+                        if (!arr) return true;
+                        return arr.every(attr => {
+                              if (!attr.name || typeof attr.name !== 'string' || attr.name.trim().length === 0) {
+                                    return false;
+                              }
+                              if (!attr.type || !['string', 'number', 'enum'].includes(attr.type)) {
+                                    return false;
+                              }
+                              if (attr.type === 'enum' && (!attr.options || !Array.isArray(attr.options))) {
+                                    return false;
+                              }
+                              return true;
+                        });
+                  }).withMessage('هر attribute باید دارای name، type و در صورت enum بودن options باشد'),
+
+            //body('icon_url').optional().isURL().withMessage('آدرس آیکون باید URL معتبر باشد'),
       ],
 
       // Get category validation
