@@ -1,6 +1,7 @@
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from '../models/index.js';
 import { Op, fn, col, literal, QueryTypes } from 'sequelize';
 import { generateCategorySlug, generateCustomSlug } from '../utils/slugGenerator.js';
+import { i18nService } from './i18nService.js';
 
 export const categoryService = {
       // Create a new category
@@ -115,7 +116,7 @@ export const categoryService = {
       },
 
       // Get category by ID with optimized tree loading
-      async getById(id, { includeChildren = true, depth = 2, includeStats = false, includeAttributes = true } = {}) {
+      async getById(id, { includeChildren = true, depth = 2, includeStats = false, includeAttributes = true, languageCode = 'en' } = {}) {
             const include = [];
 
             if (includeChildren) {
@@ -169,7 +170,18 @@ export const categoryService = {
                   include,
                   attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_ids', 'icon_ids', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
             });
+            
             if (!result) return null;
+            
+            // If language code is provided and not default, get with translations
+            if (languageCode && languageCode !== 'en') {
+                  const categoryWithTranslation = await i18nService.getCategoryWithTranslation(id, languageCode);
+                  if (categoryWithTranslation) {
+                        normalizeImageIds(categoryWithTranslation);
+                        return categoryWithTranslation;
+                  }
+            }
+            
             const plain = result.get({ plain: true });
             normalizeImageIds(plain);
             return plain;

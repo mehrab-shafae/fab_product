@@ -17,11 +17,25 @@ export const categoryController = {
       // Get category by ID
       async getById(req, res) {
             try {
-                  const category = await categoryService.getById(req.params.id);
+                  const { id } = req.params;
+                  const languageCode = req.languageCode || 'en';
+                  
+                  const category = await categoryService.getById(parseInt(id), {
+                        includeChildren: true,
+                        depth: 2,
+                        includeStats: false,
+                        includeAttributes: true,
+                        languageCode,
+                  });
+
                   if (!category) {
-                        return res.error('Category not found', 404);
+                        return res.status(404).json({
+                              error: 'Category not found',
+                              message: 'Category with the specified ID does not exist',
+                        });
                   }
-                  res.success(category);
+
+                  res.success(category, 'Category retrieved successfully');
             } catch (error) {
                   res.error(error);
             }

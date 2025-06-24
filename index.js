@@ -15,8 +15,10 @@ import YAML from 'yamljs';
 import { sequelize } from './src/models/index.js';
 import categoryRoutes from './src/routes/categoryRoutes.js';
 import adminRoutes from './src/routes/adminRoutes.js';
+import i18nRoutes from './src/routes/i18nRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './src/models/index.js';
 import { generateSlug } from './src/utils/slugGenerator.js';
+import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './src/middlewares/i18nMiddleware.js';
 // =====================[ Request ID Utility ]=====================
 import { v4 as uuidv4 } from 'uuid';
 
@@ -213,37 +215,93 @@ process.on('SIGQUIT', free);
 
 // ======================================================================
 
+const responseHandler = (req, res, next) => {
+      res.success = (data, message = 'Success') => {
+            // اگر اطلاعات زبان در res.locals وجود داشت، به خروجی اضافه کن
+            if (res.locals.languages && res.locals.currentLanguage) {
+                  res.json({
+                        status: 'success',
+                        data,
+                        message,
+                        language: {
+                              code: req.languageCode,
+                              name: res.locals.currentLanguage?.name,
+                              native_name: res.locals.currentLanguage?.native_name,
+                              direction: res.locals.currentLanguage?.direction,
+                        },
+                        availableLanguages: res.locals.languages.map(lang => ({
+                              code: lang.code,
+                              name: lang.name,
+                              native_name: lang.native_name,
+                              is_default: lang.is_default,
+                              direction: lang.direction,
+                        })),
+                  });
+            } else {
+                  res.json({
+                        status: 'success',
+                        data,
+                        message,
+                  });
+            }
+      };
+
+      res.error = (error, statusCode = 500) => {
+            if (typeof error === 'string') {
+                  return res.status(statusCode).json({
+                        status: 'error',
+                        message: error,
+                        data: null,
+                  });
+            }
+
+            logger.error('response Error', { error });
+            const handledError = handleDatabaseError(error);
+
+            res.status(handledError.statusCode).json({
+                  status: 'error',
+                  message: handledError.message,
+                  data: null,
+                  ...(handledError.details && { details: handledError.details }),
+            });
+      };
+
+      next();
+};
+
 async function init() {
       const app = express();
+
       const apiV1Router = express.Router();
 
       if (isDevelopment) {
             // Configure Helmet with CSP that allows inline scripts for admin panel
             app.use(
                   helmet({
-                        contentSecurityPolicy: {
-                              directives: {
-                                    defaultSrc: ["'self'"],
-                                    scriptSrc: ["'self'", "'unsafe-inline'"],
-                                    styleSrc: ["'self'", "'unsafe-inline'"],
-                                    imgSrc: ["'self'", 'data:', 'https:'],
-                                    connectSrc: ["'self'"],
-                                    fontSrc: ["'self'"],
-                                    objectSrc: ["'none'"],
-                                    mediaSrc: ["'self'"],
-                                    frameSrc: ["'none'"],
-                                    workerSrc: ["'self'"],
-                                    manifestSrc: ["'self'"],
-                                    baseUri: ["'self'"],
-                                    formAction: ["'self'"],
-                                    frameAncestors: ["'none'"],
-                                    upgradeInsecureRequests: [],
-                              },
-                        },
-                        crossOriginEmbedderPolicy: false,
-                        crossOriginResourcePolicy: { policy: 'cross-origin' },
+                    contentSecurityPolicy: {
+                      directives: {
+                        defaultSrc: ["'self'"],
+                        scriptSrc: ["'self'", "'unsafe-inline'"],
+                        styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+                        scriptSrcAttr: ["'unsafe-inline'"],
+                        imgSrc: ["'self'", 'data:', 'https:'],
+                        connectSrc: ["'self'"],
+                        fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+                        objectSrc: ["'none'"],
+                        mediaSrc: ["'self'"],
+                        frameSrc: ["'none'"],
+                        workerSrc: ["'self'"],
+                        manifestSrc: ["'self'"],
+                        baseUri: ["'self'"],
+                        formAction: ["'self'"],
+                        frameAncestors: ["'none'"],
+                        upgradeInsecureRequests: [],
+                      },
+                    },
+                    crossOriginEmbedderPolicy: false,
+                    crossOriginResourcePolicy: { policy: 'cross-origin' },
                   })
-            );
+                );
       } else {
             app.use(helmet());
       }
@@ -260,6 +318,13 @@ async function init() {
             app.use(limiter);
             app.use(speedLimiter);
       }
+      
+      // Add i18n middleware
+      app.use(i18nMiddleware);
+      app.use(validateLanguageMiddleware);
+      app.use(addLanguageInfoMiddleware);
+      app.use(translationFallbackMiddleware);
+      
       app.use(requestLogger);
       app.use(errorLogger);
 
@@ -296,6 +361,8 @@ async function init() {
       );
 
       app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
+
+      app.use(responseHandler);
 
       app.get('/health', healthCheckController);
 
@@ -335,6 +402,8 @@ async function init() {
       apiV1Routers(apiV1Router);
 
       app.use('/api/product/v1', apiV1Router);
+
+      app.use('/api/i18n', i18nRoutes);
 
       if (isDevelopment) {
             // Make pgPool available to routes

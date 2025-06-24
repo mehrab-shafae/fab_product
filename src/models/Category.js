@@ -92,6 +92,12 @@ const Category = sequelize.define(
                   defaultValue: [],
                   // Always an array of image IDs (never null). Used for category images.
             },
+            icon_ids: {
+                  type: DataTypes.ARRAY(DataTypes.TEXT),
+                  allowNull: true,
+                  defaultValue: [],
+                  // Always an array of icon IDs (never null). Used for category icons.
+            },
       },
       {
             tableName: 'categories',

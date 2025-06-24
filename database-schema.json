@@ -154,6 +154,31 @@
                         "ALTER TABLE products ADD COLUMN IF NOT EXISTS image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]",
                         "ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_id TEXT"
                   ]
+            },
+            {
+                  "version": 16,
+                  "name": "Add internationalization support for categories and products",
+                  "queries": [
+                        "CREATE TABLE IF NOT EXISTS languages (id SERIAL PRIMARY KEY, code VARCHAR(10) UNIQUE NOT NULL, name VARCHAR(100) NOT NULL, native_name VARCHAR(100) NOT NULL, is_default BOOLEAN DEFAULT false, is_active BOOLEAN DEFAULT true, direction VARCHAR(3) DEFAULT 'ltr', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)",
+                        "CREATE TABLE IF NOT EXISTS category_translations (id SERIAL PRIMARY KEY, category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE, language_code VARCHAR(10) REFERENCES languages(code) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, description TEXT, meta_title VARCHAR(255), meta_description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(category_id, language_code))",
+                        "CREATE TABLE IF NOT EXISTS product_translations (id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE CASCADE, language_code VARCHAR(10) REFERENCES languages(code) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(product_id, language_code))",
+                        "CREATE TABLE IF NOT EXISTS category_attribute_translations (id SERIAL PRIMARY KEY, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, language_code VARCHAR(10) REFERENCES languages(code) ON DELETE CASCADE, name VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(category_attribute_id, language_code))",
+                        "CREATE TABLE IF NOT EXISTS category_attribute_option_translations (id SERIAL PRIMARY KEY, category_attribute_option_id INTEGER REFERENCES category_attribute_options(id) ON DELETE CASCADE, language_code VARCHAR(10) REFERENCES languages(code) ON DELETE CASCADE, value VARCHAR(255) NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, UNIQUE(category_attribute_option_id, language_code))",
+                        "INSERT INTO languages (code, name, native_name, is_default, is_active, direction) VALUES ('en', 'English', 'English', true, true, 'ltr') ON CONFLICT (code) DO NOTHING",
+                        "INSERT INTO languages (code, name, native_name, is_default, is_active, direction) VALUES ('fa', 'Persian', 'فارسی', false, true, 'rtl') ON CONFLICT (code) DO NOTHING",
+                        "INSERT INTO languages (code, name, native_name, is_default, is_active, direction) VALUES ('ar', 'Arabic', 'العربية', false, true, 'rtl') ON CONFLICT (code) DO NOTHING",
+                        "CREATE INDEX IF NOT EXISTS idx_category_translations_category_lang ON category_translations(category_id, language_code)",
+                        "CREATE INDEX IF NOT EXISTS idx_product_translations_product_lang ON product_translations(product_id, language_code)",
+                        "CREATE INDEX IF NOT EXISTS idx_category_attribute_translations_attr_lang ON category_attribute_translations(category_attribute_id, language_code)",
+                        "CREATE INDEX IF NOT EXISTS idx_category_attribute_option_translations_option_lang ON category_attribute_option_translations(category_attribute_option_id, language_code)"
+                  ]
+            },
+            {
+                  "version": 17,
+                  "name": "Add icon_ids column to categories table",
+                  "queries": [
+                        "ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_ids TEXT[] DEFAULT ARRAY[]::TEXT[]"
+                  ]
             }
       ],
       "indexes": [

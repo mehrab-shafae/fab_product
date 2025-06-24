@@ -1109,14 +1109,24 @@
 
                                     const data = await response.json();
                                     if (data.status === 'success') {
-                                          this.tables = data.data;
+                                          // Ensure tables is always an array
+                                          if (Array.isArray(data.data)) {
+                                                this.tables = data.data;
+                                          } else if (data.data && typeof data.data === 'object' && data.data !== null) {
+                                                // If data.data is an object, convert its values to an array
+                                                this.tables = Object.values(data.data);
+                                          } else {
+                                                this.tables = [];
+                                          }
                                           this.renderTableList();
                                     } else {
                                           throw new Error(data.message || 'Unknown error');
                                     }
                               } catch (error) {
                                     console.error('Error loading tables:', error);
+                                    this.tables = [];
                                     this.showError('Failed to load tables: ' + error.message);
+                                    this.renderTableList();
                               }
                         }
 
@@ -1124,7 +1134,9 @@
                               const tableList = document.getElementById('tableList');
                               tableList.innerHTML = '';
 
-                              this.tables.forEach(table => {
+                              // Defensive: ensure this.tables is always an array
+                              const tables = Array.isArray(this.tables) ? this.tables : [];
+                              tables.forEach(table => {
                                     const li = document.createElement('li');
                                     li.className = 'table-item';
                                     li.innerHTML = `
@@ -1365,16 +1377,15 @@
                         showOverview() {
                               const content = document.getElementById('content');
 
-                              if (!this.overview) {
+                              if (!this.overview || !this.overview.database_info) {
                                     content.innerHTML = `
                         <div class="content-header">
                             <div class="content-title">Database Overview</div>
-                            <div class="content-subtitle">Loading database statistics...</div>
+                            <div class="content-subtitle">Failed to load database statistics.</div>
                         </div>
                         <div class="content-body">
-                            <div class="loading-container">
-                                <div class="loading-spinner"></div>
-                                <div>Loading overview...</div>
+                            <div class="error-container">
+                                <strong>Error:</strong> Database overview data is not available.
                             </div>
                         </div>
                     `;

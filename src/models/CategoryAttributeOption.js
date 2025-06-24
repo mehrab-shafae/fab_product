@@ -45,6 +45,6 @@ const CategoryAttributeOption = sequelize.define(
 );
 
 CategoryAttributeOption.belongsTo(CategoryAttribute, { foreignKey: 'category_attribute_id', as: 'attribute' });
-CategoryAttribute.hasMany(CategoryAttributeOption, { foreignKey: 'category_attribute_id', as: 'options' });
+//CategoryAttribute.hasMany(CategoryAttributeOption, { foreignKey: 'category_attribute_id', as: 'options' });
 
 export default CategoryAttributeOption;
