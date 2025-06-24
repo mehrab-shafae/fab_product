@@ -2644,7 +2644,7 @@ paths:
   /categories/featured:
     get:
       summary: Get featured categories
-      tags: [Category]
+      tags: [Categories]
       parameters:
         - in: query
           name: limit
@@ -2664,7 +2664,7 @@ paths:
   /categories/slug/{slug}:
     get:
       summary: Get category by slug
-      tags: [Category]
+      tags: [Categories]
       parameters:
         - in: path
           name: slug
