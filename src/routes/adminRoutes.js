@@ -45,8 +45,8 @@ router.get('/tables', async (req, res) => {
                         tablesWithCounts.push({
                               name: table.name,
                               description: table.description || '',
-                              estimated_rows: parseInt(table.estimated_rows) || 0,
-                              actual_rows: parseInt(countResult.rows[0].count),
+                              estimated_rows: (isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0) ? 0 : Math.round(parseInt(table.estimated_rows)),
+                              actual_rows: (isNaN(parseInt(countResult.rows[0].count)) || parseInt(countResult.rows[0].count) < 0) ? 0 : parseInt(countResult.rows[0].count),
                               size: table.size || '0 kB',
                               last_updated: new Date().toISOString(),
                         });
@@ -55,7 +55,7 @@ router.get('/tables', async (req, res) => {
                         tablesWithCounts.push({
                               name: table.name,
                               description: table.description || '',
-                              estimated_rows: parseInt(table.estimated_rows) || 0,
+                              estimated_rows: (isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0) ? 0 : Math.round(parseInt(table.estimated_rows)),
                               actual_rows: 0,
                               size: table.size || '0 kB',
                               last_updated: new Date().toISOString(),
@@ -121,15 +121,17 @@ router.get('/tables/:tableName', async (req, res) => {
             let indexesResult = { rows: [] };
             try {
                   const indexesQuery = `
-                SELECT 
-                    indexname,
-                    indexdef,
-                    indisunique,
-                    indisprimary,
-                    indisclustered
-                FROM pg_indexes 
-                WHERE tablename = $1
-                ORDER BY indexname
+                SELECT
+                    i.relname AS indexname,
+                    pg_get_indexdef(ix.indexrelid) AS indexdef,
+                    ix.indisunique,
+                    ix.indisprimary,
+                    ix.indisclustered
+                FROM pg_class t
+                JOIN pg_index ix ON t.oid = ix.indrelid
+                JOIN pg_class i ON i.oid = ix.indexrelid
+                WHERE t.relname = $1
+                ORDER BY i.relname
             `;
                   indexesResult = await pgPool.query(indexesQuery, [tableName]);
             } catch (indexesError) {
@@ -216,6 +218,8 @@ router.get('/overview', async (req, res) => {
             AND t.table_type = 'BASE TABLE'
         `;
             const totalRowsResult = await pgPool.query(totalRowsQuery);
+            let totalRows = parseInt(totalRowsResult.rows[0].total_estimated_rows);
+            if (isNaN(totalRows) || totalRows < 0) totalRows = 0;
 
             // Get largest tables
             const largestTablesQuery = `
@@ -258,7 +262,7 @@ router.get('/overview', async (req, res) => {
                         size: dbSizeResult.rows[0].database_size,
                         size_bytes: parseInt(dbSizeResult.rows[0].size_bytes),
                         total_tables: parseInt(tablesCountResult.rows[0].total_tables),
-                        total_estimated_rows: parseInt(totalRowsResult.rows[0].total_estimated_rows) || 0,
+                        total_estimated_rows: totalRows,
                   },
                   largest_tables: largestTablesResult.rows,
                   recent_activity: recentActivityResult.rows,
@@ -336,15 +340,17 @@ router.get('/tables/:tableName/structure', async (req, res) => {
             let indexesResult = { rows: [] };
             try {
                   const indexesQuery = `
-                SELECT 
-                    indexname,
-                    indexdef,
-                    indisunique,
-                    indisprimary,
-                    indisclustered
-                FROM pg_indexes 
-                WHERE tablename = $1
-                ORDER BY indexname
+                SELECT
+                    i.relname AS indexname,
+                    pg_get_indexdef(ix.indexrelid) AS indexdef,
+                    ix.indisunique,
+                    ix.indisprimary,
+                    ix.indisclustered
+                FROM pg_class t
+                JOIN pg_index ix ON t.oid = ix.indrelid
+                JOIN pg_class i ON i.oid = ix.indexrelid
+                WHERE t.relname = $1
+                ORDER BY i.relname
             `;
                   indexesResult = await pgPool.query(indexesQuery, [tableName]);
             } catch (indexesError) {
