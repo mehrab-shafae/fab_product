@@ -2614,6 +2614,21 @@ async function createMissingTablesForSequelize() {
             logger.info('Creating missing tables for Sequelize models');
             await client.query('BEGIN');
 
+            // Create languages table
+            await client.query(`
+                  CREATE TABLE IF NOT EXISTS languages (
+                      id SERIAL PRIMARY KEY,
+                      code VARCHAR(10) UNIQUE NOT NULL,
+                      name VARCHAR(100) NOT NULL,
+                      native_name VARCHAR(100) NOT NULL,
+                      is_default BOOLEAN DEFAULT false,
+                      is_active BOOLEAN DEFAULT true,
+                      direction VARCHAR(3) DEFAULT 'ltr',
+                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                  )
+            `);
+
             // Create category_attributes table
             await client.query(`
                   CREATE TABLE IF NOT EXISTS category_attributes (
