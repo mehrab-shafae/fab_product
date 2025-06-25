@@ -10,4 +10,4 @@ router.delete('/users/:userId/favorites/:itemId', asyncHandler(favoriteControlle
 // لیست علاقه‌مندی‌ها
 router.get('/users/:userId/favorites', asyncHandler(favoriteController.list));
 
-export default router; 
+export default router;

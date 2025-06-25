@@ -109,7 +109,7 @@ export const categoryValidation = {
 
             body('parent_id')
                   .optional({ nullable: true })
-                  .custom((value) => {
+                  .custom(value => {
                         if (value === null || value === undefined || value === '') return true;
                         return Number.isInteger(Number(value));
                   })
@@ -172,7 +172,7 @@ export const categoryValidation = {
 
             body('parent_id')
                   .optional({ nullable: true })
-                  .custom((value) => {
+                  .custom(value => {
                         if (value === null || value === undefined || value === '') return true;
                         return Number.isInteger(Number(value));
                   })
@@ -240,14 +240,7 @@ export const categoryValidation = {
       // Reorder validation
       reorder: [body('orderedIds').isArray({ min: 1 }).withMessage('orderedIds باید آرایه‌ای غیرخالی باشد'), body('orderedIds.*').isInt({ min: 1 }).withMessage('هر شناسه در orderedIds باید عدد صحیح مثبت باشد')],
 
-      bulkDelete: [
-            body('categoryIds')
-                  .isArray({ min: 1 })
-                  .withMessage('categoryIds باید آرایه‌ای غیرخالی باشد'),
-            body('categoryIds.*')
-                  .isInt({ min: 1 })
-                  .withMessage('هر شناسه در categoryIds باید عدد صحیح مثبت باشد'),
-      ],
+      bulkDelete: [body('categoryIds').isArray({ min: 1 }).withMessage('categoryIds باید آرایه‌ای غیرخالی باشد'), body('categoryIds.*').isInt({ min: 1 }).withMessage('هر شناسه در categoryIds باید عدد صحیح مثبت باشد')],
 
       // Attribute validation
       attribute: [

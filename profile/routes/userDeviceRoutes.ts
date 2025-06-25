@@ -12,4 +12,4 @@ router.put('/devices/:id/login', asyncHandler(userDeviceController.updateLogin))
 // حذف دستگاه
 router.delete('/devices/:id', asyncHandler(userDeviceController.remove));
 
-export default router; 
+export default router;

@@ -8,4 +8,4 @@ router.post('/users/:userId/activity-logs', asyncHandler(userActivityLogControll
 // لیست لاگ‌های فعالیت کاربر
 router.get('/users/:userId/activity-logs', asyncHandler(userActivityLogController.list));
 
-export default router; 
+export default router;

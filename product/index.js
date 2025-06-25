@@ -259,13 +259,7 @@ const responseHandler = (req, res, next) => {
             const handledError = handleDatabaseError(error);
 
             // اگر پیام خطا کلی بود، پیام اختصاصی constraint را جایگزین کن
-            const genericMessages = [
-                  'Validation error',
-                  'This record already exists',
-                  'Referenced record does not exist',
-                  'Required field is missing',
-                  'Invalid value provided',
-            ];
+            const genericMessages = ['Validation error', 'This record already exists', 'Referenced record does not exist', 'Required field is missing', 'Invalid value provided'];
             let message = handledError.message;
             if (genericMessages.includes(message) && error.detail) {
                   // اگر دیتیل خطا وجود دارد، آن را نمایش بده
@@ -558,17 +552,17 @@ function getProductById(id) {
 }
 
 function normalizeParentId(parent_id) {
-    if (parent_id === undefined || parent_id === null || parent_id === "" || parent_id === 0 || parent_id === "0") return null;
-    if (typeof parent_id === "string" && parent_id.trim() === "") return null;
-    if (Number.isInteger(parent_id)) return parent_id;
-    const num = Number(parent_id);
-    return Number.isNaN(num) ? null : num;
+      if (parent_id === undefined || parent_id === null || parent_id === '' || parent_id === 0 || parent_id === '0') return null;
+      if (typeof parent_id === 'string' && parent_id.trim() === '') return null;
+      if (Number.isInteger(parent_id)) return parent_id;
+      const num = Number(parent_id);
+      return Number.isNaN(num) ? null : num;
 }
 function normalizeMetaKeywords(meta_keywords) {
-    if (meta_keywords === undefined || meta_keywords === null) return [];
-    if (Array.isArray(meta_keywords)) return meta_keywords;
-    if (typeof meta_keywords === "string") return [meta_keywords];
-    return [];
+      if (meta_keywords === undefined || meta_keywords === null) return [];
+      if (Array.isArray(meta_keywords)) return meta_keywords;
+      if (typeof meta_keywords === 'string') return [meta_keywords];
+      return [];
 }
 
 function createCategory(categoryData) {
@@ -590,8 +584,7 @@ function createCategory(categoryData) {
         )
         RETURNING *
     `;
-      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords])
-            .then(result => result.rows.length === 0 ? null : result.rows[0]);
+      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords]).then(result => (result.rows.length === 0 ? null : result.rows[0]));
 }
 
 function getCategoryTree() {
@@ -1179,7 +1172,7 @@ function updateCategory(categoryId, categoryData) {
       }
 
       // Normalize parent_id: if 0, undefined, or null, set to null
-      const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
+      const normalizedParentId = !parent_id || Number(parent_id) === 0 ? null : parent_id;
 
       const query = `
         UPDATE categories 

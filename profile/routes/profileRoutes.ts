@@ -9,4 +9,4 @@ router.post('/', asyncHandler(createProfile));
 router.put('/:userId', asyncHandler(updateProfile));
 router.delete('/:userId', asyncHandler(deleteProfile));
 
-export default router; 
+export default router;

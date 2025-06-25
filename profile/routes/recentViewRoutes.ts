@@ -7,4 +7,4 @@ router.post('/', recentViewController.add);
 router.get('/', recentViewController.list);
 router.delete('/', recentViewController.clear);
 
-export default router; 
+export default router;

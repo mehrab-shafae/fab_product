@@ -50,19 +50,19 @@ app.use('/profiles/:userId/blocks', userBlockRoutes);
 app.use('/profiles/:userId/preferences', userPreferenceRoutes);
 
 app.get('/health', function (_req, res) {
-  res.json({ status: 'ok' });
+      res.json({ status: 'ok' });
 });
 
 (async () => {
-  try {
-    await sequelize.authenticate();
-    await sequelize.sync();
-    console.log('DB connected.');
-    app.listen(PORT, () => {
-      console.log(`Profile service running on port ${PORT}`);
-    });
-  } catch (err) {
-    console.error('Failed to start profile service:', err);
-    process.exit(1);
-  }
-})(); 
+      try {
+            await sequelize.authenticate();
+            await sequelize.sync();
+            console.log('DB connected.');
+            app.listen(PORT, () => {
+                  console.log(`Profile service running on port ${PORT}`);
+            });
+      } catch (err) {
+            console.error('Failed to start profile service:', err);
+            process.exit(1);
+      }
+})();

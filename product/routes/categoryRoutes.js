@@ -73,7 +73,6 @@ router.get('/search', categoryValidation.search, handleValidationErrors, async (
       }
 });
 
-
 // Bulk update categories
 router.put('/bulk', categoryValidation.bulkUpdate, handleValidationErrors, logCategoryOperation('bulk_update'), async (req, res) => {
       try {

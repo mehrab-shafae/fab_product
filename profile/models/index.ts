@@ -12,4 +12,4 @@ export { default as UserActivityLog } from './UserActivityLog.js';
 export { default as UserDevice } from './UserDevice.js';
 export { default as UserNotification } from './UserNotification.js';
 export { default as UserBlock } from './UserBlock.js';
-export { default as UserPreference } from './UserPreference.js'; 
+export { default as UserPreference } from './UserPreference.js';

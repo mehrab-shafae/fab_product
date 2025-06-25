@@ -8,4 +8,4 @@ router.post('/', asyncHandler(createAddress));
 router.put('/:addressId', asyncHandler(updateAddress));
 router.delete('/:addressId', asyncHandler(deleteAddress));
 
-export default router; 
+export default router;

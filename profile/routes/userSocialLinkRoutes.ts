@@ -12,4 +12,4 @@ router.put('/social-links/:id', asyncHandler(userSocialLinkController.update));
 // حذف شبکه اجتماعی
 router.delete('/social-links/:id', asyncHandler(userSocialLinkController.remove));
 
-export default router; 
+export default router;

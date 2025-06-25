@@ -1081,7 +1081,7 @@ export const categoryService = {
       // NEW: Clone category with all attributes and subcategories
       async cloneCategory(categoryId, newName, newParentId = null) {
             // Normalize newParentId: if 0, undefined, or null, set to null
-            const normalizedParentId = (!newParentId || Number(newParentId) === 0) ? null : newParentId;
+            const normalizedParentId = !newParentId || Number(newParentId) === 0 ? null : newParentId;
             const { sequelize } = await import('../models/index.js');
             const transaction = await sequelize.transaction();
 
@@ -1219,7 +1219,7 @@ export const categoryService = {
                   let { image_ids, meta_keywords, ...rest } = categoryData;
                   meta_keywords = normalizeMetaKeywords(meta_keywords);
                   // Normalize parent_id: if 0, undefined, or null, set to null
-                  const normalizedParentId = (!categoryData.parent_id || Number(categoryData.parent_id) === 0) ? null : categoryData.parent_id;
+                  const normalizedParentId = !categoryData.parent_id || Number(categoryData.parent_id) === 0 ? null : categoryData.parent_id;
 
                   // Generate slug
                   let parentSlug = null;
@@ -1769,8 +1769,8 @@ function normalizeImageIds(category) {
 
 // Utility to normalize parent_id (0 is valid root)
 function normalizeParentId(parent_id) {
-      if (parent_id === undefined || parent_id === null || parent_id === "" || parent_id === 0 || parent_id === "0") return null;
-      if (typeof parent_id === "string" && parent_id.trim() === "") return null;
+      if (parent_id === undefined || parent_id === null || parent_id === '' || parent_id === 0 || parent_id === '0') return null;
+      if (typeof parent_id === 'string' && parent_id.trim() === '') return null;
       if (Number.isInteger(parent_id)) return parent_id;
       const num = Number(parent_id);
       return Number.isNaN(num) ? null : num;
@@ -1780,6 +1780,6 @@ function normalizeParentId(parent_id) {
 function normalizeMetaKeywords(meta_keywords) {
       if (meta_keywords === undefined || meta_keywords === null) return [];
       if (Array.isArray(meta_keywords)) return meta_keywords;
-      if (typeof meta_keywords === "string") return [meta_keywords];
+      if (typeof meta_keywords === 'string') return [meta_keywords];
       return [];
 }

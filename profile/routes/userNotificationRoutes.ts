@@ -12,4 +12,4 @@ router.put('/notifications/:id/read', asyncHandler(userNotificationController.re
 // حذف اعلان
 router.delete('/notifications/:id', asyncHandler(userNotificationController.remove));
 
-export default router; 
+export default router;
