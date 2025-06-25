@@ -540,21 +540,32 @@ function getProductById(id) {
       return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
 }
 
+function normalizeParentId(parent_id) {
+    if (parent_id === undefined || parent_id === null || parent_id === "" || parent_id === 0 || parent_id === "0") return null;
+    if (typeof parent_id === "string" && parent_id.trim() === "") return null;
+    if (Number.isInteger(parent_id)) return parent_id;
+    const num = Number(parent_id);
+    return Number.isNaN(num) ? null : num;
+}
+function normalizeMetaKeywords(meta_keywords) {
+    if (meta_keywords === undefined || meta_keywords === null) return [];
+    if (Array.isArray(meta_keywords)) return meta_keywords;
+    if (typeof meta_keywords === "string") return [meta_keywords];
+    return [];
+}
+
 function createCategory(categoryData) {
-      const { name, parent_id } = categoryData;
-
-      // Use the improved slug generator
+      const { name, parent_id, meta_keywords } = categoryData;
       const slug = generateSlug(name);
-
-      // Normalize parent_id: if 0, undefined, or null, set to null
-      const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
-
+      const normalizedParentId = normalizeParentId(parent_id);
+      const normalizedMetaKeywords = normalizeMetaKeywords(meta_keywords);
       const query = `
-        INSERT INTO categories (name, slug, parent_id)
+        INSERT INTO categories (name, slug, parent_id, meta_keywords)
         SELECT 
             $1::VARCHAR(255),
             $2::VARCHAR(255),
-            $3::INTEGER
+            $3::INTEGER,
+            $4::VARCHAR(255)[]
         WHERE NOT EXISTS (
             SELECT 1 FROM categories 
             WHERE (name = $1::VARCHAR(255) OR slug = $2::VARCHAR(255))
@@ -562,7 +573,7 @@ function createCategory(categoryData) {
         )
         RETURNING *
     `;
-      return pgPool.query(query, [name, slug, normalizedParentId]);
+      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords]);
 }
 
 function getCategoryTree() {
@@ -1897,8 +1908,9 @@ function validateCategoryMiddleware(req, res, next) {
                   return res.error('Category name is required', 400);
             }
 
-            if (parent_id !== undefined && parent_id !== null) {
-                  if (!Number.isInteger(Number(parent_id)) || Number(parent_id) <= 0) {
+            // Only validate parent_id if not null/undefined/empty string
+            if (parent_id !== undefined && parent_id !== null && parent_id !== '') {
+                  if (!Number.isInteger(Number(parent_id))) {
                         return res.error('Parent ID must be a positive integer', 400);
                   }
             }

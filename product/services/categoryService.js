@@ -6,15 +6,14 @@ import { i18nService } from './i18nService.js';
 export const categoryService = {
       // Create a new category
       async create(categoryData) {
-            let { image_ids, attributes, ...rest } = categoryData;
+            let { image_ids, attributes, meta_keywords, ...rest } = categoryData;
+            meta_keywords = normalizeMetaKeywords(meta_keywords);
             // Backward compatibility: if old data has image_url, convert to image_ids
             // if (!image_ids && categoryData.image_url) {
             //       image_ids = [categoryData.image_url];
             // }
-            const { name, parent_id, description, meta_title, meta_description, meta_keywords, settings, icon_ids, order, status, is_featured, slug: customSlug } = rest;
-
-            // Normalize parent_id: if 0, undefined, or null, set to null
-            const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
+            const { name, parent_id, description, meta_title, meta_description, settings, icon_ids, order, status, is_featured, slug: customSlug } = rest;
+            const normalizedParentId = normalizeParentId(parent_id);
 
             // Get parent category if exists
             let parentSlug = null;
@@ -383,7 +382,8 @@ export const categoryService = {
 
       // Update category with optimized slug regeneration
       async update(id, categoryData) {
-            let { image_ids, attributes, ...rest } = categoryData;
+            let { image_ids, attributes, meta_keywords, ...rest } = categoryData;
+            meta_keywords = normalizeMetaKeywords(meta_keywords);
             // Backward compatibility: if old data has image_url, convert to image_ids
             // if (!image_ids && categoryData.image_url) {
             //       image_ids = [categoryData.image_url];
@@ -391,7 +391,8 @@ export const categoryService = {
             const category = await Category.findByPk(id);
             if (!category) return null;
 
-            const { name, parent_id, description, meta_title, meta_description, meta_keywords, settings, icon_ids, order, status, is_featured, slug: customSlug } = categoryData;
+            const { name, parent_id, description, meta_title, meta_description, settings, icon_ids, order, status, is_featured, slug: customSlug } = categoryData;
+            const normalizedParentId = normalizeParentId(parent_id);
 
             // Store old slug for redirect
             const oldSlug = category.slug;
@@ -413,8 +414,8 @@ export const categoryService = {
                   newSlug = generateCustomSlug(customSlug, existingSlugs);
 
                   // If there's a parent, prepend its slug
-                  if (parent_id) {
-                        const parentCategory = await Category.findByPk(parent_id);
+                  if (normalizedParentId) {
+                        const parentCategory = await Category.findByPk(normalizedParentId);
                         if (parentCategory) {
                               const parentSlugClean = parentCategory.slug.replace(/\/$/, '');
                               newSlug = `${parentSlugClean}/${newSlug}`;
@@ -422,11 +423,11 @@ export const categoryService = {
                   }
 
                   categoryData.slug = newSlug;
-            } else if (name || parent_id) {
+            } else if (name || normalizedParentId) {
                   // Regenerate slug if name or parent_id changed
                   let parentSlug = null;
-                  if (parent_id) {
-                        const parentCategory = await Category.findByPk(parent_id);
+                  if (normalizedParentId) {
+                        const parentCategory = await Category.findByPk(normalizedParentId);
                         if (parentCategory) {
                               parentSlug = parentCategory.slug;
                         }
@@ -449,7 +450,7 @@ export const categoryService = {
             const transaction = await sequelize.transaction();
 
             try {
-                  await category.update({ ...rest, image_ids, icon_ids, slug: categoryData.slug, slug_redirects: categoryData.slug_redirects }, { transaction });
+                  await category.update({ ...rest, image_ids, icon_ids, slug: categoryData.slug, slug_redirects: categoryData.slug_redirects, parent_id: normalizedParentId, meta_keywords }, { transaction });
 
                   // Handle attributes if provided
                   if (attributes && Array.isArray(attributes)) {
@@ -1215,7 +1216,8 @@ export const categoryService = {
             const transaction = await sequelize.transaction();
 
             try {
-                  let { image_ids, ...rest } = categoryData;
+                  let { image_ids, meta_keywords, ...rest } = categoryData;
+                  meta_keywords = normalizeMetaKeywords(meta_keywords);
                   // Normalize parent_id: if 0, undefined, or null, set to null
                   const normalizedParentId = (!categoryData.parent_id || Number(categoryData.parent_id) === 0) ? null : categoryData.parent_id;
 
@@ -1239,7 +1241,7 @@ export const categoryService = {
                               description: categoryData.description || template.description,
                               meta_title: categoryData.meta_title || template.meta_title,
                               meta_description: categoryData.meta_description || template.meta_description,
-                              meta_keywords: categoryData.meta_keywords || template.meta_keywords,
+                              meta_keywords,
                               image_ids,
                               icon_ids: categoryData.icon_ids || template.icon_ids,
                               order: categoryData.order || template.order,
@@ -1763,4 +1765,21 @@ function normalizeImageIds(category) {
             //   if ('icon_url' in category) delete category.icon_url;
       }
       return category;
+}
+
+// Utility to normalize parent_id (0 is valid root)
+function normalizeParentId(parent_id) {
+      if (parent_id === undefined || parent_id === null || parent_id === "" || parent_id === 0 || parent_id === "0") return null;
+      if (typeof parent_id === "string" && parent_id.trim() === "") return null;
+      if (Number.isInteger(parent_id)) return parent_id;
+      const num = Number(parent_id);
+      return Number.isNaN(num) ? null : num;
+}
+
+// Utility to normalize meta_keywords
+function normalizeMetaKeywords(meta_keywords) {
+      if (meta_keywords === undefined || meta_keywords === null) return [];
+      if (Array.isArray(meta_keywords)) return meta_keywords;
+      if (typeof meta_keywords === "string") return [meta_keywords];
+      return [];
 }

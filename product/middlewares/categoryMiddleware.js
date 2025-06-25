@@ -39,9 +39,9 @@ export const categoryMiddleware = {
                   }
             }
 
-            // Validate parent_id
-            if (parent_id !== undefined && parent_id !== null) {
-                  if (!Number.isInteger(Number(parent_id)) || Number(parent_id) < 0) {
+            // Validate parent_id only if not null/undefined/empty string
+            if (parent_id !== undefined && parent_id !== null && parent_id !== '') {
+                  if (!Number.isInteger(Number(parent_id)) || Number(parent_id) <= 1) {
                         errors.push('شناسه دسته‌بندی والد نامعتبر است');
                   }
             }
@@ -107,7 +107,13 @@ export const categoryValidation = {
                   .matches(/^[a-zA-Z\u0600-\u06FF\s\-_]+$/)
                   .withMessage('نام دسته فقط می‌تواند شامل حروف، فاصله، خط تیره و زیرخط باشد'),
 
-            body('parent_id').optional().isInt({ min: 1 }).withMessage('شناسه دسته والد باید عدد صحیح مثبت باشد'),
+            body('parent_id')
+                  .optional({ nullable: true })
+                  .custom((value) => {
+                        if (value === null || value === undefined || value === '') return true;
+                        return Number.isInteger(Number(value));
+                  })
+                  .withMessage('شناسه دسته والد باید عدد صحیح باشد'),
 
             body('description').optional().isLength({ max: 1000 }).withMessage('توضیحات نمی‌تواند بیشتر از 1000 کاراکتر باشد'),
 
@@ -164,7 +170,13 @@ export const categoryValidation = {
                   .matches(/^[a-zA-Z\u0600-\u06FF\s\-_]+$/)
                   .withMessage('نام دسته فقط می‌تواند شامل حروف، فاصله، خط تیره و زیرخط باشد'),
 
-            body('parent_id').optional().isInt({ min: 1 }).withMessage('شناسه دسته والد باید عدد صحیح مثبت باشد'),
+            body('parent_id')
+                  .optional({ nullable: true })
+                  .custom((value) => {
+                        if (value === null || value === undefined || value === '') return true;
+                        return Number.isInteger(Number(value));
+                  })
+                  .withMessage('شناسه دسته والد باید عدد صحیح باشد'),
 
             body('description').optional().isLength({ max: 1000 }).withMessage('توضیحات نمی‌تواند بیشتر از 1000 کاراکتر باشد'),
 
@@ -211,7 +223,7 @@ export const categoryValidation = {
 
             query('is_featured').optional().isBoolean().withMessage('is_featured باید true یا false باشد'),
 
-            query('parent_id').optional().isInt({ min: 1 }).withMessage('شناسه دسته والد باید عدد صحیح مثبت باشد'),
+            query('parent_id').optional().isInt().withMessage('شناسه دسته والد باید عدد صحیح باشد'),
       ],
 
       // Bulk operations validation
@@ -221,6 +233,8 @@ export const categoryValidation = {
             body('categories.*.id').isInt({ min: 1 }).withMessage('شناسه هر دسته باید عدد صحیح مثبت باشد'),
 
             body('categories.*.name').optional().trim().isLength({ min: 2, max: 255 }).withMessage('نام دسته باید بین 2 تا 255 کاراکتر باشد'),
+
+            body('categories.*.parent_id').optional().isInt().withMessage('شناسه دسته والد باید عدد صحیح باشد'),
       ],
 
       // Reorder validation
@@ -252,7 +266,7 @@ export const categoryValidation = {
                   .matches(/^[a-zA-Z\u0600-\u06FF\s\-_]+$/)
                   .withMessage('نام جدید دسته فقط می‌تواند شامل حروف، فاصله، خط تیره و زیرخط باشد'),
 
-            body('newParentId').optional().isInt({ min: 1 }).withMessage('شناسه دسته والد جدید باید عدد صحیح مثبت باشد'),
+            body('newParentId').optional().isInt().withMessage('شناسه دسته والد جدید باید عدد صحیح باشد'),
       ],
 
       // Approval validation
