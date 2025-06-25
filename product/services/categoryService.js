@@ -13,10 +13,13 @@ export const categoryService = {
             // }
             const { name, parent_id, description, meta_title, meta_description, meta_keywords, settings, icon_ids, order, status, is_featured, slug: customSlug } = rest;
 
+            // Normalize parent_id: if 0, undefined, or null, set to null
+            const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
+
             // Get parent category if exists
             let parentSlug = null;
-            if (parent_id) {
-                  const parentCategory = await Category.findByPk(parent_id);
+            if (normalizedParentId) {
+                  const parentCategory = await Category.findByPk(normalizedParentId);
                   if (parentCategory) {
                         parentSlug = parentCategory.slug;
                   }
@@ -53,7 +56,7 @@ export const categoryService = {
                         {
                               name,
                               slug,
-                              parent_id,
+                              parent_id: normalizedParentId,
                               description,
                               meta_title: meta_title || name,
                               meta_description,
@@ -1076,6 +1079,8 @@ export const categoryService = {
 
       // NEW: Clone category with all attributes and subcategories
       async cloneCategory(categoryId, newName, newParentId = null) {
+            // Normalize newParentId: if 0, undefined, or null, set to null
+            const normalizedParentId = (!newParentId || Number(newParentId) === 0) ? null : newParentId;
             const { sequelize } = await import('../models/index.js');
             const transaction = await sequelize.transaction();
 
@@ -1101,8 +1106,8 @@ export const categoryService = {
 
                   // Generate new slug
                   let parentSlug = null;
-                  if (newParentId) {
-                        const parentCategory = await Category.findByPk(newParentId);
+                  if (normalizedParentId) {
+                        const parentCategory = await Category.findByPk(normalizedParentId);
                         if (parentCategory) {
                               parentSlug = parentCategory.slug;
                         }
@@ -1115,7 +1120,7 @@ export const categoryService = {
                         {
                               name: newName,
                               slug: newSlug,
-                              parent_id: newParentId,
+                              parent_id: normalizedParentId,
                               description: originalCategory.description,
                               meta_title: originalCategory.meta_title,
                               meta_description: originalCategory.meta_description,
@@ -1125,7 +1130,7 @@ export const categoryService = {
                               order: originalCategory.order,
                               status: 'draft', // Start as draft
                               is_featured: false,
-                              level: newParentId ? (await Category.findByPk(newParentId)).level + 1 : 1,
+                              level: normalizedParentId ? (await Category.findByPk(normalizedParentId)).level + 1 : 1,
                         },
                         { transaction }
                   );
@@ -1211,14 +1216,13 @@ export const categoryService = {
 
             try {
                   let { image_ids, ...rest } = categoryData;
-                  // if (!image_ids && categoryData.image_url) {
-                  //       image_ids = [categoryData.image_url];
-                  // }
+                  // Normalize parent_id: if 0, undefined, or null, set to null
+                  const normalizedParentId = (!categoryData.parent_id || Number(categoryData.parent_id) === 0) ? null : categoryData.parent_id;
 
                   // Generate slug
                   let parentSlug = null;
-                  if (categoryData.parent_id) {
-                        const parentCategory = await Category.findByPk(categoryData.parent_id);
+                  if (normalizedParentId) {
+                        const parentCategory = await Category.findByPk(normalizedParentId);
                         if (parentCategory) {
                               parentSlug = parentCategory.slug;
                         }
@@ -1231,7 +1235,7 @@ export const categoryService = {
                         {
                               name: categoryData.name,
                               slug,
-                              parent_id: categoryData.parent_id,
+                              parent_id: normalizedParentId,
                               description: categoryData.description || template.description,
                               meta_title: categoryData.meta_title || template.meta_title,
                               meta_description: categoryData.meta_description || template.meta_description,
@@ -1241,7 +1245,7 @@ export const categoryService = {
                               order: categoryData.order || template.order,
                               status: categoryData.status || 'draft',
                               is_featured: categoryData.is_featured || false,
-                              level: categoryData.parent_id ? (await Category.findByPk(categoryData.parent_id)).level + 1 : 1,
+                              level: normalizedParentId ? (await Category.findByPk(normalizedParentId)).level + 1 : 1,
                         },
                         { transaction }
                   );

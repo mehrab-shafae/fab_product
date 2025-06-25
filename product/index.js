@@ -546,6 +546,9 @@ function createCategory(categoryData) {
       // Use the improved slug generator
       const slug = generateSlug(name);
 
+      // Normalize parent_id: if 0, undefined, or null, set to null
+      const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
+
       const query = `
         INSERT INTO categories (name, slug, parent_id)
         SELECT 
@@ -559,7 +562,7 @@ function createCategory(categoryData) {
         )
         RETURNING *
     `;
-      return pgPool.query(query, [name, slug, parent_id]);
+      return pgPool.query(query, [name, slug, normalizedParentId]);
 }
 
 function getCategoryTree() {
@@ -1146,6 +1149,9 @@ function updateCategory(categoryId, categoryData) {
             slug = generateSlug(name);
       }
 
+      // Normalize parent_id: if 0, undefined, or null, set to null
+      const normalizedParentId = (!parent_id || Number(parent_id) === 0) ? null : parent_id;
+
       const query = `
         UPDATE categories 
         SET name = COALESCE($1, name),
@@ -1162,7 +1168,7 @@ function updateCategory(categoryId, categoryData) {
         )
         RETURNING *
     `;
-      return pgPool.query(query, [name, slug, parent_id, categoryId]);
+      return pgPool.query(query, [name, slug, normalizedParentId, categoryId]);
 }
 
 function deleteCategory(categoryId) {
