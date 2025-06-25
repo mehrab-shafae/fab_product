@@ -16,7 +16,6 @@ app.use('/minio', minioRoutes);
 
 const PORT = process.env.MINIO_PORT_WORKER || 4001;
 app.listen(PORT, () => {
-  console.log(`MinIO worker running on port ${PORT}`);
-  console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
-
-}); 
+      console.log(`MinIO worker running on port ${PORT}`);
+      console.log(`Swagger docs available at http://localhost:${PORT}/api-docs`);
+});

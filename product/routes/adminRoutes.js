@@ -45,8 +45,8 @@ router.get('/tables', async (req, res) => {
                         tablesWithCounts.push({
                               name: table.name,
                               description: table.description || '',
-                              estimated_rows: (isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0) ? 0 : Math.round(parseInt(table.estimated_rows)),
-                              actual_rows: (isNaN(parseInt(countResult.rows[0].count)) || parseInt(countResult.rows[0].count) < 0) ? 0 : parseInt(countResult.rows[0].count),
+                              estimated_rows: isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0 ? 0 : Math.round(parseInt(table.estimated_rows)),
+                              actual_rows: isNaN(parseInt(countResult.rows[0].count)) || parseInt(countResult.rows[0].count) < 0 ? 0 : parseInt(countResult.rows[0].count),
                               size: table.size || '0 kB',
                               last_updated: new Date().toISOString(),
                         });
@@ -55,7 +55,7 @@ router.get('/tables', async (req, res) => {
                         tablesWithCounts.push({
                               name: table.name,
                               description: table.description || '',
-                              estimated_rows: (isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0) ? 0 : Math.round(parseInt(table.estimated_rows)),
+                              estimated_rows: isNaN(parseInt(table.estimated_rows)) || parseInt(table.estimated_rows) < 0 ? 0 : Math.round(parseInt(table.estimated_rows)),
                               actual_rows: 0,
                               size: table.size || '0 kB',
                               last_updated: new Date().toISOString(),

@@ -351,13 +351,60 @@ class I18nService {
 function persianToEnglishTransliterate(text) {
       // Only basic replacements for offline, fast, and local use
       const map = {
-            'ا': 'a', 'آ': 'a', 'ب': 'b', 'پ': 'p', 'ت': 't', 'ث': 's', 'ج': 'j', 'چ': 'ch',
-            'ح': 'h', 'خ': 'kh', 'د': 'd', 'ذ': 'z', 'ر': 'r', 'ز': 'z', 'ژ': 'zh', 'س': 's',
-            'ش': 'sh', 'ص': 's', 'ض': 'z', 'ط': 't', 'ظ': 'z', 'ع': 'a', 'غ': 'gh', 'ف': 'f',
-            'ق': 'gh', 'ک': 'k', 'گ': 'g', 'ل': 'l', 'م': 'm', 'ن': 'n', 'و': 'v', 'ه': 'h',
-            'ی': 'y', 'ء': '', ' ': '-', '‌': '-', 'ٔ': '', 'ً': '', 'ٌ': '', 'ٍ': '', 'َ': '', 'ُ': '', 'ِ': '', 'ّ': '', 'ْ': '', 'ٰ': '',
+            ا: 'a',
+            آ: 'a',
+            ب: 'b',
+            پ: 'p',
+            ت: 't',
+            ث: 's',
+            ج: 'j',
+            چ: 'ch',
+            ح: 'h',
+            خ: 'kh',
+            د: 'd',
+            ذ: 'z',
+            ر: 'r',
+            ز: 'z',
+            ژ: 'zh',
+            س: 's',
+            ش: 'sh',
+            ص: 's',
+            ض: 'z',
+            ط: 't',
+            ظ: 'z',
+            ع: 'a',
+            غ: 'gh',
+            ف: 'f',
+            ق: 'gh',
+            ک: 'k',
+            گ: 'g',
+            ل: 'l',
+            م: 'm',
+            ن: 'n',
+            و: 'v',
+            ه: 'h',
+            ی: 'y',
+            ء: '',
+            ' ': '-',
+            '‌': '-',
+            'ٔ': '',
+            'ً': '',
+            'ٌ': '',
+            'ٍ': '',
+            'َ': '',
+            'ُ': '',
+            'ِ': '',
+            'ّ': '',
+            'ْ': '',
+            'ٰ': '',
       };
-      return text.split('').map(c => map[c] !== undefined ? map[c] : c).join('').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+      return text
+            .split('')
+            .map(c => (map[c] !== undefined ? map[c] : c))
+            .join('')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+            .toLowerCase();
 }
 
 export { persianToEnglishTransliterate };
