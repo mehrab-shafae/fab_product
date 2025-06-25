@@ -19,7 +19,6 @@ import i18nRoutes from './routes/i18nRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './models/index.js';
 import { generateSlug } from './utils/slugGenerator.js';
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
-// =====================[ Request ID Utility ]=====================
 import { v4 as uuidv4 } from 'uuid';
 
 // ======================================================================

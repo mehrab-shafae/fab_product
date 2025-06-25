@@ -1,29 +1,13 @@
 import { categoryService } from '../services/categoryService.js';
-import { persianToEnglishTransliterate, i18nService } from '../services/i18nService.js';
+import { i18nService } from '../services/i18nService.js';
 
 export const categoryController = {
       // Create a new category
       async create(req, res) {
             try {
-                  let { name, parent_id, slug } = req.body;
-                  // If name is Persian (contains Persian letters), transliterate for unique fields
-                  const persianRegex = /[\u0600-\u06FF]/;
-                  if (persianRegex.test(name)) {
-                        const enName = persianToEnglishTransliterate(name);
-                        req.body.name = enName;
-                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
-                        // Store Persian in translation
-                        req.body.translation = { fa: { name } };
-                  } else {
-                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
-                  }
                   const result = await categoryService.create(req.body);
                   if (!result) {
                         return res.error('A category with this name or slug already exists', 409);
-                  }
-                  // If translation was set, upsert translation
-                  if (req.body.translation && req.body.translation.fa) {
-                        await i18nService.upsertCategoryTranslation(result.id, 'fa', { name: req.body.translation.fa.name });
                   }
                   res.success(result, 'Category created successfully');
             } catch (error) {
@@ -87,16 +71,6 @@ export const categoryController = {
       // Update category
       async update(req, res) {
             try {
-                  let { name, parent_id, slug } = req.body;
-                  const persianRegex = /[\u0600-\u06FF]/;
-                  if (name && persianRegex.test(name)) {
-                        const enName = persianToEnglishTransliterate(name);
-                        req.body.name = enName;
-                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
-                        req.body.translation = { fa: { name } };
-                  } else if (name) {
-                        req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
-                  }
                   const result = await categoryService.update(req.params.id, req.body);
                   if (!result) {
                         // Check if the category exists
@@ -105,10 +79,6 @@ export const categoryController = {
                               return res.error('Category not found', 404);
                         }
                         return res.error('A category with this name or slug already exists', 409);
-                  }
-                  // If translation was set, upsert translation
-                  if (req.body.translation && req.body.translation.fa) {
-                        await i18nService.upsertCategoryTranslation(result.id, 'fa', { name: req.body.translation.fa.name });
                   }
                   res.success(result, 'Category updated successfully');
             } catch (error) {
