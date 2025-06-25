@@ -1,6 +1,6 @@
-import sequelize from './sequelize.js';
+//import sequelize from './sequelize.js';
 
-export default sequelize;
+//export default sequelize;
 
 export { default as UserProfile } from './UserProfile.js';
 export { default as UserAddress } from './UserAddress.js';

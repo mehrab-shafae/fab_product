@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from './index.js';
+import sequelize from './sequelize.js';
 
 export interface UserAddressAttributes {
   id: number;

@@ -6,7 +6,7 @@ import '../cwd.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import sequelize from './models/index.js';
+import sequelize from './models/sequelize.js';
 import profileRoutes from './routes/profileRoutes.js';
 import addressRoutes from './routes/addressRoutes.js';
 import favoriteRoutes from './routes/favoriteRoutes.js';
