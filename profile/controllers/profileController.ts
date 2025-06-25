@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { UserProfile } from '../models';
+import { UserProfile } from '../models/index.js';
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
@@ -45,6 +45,15 @@ export const deleteProfile = async (req: Request, res: Response) => {
     const count = await UserProfile.destroy({ where: { user_id: userId } });
     if (!count) return res.status(404).json({ error: 'Profile not found' });
     res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Server error', details: err });
+  }
+};
+
+export const listProfiles = async (_req: Request, res: Response) => {
+  try {
+    const profiles = await UserProfile.findAll();
+    res.json(profiles);
   } catch (err) {
     res.status(500).json({ error: 'Server error', details: err });
   }

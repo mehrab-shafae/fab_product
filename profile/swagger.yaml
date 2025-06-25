@@ -1,8 +1,8 @@
 openapi: 3.0.0
 info:
   title: User Profile Service API
-  version: 1.0.0
-  description: API for managing user profiles and addresses
+  version: 1.1.0
+  description: API for managing user profiles, addresses, devices, notifications, blocks, preferences, settings, social links, activity logs, favorites, and recent views
 servers:
   - url: http://localhost:5005
 paths:
@@ -305,6 +305,388 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /profiles/{userId}/devices:
+    get:
+      summary: List user devices
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserDevice'
+    post:
+      summary: Register a new device
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDevice'
+      responses:
+        '201':
+          description: Device registered
+  /devices/{id}/login:
+    put:
+      summary: Update device last login
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Device login updated
+  /devices/{id}:
+    delete:
+      summary: Remove device
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Device removed
+  /profiles/{userId}/notifications:
+    get:
+      summary: List user notifications
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: onlyUnread
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserNotification'
+    post:
+      summary: Create notification
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserNotification'
+      responses:
+        '201':
+          description: Notification created
+  /notifications/{id}/read:
+    put:
+      summary: Mark notification as read
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Notification marked as read
+  /notifications/{id}:
+    delete:
+      summary: Remove notification
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Notification removed
+  /profiles/{userId}/blocks:
+    get:
+      summary: List user blocks
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of blocks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBlock'
+  /users/{userId}/blocks/user:
+    post:
+      summary: Block a user
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blockedUserId]
+              properties:
+                blockedUserId:
+                  type: integer
+      responses:
+        '201':
+          description: User blocked
+  /users/{userId}/blocks/item:
+    post:
+      summary: Block an item
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [blockedItemId, blockedItemType]
+              properties:
+                blockedItemId:
+                  type: integer
+                blockedItemType:
+                  type: string
+      responses:
+        '201':
+          description: Item blocked
+  /blocks/{id}:
+    delete:
+      summary: Unblock
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Unblocked
+  /profiles/{userId}/preferences:
+    get:
+      summary: List user preferences
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of preferences
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserPreference'
+    post:
+      summary: Set preference
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreference'
+      responses:
+        '201':
+          description: Preference set
+  /preferences/{id}:
+    delete:
+      summary: Remove preference
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Preference removed
+  /profiles/{userId}/settings:
+    get:
+      summary: List user settings
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of settings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSetting'
+    post:
+      summary: Create setting
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSetting'
+      responses:
+        '201':
+          description: Setting created
+  /settings/{id}:
+    put:
+      summary: Update setting
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSetting'
+      responses:
+        '200':
+          description: Setting updated
+    delete:
+      summary: Remove setting
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Setting removed
+  /profiles/{userId}/social-links:
+    get:
+      summary: List user social links
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of social links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserSocialLink'
+    post:
+      summary: Create social link
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSocialLink'
+      responses:
+        '201':
+          description: Social link created
+  /social-links/{id}:
+    put:
+      summary: Update social link
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserSocialLink'
+      responses:
+        '200':
+          description: Social link updated
+    delete:
+      summary: Remove social link
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Social link removed
+  /profiles/{userId}/activity-logs:
+    get:
+      summary: List user activity logs
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of activity logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserActivityLog'
+    post:
+      summary: Log activity
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserActivityLog'
+      responses:
+        '201':
+          description: Activity logged
 components:
   schemas:
     UserProfile:
@@ -370,4 +752,65 @@ components:
           type: string
         details:
           type: string
-          nullable: true 
+          nullable: true
+    UserDevice:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        deviceId: { type: string }
+        deviceType: { type: string }
+        lastLogin: { type: string, format: date-time }
+    UserNotification:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        type: { type: string }
+        message: { type: string }
+        isRead: { type: boolean }
+        createdAt: { type: string, format: date-time }
+    UserBlock:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        blockedUserId: { type: integer }
+        blockedItemId: { type: integer }
+        blockedItemType: { type: string }
+        createdAt: { type: string, format: date-time }
+    UserPreference:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        key: { type: string }
+        value: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UserSetting:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        key: { type: string }
+        value: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UserSocialLink:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        platform: { type: string }
+        url: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    UserActivityLog:
+      type: object
+      properties:
+        id: { type: integer }
+        userId: { type: integer }
+        action: { type: string }
+        meta: { type: object }
+        createdAt: { type: string, format: date-time } 

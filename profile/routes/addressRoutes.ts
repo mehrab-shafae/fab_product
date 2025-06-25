@@ -3,9 +3,9 @@ import { listAddresses, createAddress, updateAddress, deleteAddress } from '../c
 
 const router = Router({ mergeParams: true });
 
-router.get('/', listAddresses);
-router.post('/', createAddress);
-router.put('/:addressId', updateAddress);
-router.delete('/:addressId', deleteAddress);
+router.get('/', asyncHandler(listAddresses));
+router.post('/', asyncHandler(createAddress));
+router.put('/:addressId', asyncHandler(updateAddress));
+router.delete('/:addressId', asyncHandler(deleteAddress));
 
 export default router; 

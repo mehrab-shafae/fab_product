@@ -12,6 +12,7 @@
   "scripts": {
     "start": "node .",
     "start:minio": "node build/minio/index.js",
+    "start:profile": "node build/profile/index.js",
     "build": "tsc",
     "run": "tsc && node .",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""

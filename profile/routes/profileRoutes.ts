@@ -3,10 +3,10 @@ import { listProfiles, getProfile, createProfile, updateProfile, deleteProfile }
 
 const router = Router();
 
-router.get('/', listProfiles);
-router.get('/:userId', getProfile);
-router.post('/', createProfile);
-router.put('/:userId', updateProfile);
-router.delete('/:userId', deleteProfile);
+router.get('/', asyncHandler(listProfiles));
+router.get('/:userId', asyncHandler(getProfile));
+router.post('/', asyncHandler(createProfile));
+router.put('/:userId', asyncHandler(updateProfile));
+router.delete('/:userId', asyncHandler(deleteProfile));
 
 export default router; 
