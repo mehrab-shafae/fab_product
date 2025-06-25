@@ -9,21 +9,7 @@ import { categoryController } from '../controllers/categoryController.js';
 const router = express.Router();
 
 // Create a new category
-router.post('/', categoryValidation.create, handleValidationErrors, checkParentCategoryExists, preventCircularReference, logCategoryOperation('create'), async (req, res) => {
-      try {
-            const category = await categoryService.create(req.body);
-            res.status(201).json({
-                  status: 'success',
-                  data: category,
-                  message: 'دسته با موفقیت ایجاد شد',
-            });
-      } catch (error) {
-            res.status(500).json({
-                  status: 'error',
-                  message: error.message,
-            });
-      }
-});
+router.post('/', categoryValidation.create, handleValidationErrors, checkParentCategoryExists, preventCircularReference, logCategoryOperation('create'), categoryController.create);
 
 // Get featured categories - This must come before /:id to avoid conflicts
 router.get('/featured', async (req, res) => {

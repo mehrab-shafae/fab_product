@@ -258,9 +258,26 @@ const responseHandler = (req, res, next) => {
             logger.error('response Error', { error });
             const handledError = handleDatabaseError(error);
 
+            // اگر پیام خطا کلی بود، پیام اختصاصی constraint را جایگزین کن
+            const genericMessages = [
+                  'Validation error',
+                  'This record already exists',
+                  'Referenced record does not exist',
+                  'Required field is missing',
+                  'Invalid value provided',
+            ];
+            let message = handledError.message;
+            if (genericMessages.includes(message) && error.detail) {
+                  // اگر دیتیل خطا وجود دارد، آن را نمایش بده
+                  message = error.detail;
+            } else if (genericMessages.includes(message) && error.constraint) {
+                  // اگر constraint وجود دارد، پیام اختصاصی constraint را نمایش بده
+                  message = `Constraint violation: ${error.constraint}`;
+            }
+
             res.status(handledError.statusCode).json({
                   status: 'error',
-                  message: handledError.message,
+                  message,
                   data: null,
                   ...(handledError.details && { details: handledError.details }),
             });

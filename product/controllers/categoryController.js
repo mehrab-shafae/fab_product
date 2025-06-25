@@ -18,14 +18,14 @@ export const categoryController = {
                         req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
                   }
                   const result = await categoryService.create(req.body);
-                  if (result.rows.length === 0) {
+                  if (!result) {
                         return res.error('A category with this name or slug already exists', 409);
                   }
                   // If translation was set, upsert translation
                   if (req.body.translation && req.body.translation.fa) {
-                        await i18nService.upsertCategoryTranslation(result.rows[0].id, 'fa', { name: req.body.translation.fa.name });
+                        await i18nService.upsertCategoryTranslation(result.id, 'fa', { name: req.body.translation.fa.name });
                   }
-                  res.success(result.rows[0], 'Category created successfully');
+                  res.success(result, 'Category created successfully');
             } catch (error) {
                   res.error(error);
             }
