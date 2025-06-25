@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
-import sequelize from '../models/config.js';
+import sequelize from '../product/models/config.js';
 
 interface FileUploadAttributes {
   id: string; // UUID

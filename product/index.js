@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import './cwd.js';
+import '../cwd.js';
 // ======================================================================
 import express from 'express';
 // import { execSync } from 'child_process';
@@ -12,18 +12,18 @@ import { readFileSync, existsSync } from 'fs';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
-import { sequelize, seedDefaultLanguages } from './src/models/index.js';
-import categoryRoutes from './src/routes/categoryRoutes.js';
-import adminRoutes from './src/routes/adminRoutes.js';
-import i18nRoutes from './src/routes/i18nRoutes.js';
-import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './src/models/index.js';
-import { generateSlug } from './src/utils/slugGenerator.js';
-import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './src/middlewares/i18nMiddleware.js';
+import { sequelize, seedDefaultLanguages } from './models/index.js';
+import categoryRoutes from './routes/categoryRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
+import i18nRoutes from './routes/i18nRoutes.js';
+import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './models/index.js';
+import { generateSlug } from './utils/slugGenerator.js';
+import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 // =====================[ Request ID Utility ]=====================
 import { v4 as uuidv4 } from 'uuid';
 
 // ======================================================================
-const schemaConfig = JSON.parse(readFileSync(cwd('database-schema.json'), 'utf8'));
+const schemaConfig = JSON.parse(readFileSync(cwd('build/product/database-schema.json'), 'utf8'));
 
 const PORT = process.env.PORT || 5003;
 const POSTGRES_URI = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
@@ -186,7 +186,7 @@ const speedLimiter = slowDown({
       // }
 });
 
-const swaggerDocument = YAML.parse(readFileSync(cwd('swagger.yaml'), 'utf8'));
+const swaggerDocument = YAML.parse(readFileSync(cwd('build/product/swagger.yaml'), 'utf8'));
 
 const pgPool = new Pool({
       connectionString: POSTGRES_URI,

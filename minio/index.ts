@@ -6,7 +6,7 @@ import YAML from 'yamljs';
 import path from 'path';
 dotenv.config();
 
-const swaggerDocument = YAML.load(path.join(__dirname, 'minio-swagger.yaml'));
+const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
 
 const app = express();
 

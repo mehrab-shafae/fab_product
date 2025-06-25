@@ -4,14 +4,14 @@
   "description": "A comprehensive product management microservice with advanced features",
   "type": "module",
   "license": "UNLICENSED",
-  "main": "build/index.js",
+  "main": "build/product/index.js",
   "engines": {
     "node": ">=18.0.0",
     "npm": ">=8.0.0"
   },
   "scripts": {
     "start": "node .",
-    "start:minio": "node build/src/minio/index.js",
+    "start:minio": "node build/minio/index.js",
     "build": "tsc",
     "run": "tsc && node .",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""
