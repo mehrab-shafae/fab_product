@@ -73,6 +73,50 @@ router.get('/search', categoryValidation.search, handleValidationErrors, async (
       }
 });
 
+
+// Bulk update categories
+router.put('/bulk', categoryValidation.bulkUpdate, handleValidationErrors, logCategoryOperation('bulk_update'), async (req, res) => {
+      try {
+            const result = await categoryService.bulkUpdate(req.body.categories);
+            res.json({
+                  status: 'success',
+                  data: result,
+                  message: 'دسته‌ها با موفقیت بروزرسانی شدند',
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: error.message,
+            });
+      }
+});
+
+// NEW: Bulk delete categories
+router.delete('/bulk', categoryValidation.bulkDelete, handleValidationErrors, logCategoryOperation('bulk_delete'), async (req, res) => {
+      try {
+            const { categoryIds } = req.body;
+            const results = await Promise.all(categoryIds.map(id => categoryService.delete(id)));
+
+            const successCount = results.filter(result => result).length;
+            const failedCount = results.length - successCount;
+
+            res.json({
+                  status: 'success',
+                  data: {
+                        total: results.length,
+                        success: successCount,
+                        failed: failedCount,
+                  },
+                  message: `${successCount} دسته با موفقیت حذف شدند`,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: error.message,
+            });
+      }
+});
+
 // Get all categories - This must come before /:id to avoid conflicts
 router.get('/', categoryValidation.search, handleValidationErrors, async (req, res) => {
       try {
@@ -373,49 +417,6 @@ router.post('/reorder', categoryValidation.reorder, handleValidationErrors, logC
                   status: 'success',
                   data: result,
                   message: 'ترتیب دسته‌ها با موفقیت تغییر یافت',
-            });
-      } catch (error) {
-            res.status(500).json({
-                  status: 'error',
-                  message: error.message,
-            });
-      }
-});
-
-// Bulk update categories
-router.put('/bulk', categoryValidation.bulkUpdate, handleValidationErrors, logCategoryOperation('bulk_update'), async (req, res) => {
-      try {
-            const result = await categoryService.bulkUpdate(req.body.categories);
-            res.json({
-                  status: 'success',
-                  data: result,
-                  message: 'دسته‌ها با موفقیت بروزرسانی شدند',
-            });
-      } catch (error) {
-            res.status(500).json({
-                  status: 'error',
-                  message: error.message,
-            });
-      }
-});
-
-// NEW: Bulk delete categories
-router.delete('/bulk', categoryValidation.reorder, handleValidationErrors, logCategoryOperation('bulk_delete'), async (req, res) => {
-      try {
-            const { categoryIds } = req.body;
-            const results = await Promise.all(categoryIds.map(id => categoryService.delete(id)));
-
-            const successCount = results.filter(result => result).length;
-            const failedCount = results.length - successCount;
-
-            res.json({
-                  status: 'success',
-                  data: {
-                        total: results.length,
-                        success: successCount,
-                        failed: failedCount,
-                  },
-                  message: `${successCount} دسته با موفقیت حذف شدند`,
             });
       } catch (error) {
             res.status(500).json({

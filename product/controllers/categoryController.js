@@ -1,5 +1,5 @@
 import { categoryService } from '../services/categoryService.js';
-import { persianToEnglishTransliterate } from '../services/i18nService.js';
+import { persianToEnglishTransliterate, i18nService } from '../services/i18nService.js';
 
 export const categoryController = {
       // Create a new category
@@ -27,6 +27,9 @@ export const categoryController = {
                   }
                   res.success(result, 'Category created successfully');
             } catch (error) {
+                  if (error.name === 'SequelizeUniqueConstraintError' || error.original?.code === '23505') {
+                        return res.error('A category with this name or slug already exists', 409);
+                  }
                   res.error(error);
             }
       },
@@ -109,6 +112,9 @@ export const categoryController = {
                   }
                   res.success(result, 'Category updated successfully');
             } catch (error) {
+                  if (error.name === 'SequelizeUniqueConstraintError' || error.original?.code === '23505') {
+                        return res.error('A category with this name or slug already exists', 409);
+                  }
                   res.error(error);
             }
       },

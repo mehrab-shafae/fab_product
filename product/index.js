@@ -590,7 +590,8 @@ function createCategory(categoryData) {
         )
         RETURNING *
     `;
-      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords]);
+      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords])
+            .then(result => result.rows.length === 0 ? null : result.rows[0]);
 }
 
 function getCategoryTree() {
