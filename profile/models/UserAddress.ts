@@ -36,7 +36,7 @@ class UserAddress extends Model<UserAddressAttributes, UserAddressCreationAttrib
 UserAddress.init(
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },

@@ -1,1 +1,4 @@
 !.env*
+!*lock*
+!*block*
+!*Block*
