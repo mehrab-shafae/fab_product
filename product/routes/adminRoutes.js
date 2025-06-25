@@ -144,7 +144,15 @@ router.get('/tables/:tableName', async (req, res) => {
             const total = parseInt(countResult.rows[0].total);
 
             // Get data with pagination
-            const dataQuery = `SELECT * FROM "${tableName}" ORDER BY 1 LIMIT $1 OFFSET $2`;
+            let dataQuery;
+            // Check if the table has a deleted_at column
+            const hasDeletedAt = columns.some(col => col.column_name === 'deleted_at');
+            if (hasDeletedAt) {
+                  // For tables with deleted_at, include is_deleted field
+                  dataQuery = `SELECT *, deleted_at IS NOT NULL AS is_deleted FROM "${tableName}" ORDER BY 1 LIMIT $1 OFFSET $2`;
+            } else {
+                  dataQuery = `SELECT * FROM "${tableName}" ORDER BY 1 LIMIT $1 OFFSET $2`;
+            }
             const dataResult = await pgPool.query(dataQuery, [limit, offset]);
 
             // Get table statistics

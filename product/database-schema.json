@@ -171,6 +171,14 @@
                   "version": 17,
                   "name": "Add icon_ids column to categories table",
                   "queries": ["ALTER TABLE categories ADD COLUMN IF NOT EXISTS icon_ids TEXT[] DEFAULT ARRAY[]::TEXT[]"]
+            },
+            {
+                  "version": 18,
+                  "name": "Category-Attribute many-to-many join table and remove category_id",
+                  "queries": [
+                        "ALTER TABLE category_attributes DROP COLUMN IF EXISTS category_id",
+                        "CREATE TABLE IF NOT EXISTS category_attribute_categories (category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE, category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (category_id, category_attribute_id))"
+                  ]
             }
       ],
       "indexes": [

@@ -9,6 +9,7 @@ import CategoryTranslation from './CategoryTranslation.js';
 import ProductTranslation from './ProductTranslation.js';
 import CategoryAttributeTranslation from './CategoryAttributeTranslation.js';
 import CategoryAttributeOptionTranslation from './CategoryAttributeOptionTranslation.js';
+import CategoryAttributeCategory from './CategoryAttributeCategory.js';
 
 // Initialize all models
 const models = {
@@ -22,10 +23,12 @@ const models = {
       ProductTranslation,
       CategoryAttributeTranslation,
       CategoryAttributeOptionTranslation,
+      CategoryAttributeCategory,
 };
 
 // Define associations
-Category.hasMany(CategoryAttribute, { foreignKey: 'category_id', as: 'attributes' });
+Category.belongsToMany(CategoryAttribute, { through: CategoryAttributeCategory, as: 'attributes', foreignKey: 'category_id', otherKey: 'category_attribute_id' });
+CategoryAttribute.belongsToMany(Category, { through: CategoryAttributeCategory, as: 'categories', foreignKey: 'category_attribute_id', otherKey: 'category_id' });
 Category.hasMany(CategoryTranslation, { foreignKey: 'category_id', as: 'translations' });
 
 CategoryAttribute.hasMany(CategoryAttributeOption, { foreignKey: 'category_attribute_id', as: 'options' });
@@ -83,6 +86,6 @@ async function seedDefaultLanguages() {
 }
 
 // Export models and sequelize instance
-export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation, seedDefaultLanguages };
+export { sequelize, Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation, CategoryAttributeCategory, seedDefaultLanguages };
 
 export default models;

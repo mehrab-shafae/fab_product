@@ -1,4 +1,4 @@
-import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from '../models/index.js';
+import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue, CategoryAttributeCategory } from '../models/index.js';
 import { Op, fn, col, literal, QueryTypes } from 'sequelize';
 import { generateCategorySlug, generateCustomSlug } from '../utils/slugGenerator.js';
 import { i18nService } from './i18nService.js';
@@ -78,7 +78,6 @@ export const categoryService = {
                               // Create the attribute
                               const categoryAttribute = await CategoryAttribute.create(
                                     {
-                                          category_id: category.id,
                                           name: attrName,
                                           type,
                                           required,
@@ -100,6 +99,12 @@ export const categoryService = {
                                           );
                                     }
                               }
+
+                              // Create association
+                              await CategoryAttributeCategory.create({
+                                    category_id: category.id,
+                                    category_attribute_id: categoryAttribute.id,
+                              }, { transaction });
                         }
                   }
 
@@ -456,8 +461,14 @@ export const categoryService = {
                   if (attributes && Array.isArray(attributes)) {
                         // Delete existing attributes
                         await CategoryAttribute.destroy({
-                              where: { category_id: id },
-                              transaction,
+                              where: {
+                                    id: {
+                                          [Op.notIn]: (
+                                                await CategoryAttributeCategory.findAll({ attributes: ['category_attribute_id'], transaction })
+                                          ).map(a => a.category_attribute_id)
+                                    }
+                              },
+                              transaction
                         });
 
                         // Create new attributes
@@ -467,7 +478,6 @@ export const categoryService = {
                               // Create the attribute
                               const categoryAttribute = await CategoryAttribute.create(
                                     {
-                                          category_id: id,
                                           name: attrName,
                                           type,
                                           required,
@@ -489,6 +499,12 @@ export const categoryService = {
                                           );
                                     }
                               }
+
+                              // Create association
+                              await CategoryAttributeCategory.create({
+                                    category_id: id,
+                                    category_attribute_id: categoryAttribute.id,
+                              }, { transaction });
                         }
                   }
 
@@ -543,6 +559,9 @@ export const categoryService = {
             if (hasProducts > 0) {
                   throw new Error('Cannot delete category with products');
             }
+
+            // حذف associationهای attribute با این category
+            await CategoryAttributeCategory.destroy({ where: { category_id: id } });
 
             await category.destroy();
             return true;
@@ -774,6 +793,9 @@ export const categoryService = {
                               continue;
                         }
 
+                        // حذف associationهای attribute با این category
+                        await CategoryAttributeCategory.destroy({ where: { category_id: id }, transaction });
+
                         const deleted = await Category.destroy({
                               where: { id },
                               transaction,
@@ -895,12 +917,18 @@ export const categoryService = {
       async addAttribute(categoryId, attributeData) {
             const { name, type, required = false, order = 0, options = [] } = attributeData;
 
+            // ساخت attribute جدید
             const attribute = await CategoryAttribute.create({
-                  category_id: categoryId,
                   name,
                   type,
                   required,
                   order,
+            });
+
+            // ثبت association در جدول join
+            await CategoryAttributeCategory.create({
+                  category_id: categoryId,
+                  category_attribute_id: attribute.id,
             });
 
             // Add options if provided
@@ -933,18 +961,26 @@ export const categoryService = {
       },
 
       async getAttributes(categoryId) {
-            return await CategoryAttribute.findAll({
-                  where: { category_id: categoryId },
+            // دریافت attributeها از طریق association جدید
+            const category = await Category.findByPk(categoryId, {
                   include: [
                         {
-                              model: CategoryAttributeOption,
-                              as: 'options',
-                              attributes: ['id', 'value', 'order'],
+                              model: CategoryAttribute,
+                              as: 'attributes',
+                              include: [
+                                    {
+                                          model: CategoryAttributeOption,
+                                          as: 'options',
+                                          attributes: ['id', 'value', 'order'],
+                                          order: [['order', 'ASC']],
+                                    },
+                              ],
                               order: [['order', 'ASC']],
                         },
                   ],
-                  order: [['order', 'ASC']],
             });
+            if (!category) return [];
+            return category.attributes;
       },
 
       // Attribute option management
@@ -984,14 +1020,17 @@ export const categoryService = {
             let currentCategoryId = categoryId;
 
             while (currentCategoryId) {
-                  const attrs = await CategoryAttribute.findAll({
-                        where: { category_id: currentCategoryId, required: true },
-                        include: [{ model: CategoryAttributeOption, as: 'options' }],
+                  const category = await Category.findByPk(currentCategoryId, {
+                        include: [{
+                              model: CategoryAttribute,
+                              as: 'attributes',
+                              where: { required: true },
+                              include: [{ model: CategoryAttributeOption, as: 'options' }]
+                        }]
                   });
-                  attributes.unshift(...attrs);
+                  if (category) attributes.unshift(...category.attributes);
 
-                  const cat = await Category.findByPk(currentCategoryId);
-                  currentCategoryId = cat && cat.parent_id ? cat.parent_id : null;
+                  currentCategoryId = category && category.parent_id ? category.parent_id : null;
             }
 
             return attributes;
