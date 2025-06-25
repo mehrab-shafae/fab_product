@@ -1971,12 +1971,11 @@ async function createProductController(req, res) {
 
 async function getProductByIdController(req, res) {
       try {
-            const result = await getProductById(req.params.id);
-            if (result.rows.length === 0) {
+            const product = await getProductById(req.params.id);
+            if (!product) {
                   return res.error('Product not found', 404);
             }
-
-            res.success(result.rows[0]);
+            res.success(product);
       } catch (error) {
             res.error(error);
       }
@@ -2002,10 +2001,10 @@ async function searchProductsController(req, res) {
 async function createCategoryController(req, res) {
       try {
             const result = await createCategory(req.body);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('A category with this name or slug already exists', 409);
             }
-            res.success(result.rows[0], 'Category created successfully');
+            res.success(result, 'Category created successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2347,7 +2346,7 @@ async function addChatMessageController(req, res) {
             };
             const result = await addChatMessage(messageData);
             await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-            res.success(result.rows[0], 'Chat message added successfully');
+            res.success(result, 'Chat message added successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2357,12 +2356,12 @@ async function getChatMessagesController(req, res) {
       try {
             const result = await getChatMessages(req.params.chatId, req.pagination);
             res.success({
-                  data: result.rows,
-                  pagination: {
+                  data: result.items || result.rows || [],
+                  pagination: result.pagination || {
                         page: req.pagination.page,
                         limit: req.pagination.limit,
-                        total: parseInt(result.rows[0]?.total_count || 0),
-                        pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
+                        total: result.total || 0,
+                        pages: result.pages || 0,
                   },
             });
       } catch (error) {
@@ -2374,7 +2373,7 @@ async function markChatMessagesAsReadController(req, res) {
       try {
             const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
             await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
-            res.success(result.rows, 'Chat messages marked as read successfully');
+            res.success(result, 'Chat messages marked as read successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2383,10 +2382,10 @@ async function markChatMessagesAsReadController(req, res) {
 async function getProductAnalyticsController(req, res) {
       try {
             const result = await getProductAnalytics(req.params.productId);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('Product not found', 404);
             }
-            res.success(result.rows[0]);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2395,10 +2394,10 @@ async function getProductAnalyticsController(req, res) {
 async function getCategoryAnalyticsController(req, res) {
       try {
             const result = await getCategoryAnalytics(req.params.categoryId);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('Category not found', 404);
             }
-            res.success(result.rows[0]);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2407,7 +2406,7 @@ async function getCategoryAnalyticsController(req, res) {
 async function getProductAttributesController(req, res) {
       try {
             const result = await getProductAttributes(req.params.productId);
-            res.success(result.rows);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2425,7 +2424,7 @@ async function getProductPriceHistoryController(req, res) {
 async function getProductPriceStatisticsController(req, res) {
       try {
             const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
-            res.success(result.rows[0]);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2434,15 +2433,15 @@ async function getProductPriceStatisticsController(req, res) {
 async function updateCategoryController(req, res) {
       try {
             const result = await updateCategory(req.params.id, req.body);
-            if (result.rows.length === 0) {
+            if (!result) {
                   // Check if the category exists
                   const categoryExists = await getCategoryById(req.params.id);
-                  if (categoryExists.rows.length === 0) {
+                  if (!categoryExists) {
                         return res.error('Category not found', 404);
                   }
                   return res.error('A category with this name or slug already exists', 409);
             }
-            res.success(result.rows[0], 'Category updated successfully');
+            res.success(result, 'Category updated successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2451,11 +2450,10 @@ async function updateCategoryController(req, res) {
 async function deleteCategoryController(req, res) {
       try {
             const result = await deleteCategory(req.params.id);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('Category not found', 404);
             }
-
-            res.success(result.rows[0], 'Category deleted successfully');
+            res.success(result, 'Category deleted successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2464,11 +2462,10 @@ async function deleteCategoryController(req, res) {
 async function getCategoryByIdController(req, res) {
       try {
             const result = await getCategoryById(req.params.id);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('Category not found', 404);
             }
-
-            res.success(result.rows[0]);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2478,13 +2475,8 @@ async function searchCategoriesController(req, res) {
       try {
             const result = await searchCategories(req.query, req.pagination);
             res.success({
-                  data: result.rows,
-                  pagination: {
-                        page: req.pagination.page,
-                        limit: req.pagination.limit,
-                        total: parseInt(result.rows[0]?.total_count || 0),
-                        pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / req.pagination.limit),
-                  },
+                  data: result.items || [],
+                  pagination: result.pagination || {},
             });
       } catch (error) {
             res.error(error);
@@ -2494,7 +2486,6 @@ async function searchCategoriesController(req, res) {
 async function bulkUpdateCategoriesController(req, res) {
       try {
             const result = await bulkUpdateCategories(req.body.categories);
-
             res.success(result, 'Categories updated successfully');
       } catch (error) {
             res.error(error);
@@ -2504,14 +2495,10 @@ async function bulkUpdateCategoriesController(req, res) {
 async function updateProductController(req, res) {
       try {
             const result = await updateProduct(req.params.id, req.body);
-            if (result.rows.length === 0) {
-                  return res.status(404).json({
-                        error: 'Product not found or already deleted',
-                        requestId: getRequestId(req),
-                  });
+            if (!result) {
+                  return res.error('Product not found or already deleted', 404);
             }
-
-            res.success(result.rows[0], 'Product updated successfully');
+            res.success(result, 'Product updated successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2520,14 +2507,10 @@ async function updateProductController(req, res) {
 async function deleteProductController(req, res) {
       try {
             const result = await deleteProduct(req.params.id);
-            if (result.rows.length === 0) {
-                  return res.status(404).json({
-                        error: 'Product not found or already deleted',
-                        requestId: getRequestId(req),
-                  });
+            if (!result) {
+                  return res.error('Product not found or already deleted', 404);
             }
-
-            res.success(result.rows[0], 'Product deleted successfully');
+            res.success(result, 'Product deleted successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2536,13 +2519,10 @@ async function deleteProductController(req, res) {
 async function updateProductStatusController(req, res) {
       try {
             const result = await updateProductStatus(req.params.id, req.body.status);
-            if (result.rows.length === 0) {
-                  return res.status(404).json({
-                        error: 'Product not found or already deleted',
-                        requestId: getRequestId(req),
-                  });
+            if (!result) {
+                  return res.error('Product not found or already deleted', 404);
             }
-            res.success(result.rows[0], 'Product status updated successfully');
+            res.success(result, 'Product status updated successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2552,13 +2532,10 @@ async function bulkUpdateProductStatusController(req, res) {
       try {
             const { productIds, status } = req.body;
             if (!Array.isArray(productIds) || productIds.length === 0) {
-                  return res.status(400).json({
-                        error: 'Invalid product IDs array',
-                        requestId: getRequestId(req),
-                  });
+                  return res.error('Invalid product IDs array', 400);
             }
             const result = await bulkUpdateProductStatus(productIds, status);
-            res.success(result.rows, 'Product statuses updated successfully');
+            res.success(result, 'Product statuses updated successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2567,7 +2544,7 @@ async function bulkUpdateProductStatusController(req, res) {
 async function getProductStatisticsController(req, res) {
       try {
             const result = await getProductStatistics();
-            res.success(result.rows[0], 'Product statistics retrieved successfully');
+            res.success(result, 'Product statistics retrieved successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2576,10 +2553,10 @@ async function getProductStatisticsController(req, res) {
 async function getCategoryBySlugController(req, res) {
       try {
             const result = await getCategoryBySlug(req.params.slug);
-            if (result.rows.length === 0) {
+            if (!result) {
                   return res.error('Category not found', 404);
             }
-            res.success(result.rows[0]);
+            res.success(result);
       } catch (error) {
             res.error(error);
       }
@@ -2631,7 +2608,7 @@ async function createProductWithAttributes(productData, attributeValues) {
       }
       // ساخت محصول
       const result = await createProduct(productData);
-      const product = result.rows[0];
+      const product = result;
       // ذخیره attributeها
       for (const attrVal of attributeValues) {
             await ProductAttributeValue.create({

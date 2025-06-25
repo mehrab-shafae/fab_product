@@ -95,7 +95,7 @@ export const categoryController = {
                         req.body.slug = slug ? slug : persianToEnglishTransliterate(name);
                   }
                   const result = await categoryService.update(req.params.id, req.body);
-                  if (result.rows.length === 0) {
+                  if (!result) {
                         // Check if the category exists
                         const categoryExists = await categoryService.getById(req.params.id);
                         if (!categoryExists) {
@@ -105,9 +105,9 @@ export const categoryController = {
                   }
                   // If translation was set, upsert translation
                   if (req.body.translation && req.body.translation.fa) {
-                        await i18nService.upsertCategoryTranslation(result.rows[0].id, 'fa', { name: req.body.translation.fa.name });
+                        await i18nService.upsertCategoryTranslation(result.id, 'fa', { name: req.body.translation.fa.name });
                   }
-                  res.success(result.rows[0], 'Category updated successfully');
+                  res.success(result, 'Category updated successfully');
             } catch (error) {
                   res.error(error);
             }
