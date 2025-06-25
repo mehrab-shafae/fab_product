@@ -23,7 +23,7 @@ import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, 
 import { v4 as uuidv4 } from 'uuid';
 
 // ======================================================================
-const schemaConfig = JSON.parse(readFileSync(cwd('build/product/database-schema.json'), 'utf8'));
+const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
 
 const PORT = process.env.PORT || 5003;
 const POSTGRES_URI = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
@@ -186,7 +186,7 @@ const speedLimiter = slowDown({
       // }
 });
 
-const swaggerDocument = YAML.parse(readFileSync(cwd('build/product/swagger.yaml'), 'utf8'));
+const swaggerDocument = YAML.parse(readFileSync(cwd('product/swagger.yaml'), 'utf8'));
 
 const pgPool = new Pool({
       connectionString: POSTGRES_URI,
