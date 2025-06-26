@@ -276,7 +276,9 @@
                         flex: 1;
                         display: flex;
                         flex-direction: column;
-                        overflow: hidden;
+                        overflow-y: auto;
+                        min-height: 0;
+                        max-height: none;
                   }
 
                   .content-header {
@@ -304,6 +306,8 @@
                         padding: 1.5rem;
                         overflow-y: auto;
                         background: var(--bg-secondary);
+                        min-height: 0;
+                        max-height: none;
                   }
 
                   /* Dashboard */
@@ -389,8 +393,7 @@
 
                   /* Table View */
                   .table-container {
-                        background: #fffbe6 !important;
-                        border: 2px dashed #f59e0b !important;
+                        background: var(--bg-primary) !important;
                         border-radius: var(--radius-lg);
                         overflow: hidden;
                         box-shadow: var(--shadow-sm);
@@ -409,6 +412,7 @@
                         flex-wrap: wrap;
                         gap: 1rem;
                         flex-shrink: 0;
+                        box-shadow: none;
                   }
 
                   .table-info {
@@ -439,7 +443,7 @@
                         max-height: 70vh;
                         position: relative;
                         background: #f1f5f9 !important;
-                        border: 2px dashed #3b82f6 !important;
+                        box-shadow: none;
                   }
 
                   .data-table {
@@ -447,6 +451,7 @@
                         border-collapse: collapse;
                         font-size: 0.875rem;
                         table-layout: auto;
+                        box-shadow: none;
                   }
 
                   .data-table th {
@@ -1083,6 +1088,183 @@
                         color: #aaa;
                         cursor: not-allowed;
                   }
+
+                  /* --- Overview Redesign --- */
+                  .overview-wrapper {
+                        padding: 2rem 1rem;
+                        max-width: 1200px;
+                        margin: 0 auto;
+                        min-height: 100px;
+                  }
+                  .overview-header {
+                        display: flex;
+                        flex-wrap: wrap;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 2rem;
+                        gap: 1rem;
+                  }
+                  .overview-title {
+                        font-size: 2rem;
+                        font-weight: 800;
+                        color: var(--primary-color);
+                        display: flex;
+                        align-items: center;
+                        gap: 0.75rem;
+                  }
+                  .overview-updated {
+                        color: var(--text-secondary);
+                        font-size: 1rem;
+                        font-weight: 500;
+                  }
+                  .overview-dashboard {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 1.5rem;
+                        margin-bottom: 2.5rem;
+                        justify-content: flex-start;
+                  }
+                  .overview-card {
+                        flex: 1 1 200px;
+                        min-width: 200px;
+                        max-width: 260px;
+                        background: var(--bg-primary);
+                        border-radius: var(--radius-lg);
+                        box-shadow: var(--shadow-sm);
+                        padding: 1.5rem 1.25rem;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 0.5rem;
+                        border: 1.5px solid var(--border-color);
+                        transition: box-shadow 0.2s, transform 0.2s;
+                  }
+                  .overview-card:hover {
+                        box-shadow: var(--shadow-md);
+                        transform: translateY(-2px) scale(1.03);
+                  }
+                  .overview-card .card-icon {
+                        font-size: 2rem;
+                        margin-bottom: 0.5rem;
+                  }
+                  .overview-card.blue .card-icon { color: var(--info-color); }
+                  .overview-card.green .card-icon { color: var(--success-color); }
+                  .overview-card.orange .card-icon { color: var(--warning-color); }
+                  .overview-card.purple .card-icon { color: var(--primary-color); }
+                  .card-value {
+                        font-size: 2.2rem;
+                        font-weight: 900;
+                        color: var(--text-primary);
+                  }
+                  .card-label {
+                        font-size: 1rem;
+                        color: var(--text-secondary);
+                        font-weight: 600;
+                  }
+                  .overview-section {
+                        margin-top: 2.5rem;
+                  }
+                  .section-title {
+                        font-size: 1.15rem;
+                        font-weight: 700;
+                        color: var(--primary-color);
+                        margin-bottom: 1rem;
+                        display: flex;
+                        align-items: center;
+                        gap: 0.5rem;
+                  }
+                  .section-table-wrapper {
+                        overflow-x: auto;
+                        background: var(--bg-primary);
+                        border-radius: var(--radius-md);
+                        box-shadow: var(--shadow-sm);
+                        border: 1px solid var(--border-color);
+                  }
+                  .overview-table {
+                        width: 100%;
+                        border-collapse: collapse;
+                        font-size: 0.98rem;
+                  }
+                  .overview-table th, .overview-table td {
+                        padding: 0.85rem 1rem;
+                        border-bottom: 1px solid var(--border-color);
+                        text-align: left;
+                        white-space: nowrap;
+                  }
+                  .overview-table th {
+                        background: var(--bg-tertiary);
+                        color: var(--text-primary);
+                        font-weight: 700;
+                        font-size: 0.95rem;
+                  }
+                  .overview-table tr:last-child td {
+                        border-bottom: none;
+                  }
+                  .erd-graph-container {
+                        width: 100%;
+                        min-height: 420px;
+                        background: var(--bg-tertiary);
+                        border-radius: var(--radius-md);
+                        box-shadow: var(--shadow-sm);
+                        border: 1.5px solid var(--border-color);
+                        margin-top: 1rem;
+                        padding: 1rem 0.5rem;
+                        position: relative;
+                        overflow-x: auto;
+                        display: block;
+                  }
+                  .erd-graph {
+                        width: 100%;
+                        min-width: 600px;
+                        height: 60vh;
+                        min-height: 400px;
+                        max-height: 70vh;
+                        background: #f8fafc;
+                        border-radius: 0.5rem;
+                        margin: 0 auto;
+                        display: block;
+                  }
+                  @media (max-width: 900px) {
+                        .overview-dashboard {
+                              flex-direction: column;
+                              gap: 1rem;
+                        }
+                        .overview-card {
+                              max-width: 100%;
+                              min-width: 0;
+                              width: 100%;
+                        }
+                        .overview-header {
+                              flex-direction: column;
+                              align-items: flex-start;
+                              gap: 0.5rem;
+                        }
+                        .erd-graph {
+                              min-width: 350px;
+                              height: 40vh;
+                              min-height: 220px;
+                        }
+                  }
+                  @media (max-width: 600px) {
+                        .overview-wrapper {
+                              padding: 1rem 0.25rem;
+                        }
+                        .overview-title {
+                              font-size: 1.2rem;
+                        }
+                        .overview-card {
+                              padding: 1rem 0.75rem;
+                        }
+                        .section-title {
+                              font-size: 1rem;
+                        }
+                        .erd-graph {
+                              min-width: 250px;
+                              height: 30vh;
+                              min-height: 120px;
+                        }
+                  }
+                  /* --- End Overview Redesign --- */
             </style>
       </head>
       <body>
@@ -1548,8 +1730,8 @@
                         }
 
                         showOverview() {
+                              this.currentTable = null;
                               const content = document.getElementById('content');
-
                               if (!this.overview || !this.overview.database_info) {
                                     content.innerHTML = `
                         <div class="content-header">
@@ -1564,120 +1746,72 @@
                     `;
                                     return;
                               }
-
                               const db = this.overview.database_info;
                               const largestTables = this.overview.largest_tables || [];
-
                               content.innerHTML = `
-                    <div class="content-header">
-                        <div class="content-title">Database Overview</div>
-                        <div class="content-subtitle">${db.name} • Last updated: ${new Date(this.overview.last_updated).toLocaleString()}</div>
+                    <div class="overview-wrapper">
+                      <div class="overview-header">
+                        <div class="overview-title">
+                          <i class="fas fa-database"></i>
+                          <span>${db.name}</span>
+                        </div>
+                        <div class="overview-updated">Last updated: <span>${new Date(this.overview.last_updated).toLocaleString()}</span></div>
+                      </div>
+                      <div class="overview-dashboard">
+                        <div class="overview-card blue">
+                          <div class="card-icon"><i class="fas fa-table"></i></div>
+                          <div class="card-value">${db.total_tables.toLocaleString()}</div>
+                          <div class="card-label">Total Tables</div>
+                        </div>
+                        <div class="overview-card green">
+                          <div class="card-icon"><i class="fas fa-list"></i></div>
+                          <div class="card-value">${db.total_estimated_rows.toLocaleString()}</div>
+                          <div class="card-label">Total Rows</div>
+                        </div>
+                        <div class="overview-card orange">
+                          <div class="card-icon"><i class="fas fa-hdd"></i></div>
+                          <div class="card-value">${db.size}</div>
+                          <div class="card-label">Database Size</div>
+                        </div>
+                        <div class="overview-card purple">
+                          <div class="card-icon"><i class="fas fa-check-circle"></i></div>
+                          <div class="card-value">${this.tables.length}</div>
+                          <div class="card-label">Active Tables</div>
+                        </div>
+                      </div>
+                      <div class="overview-section">
+                        <div class="section-title"><i class="fas fa-chart-bar"></i> Largest Tables</div>
+                        <div class="section-table-wrapper">
+                          <table class="overview-table">
+                            <thead>
+                              <tr>
+                                <th>Table Name</th>
+                                <th>Size</th>
+                                <th>Estimated Rows</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              ${largestTables.map(table => `
+                                <tr>
+                                  <td><i class="fas fa-table" style="margin-right: 0.5rem; opacity: 0.7;"></i>${table.table_name}</td>
+                                  <td>${table.size}</td>
+                                  <td>${table.estimated_rows?.toLocaleString() || '0'}</td>
+                                </tr>
+                              `).join('')}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div class="overview-section">
+                        <div class="section-title"><i class="fas fa-project-diagram"></i> Entity Relationship Diagram (ERD)</div>
+                        <div class="erd-graph-container">
+                          <div id="overviewErdLoading" class="loading-container" style="display:none;"><div class="loading-spinner"></div>در حال بارگذاری نمودار...</div>
+                          <div id="overviewErdError" class="error-container" style="display:none;"></div>
+                          <div id="overviewErdGraph" class="erd-graph"></div>
+                        </div>
+                      </div>
                     </div>
-                    <div class="content-body">
-                        <div class="dashboard">
-                            <div class="stat-card">
-                                <div class="stat-header">
-                                    <div class="stat-title">Total Tables</div>
-                                    <div class="stat-icon blue">
-                                        <i class="fas fa-table"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-value">${db.total_tables.toLocaleString()}</div>
-                                <div class="stat-change">Active database tables</div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <div class="stat-header">
-                                    <div class="stat-title">Total Rows</div>
-                                    <div class="stat-icon green">
-                                        <i class="fas fa-list"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-value">${db.total_estimated_rows.toLocaleString()}</div>
-                                <div class="stat-change">Estimated across all tables</div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <div class="stat-header">
-                                    <div class="stat-title">Database Size</div>
-                                    <div class="stat-icon orange">
-                                        <i class="fas fa-hdd"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-value">${db.size}</div>
-                                <div class="stat-change">Total storage used</div>
-                            </div>
-                            
-                            <div class="stat-card">
-                                <div class="stat-header">
-                                    <div class="stat-title">Active Tables</div>
-                                    <div class="stat-icon purple">
-                                        <i class="fas fa-check-circle"></i>
-                                    </div>
-                                </div>
-                                <div class="stat-value">${this.tables.length}</div>
-                                <div class="stat-change">Currently loaded</div>
-                            </div>
-                        </div>
-
-                        <div class="table-container">
-                            <div class="table-toolbar">
-                                <div class="table-info">
-                                    <div class="info-item">
-                                        <i class="fas fa-chart-bar"></i>
-                                        Largest Tables by Size
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="table-content">
-                                <table class="data-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Table Name</th>
-                                            <th>Size</th>
-                                            <th>Estimated Rows</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${largestTables
-                                              .map(
-                                                    table => `
-                                            <tr>
-                                                <td>
-                                                    <div class="cell-content">
-                                                        <i class="fas fa-table" style="margin-right: 0.5rem; opacity: 0.7;"></i>
-                                                        ${table.table_name}
-                                                    </div>
-                                                </td>
-                                                <td><div class="cell-content">${table.size}</div></td>
-                                                <td><div class="cell-content">${table.estimated_rows?.toLocaleString() || '0'}</div></td>
-                                            </tr>
-                                        `
-                                              )
-                                              .join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                        <div class="table-container" style="margin-top:2rem;">
-                            <div class="table-toolbar">
-                                <div class="table-info">
-                                    <div class="info-item">
-                                        <i class="fas fa-project-diagram"></i>
-                                        ERD (Entity Relationship Diagram)
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="table-content">
-                                <div id="overviewErdLoading" class="loading-container" style="display:none;"><div class="loading-spinner"></div>در حال بارگذاری نمودار...</div>
-                                <div id="overviewErdError" class="error-container" style="display:none;"></div>
-                                <div id="overviewErdGraph" style="width:100%;min-height:400px;height:60vh;background:#f8fafc;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;">
-                                  <span style="color:#f59e0b;font-weight:bold;">[ERD CONTAINER VISIBLE]</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                  `;
                               this.renderOverviewErd();
                         }
 
@@ -1685,6 +1819,8 @@
                               const loading = document.getElementById('overviewErdLoading');
                               const error = document.getElementById('overviewErdError');
                               const graph = document.getElementById('overviewErdGraph');
+                              console.log('renderOverviewErd called', { loading, error, graph, db: this.currentDatabase });
+                              if (graph) graph.innerHTML = '<div style="color:#f59e0b;text-align:center;padding:1rem;">[ERD Graph Container Ready]</div>';
                               if (!this.currentDatabase || !loading || !error || !graph) return;
                               loading.style.display = 'block';
                               error.style.display = 'none';
@@ -1695,6 +1831,11 @@
                                     const tablesData = await tablesRes.json();
                                     if (!tablesData.status || tablesData.status !== 'success') throw new Error('Failed to load tables');
                                     const tables = tablesData.data;
+                                    if (!tables || !tables.length) {
+                                          loading.style.display = 'none';
+                                          graph.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem;">هیچ جدولی برای نمایش وجود ندارد.</div>';
+                                          return;
+                                    }
                                     // Fetch all relationships for all tables
                                     const rels = [];
                                     for (const table of tables) {
@@ -1708,16 +1849,67 @@
                                     const nodes = tables.map(t => ({ data: { id: t.name, label: t.name } }));
                                     const edges = rels.map(r => ({ data: { source: r.table_name, target: r.foreign_table_name, label: r.column_name + ' → ' + r.foreign_column_name } }));
                                     loading.style.display = 'none';
+                                    if (!window.cytoscape) {
+                                          graph.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem;">Cytoscape.js بارگذاری نشد!</div>';
+                                          return;
+                                    }
+                                    if (!nodes.length) {
+                                          graph.innerHTML = '<div style="color:#ef4444;text-align:center;padding:2rem;">هیچ نودی برای نمایش وجود ندارد.</div>';
+                                          return;
+                                    }
                                     // Render graph
                                     const cy = cytoscape({
                                           container: graph,
                                           elements: { nodes, edges },
                                           style: [
-                                                { selector: 'node', style: { 'background-color': '#6366f1', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '16px', 'width': 60, 'height': 60, 'border-width': 2, 'border-color': '#4f46e5' } },
-                                                { selector: 'edge', style: { 'width': 3, 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'font-size': '12px', 'color': '#64748b', 'text-background-color': '#fff', 'text-background-opacity': 1, 'text-background-padding': 2 } },
-                                                { selector: ':selected', style: { 'background-color': '#10b981', 'line-color': '#10b981', 'target-arrow-color': '#10b981', 'source-arrow-color': '#10b981' } }
+                                                { selector: 'node', style: {
+                                                  'background-color': '#6366f1',
+                                                  'label': 'data(label)',
+                                                  'color': '#fff',
+                                                  'text-valign': 'center',
+                                                  'text-halign': 'center',
+                                                  'font-size': '28px',
+                                                  'width': 110,
+                                                  'height': 110,
+                                                  'border-width': 3,
+                                                  'border-color': '#4f46e5',
+                                                  'text-outline-width': 4,
+                                                  'text-outline-color': '#6366f1',
+                                                  'text-wrap': 'wrap',
+                                                  'text-max-width': 120
+                                                } },
+                                                { selector: 'edge', style: {
+                                                  'width': 4,
+                                                  'line-color': '#a5b4fc',
+                                                  'target-arrow-color': '#a5b4fc',
+                                                  'target-arrow-shape': 'triangle',
+                                                  'curve-style': 'bezier',
+                                                  'label': 'data(label)',
+                                                  'font-size': '18px',
+                                                  'color': '#64748b',
+                                                  'text-background-color': '#fff',
+                                                  'text-background-opacity': 1,
+                                                  'text-background-padding': 3
+                                                } },
+                                                { selector: ':selected', style: {
+                                                  'background-color': '#10b981',
+                                                  'line-color': '#10b981',
+                                                  'target-arrow-color': '#10b981',
+                                                  'source-arrow-color': '#10b981'
+                                                } }
                                           ],
-                                          layout: { name: 'cose', animate: true, fit: true, padding: 40 }
+                                          layout: {
+                                            name: nodes.length > 20 ? 'breadthfirst' : 'cose',
+                                            animate: true,
+                                            fit: true,
+                                            padding: 80,
+                                            spacingFactor: 1.5,
+                                            nodeRepulsion: 12000,
+                                            idealEdgeLength: 200
+                                          },
+                                          minZoom: 0.3,
+                                          maxZoom: 2,
+                                          wheelSensitivity: 0.2
                                     });
                                     cy.fit();
                               } catch (err) {
