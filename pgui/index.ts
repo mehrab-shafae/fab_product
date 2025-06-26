@@ -156,7 +156,6 @@ const responseHandler = (req: any, res: any, next: any) => {
       next();
 };
 
-
 const DB_ERROR_CODES = {
       23503: {
             categories: {
@@ -255,27 +254,26 @@ function handleDatabaseError(error: any) {
 
 function main() {
       try {
-      app.locals.pgPool = pgPool;
+            app.locals.pgPool = pgPool;
 
-      app.use(responseHandler);
-      app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-      app.use('/', adminRoutes);
+            app.use(responseHandler);
+            app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+            app.use('/', adminRoutes);
 
-      app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-            logger.error('Unhandled error', {
-                  error: err.message,
-                  stack: err.stack,
+            app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+                  logger.error('Unhandled error', {
+                        error: err.message,
+                        stack: err.stack,
+                  });
+                  res.status(500).json({
+                        error: 'Internal server error',
+                  });
             });
-            res.status(500).json({
-                  error: 'Internal server error',
+
+            app.listen(PORT, function () {
+                  console.log(`Database Admin Panel available at http://localhost:${PORT}`);
+                  console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
             });
-      });
-
-      app.listen(PORT, function () {
-            console.log(`Database Admin Panel available at http://localhost:${PORT}`);
-            console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
-      });
-
       } catch (err) {
             console.error('Failed to start admin panel:', err);
             process.exit(1);

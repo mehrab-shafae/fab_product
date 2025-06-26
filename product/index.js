@@ -2726,7 +2726,19 @@ function stopPguiWorker() {
       }
 }
 
-process.on('beforeExit', () => { stopPguiWorker();  free });
-process.on('SIGINT', () => { stopPguiWorker(); free(); });
-process.on('SIGTERM', () => { stopPguiWorker(); free(); });
-process.on('SIGQUIT', () => { stopPguiWorker(); free(); });
+process.on('beforeExit', () => {
+      stopPguiWorker();
+      free;
+});
+process.on('SIGINT', () => {
+      stopPguiWorker();
+      free();
+});
+process.on('SIGTERM', () => {
+      stopPguiWorker();
+      free();
+});
+process.on('SIGQUIT', () => {
+      stopPguiWorker();
+      free();
+});

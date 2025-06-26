@@ -1042,8 +1042,11 @@
                   /* Database selection modal styles */
                   #databaseModal {
                         position: fixed;
-                        top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(30,41,59,0.7);
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(30, 41, 59, 0.7);
                         z-index: 9999;
                         display: flex;
                         align-items: center;
@@ -1052,7 +1055,7 @@
                   #databaseModal .modal-content {
                         background: #fff;
                         border-radius: 0.75rem;
-                        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
                         padding: 2.5rem 2rem 2rem 2rem;
                         min-width: 320px;
                         max-width: 90vw;
@@ -1137,7 +1140,9 @@
                         align-items: flex-start;
                         gap: 0.5rem;
                         border: 1.5px solid var(--border-color);
-                        transition: box-shadow 0.2s, transform 0.2s;
+                        transition:
+                              box-shadow 0.2s,
+                              transform 0.2s;
                   }
                   .overview-card:hover {
                         box-shadow: var(--shadow-md);
@@ -1147,10 +1152,18 @@
                         font-size: 2rem;
                         margin-bottom: 0.5rem;
                   }
-                  .overview-card.blue .card-icon { color: var(--info-color); }
-                  .overview-card.green .card-icon { color: var(--success-color); }
-                  .overview-card.orange .card-icon { color: var(--warning-color); }
-                  .overview-card.purple .card-icon { color: var(--primary-color); }
+                  .overview-card.blue .card-icon {
+                        color: var(--info-color);
+                  }
+                  .overview-card.green .card-icon {
+                        color: var(--success-color);
+                  }
+                  .overview-card.orange .card-icon {
+                        color: var(--warning-color);
+                  }
+                  .overview-card.purple .card-icon {
+                        color: var(--primary-color);
+                  }
                   .card-value {
                         font-size: 2.2rem;
                         font-weight: 900;
@@ -1185,7 +1198,8 @@
                         border-collapse: collapse;
                         font-size: 0.98rem;
                   }
-                  .overview-table th, .overview-table td {
+                  .overview-table th,
+                  .overview-table td {
                         padding: 0.85rem 1rem;
                         border-bottom: 1px solid var(--border-color);
                         text-align: left;
@@ -1318,7 +1332,7 @@
                   </div>
             </div>
 
-            <div id="databaseModal" style="display:none;">
+            <div id="databaseModal" style="display: none">
                   <div class="modal-content">
                         <h2>انتخاب دیتابیس</h2>
                         <select id="modalDatabaseSelect">
@@ -1328,17 +1342,20 @@
                   </div>
             </div>
 
-            <div id="erdModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(30,41,59,0.7);align-items:center;justify-content:center;">
-                  <div style="background:#fff;border-radius:0.75rem;box-shadow:0 10px 40px rgba(0,0,0,0.15);padding:2rem;min-width:320px;max-width:95vw;max-height:90vh;overflow:auto;position:relative;">
-                        <button onclick="adminPanel.hideErdModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
-                        <h2 style="margin-bottom:1rem;font-size:1.2rem;color:#6366f1;">نمودار ارتباط جداول (ERD)</h2>
-                        <div id="erdGraph" style="width:80vw;max-width:1200px;height:70vh;min-height:400px;background:#f8fafc;border-radius:0.5rem;"></div>
-                        <div id="erdLoading" style="display:none;text-align:center;padding:1rem;color:#64748b;"><div class="loading-spinner" style="margin:2rem auto;"></div>در حال بارگذاری نمودار...</div>
-                        <div id="erdError" style="display:none;text-align:center;padding:1rem;color:#ef4444;"></div>
+            <div id="erdModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 10000; background: rgba(30, 41, 59, 0.7); align-items: center; justify-content: center">
+                  <div style="background: #fff; border-radius: 0.75rem; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15); padding: 2rem; min-width: 320px; max-width: 95vw; max-height: 90vh; overflow: auto; position: relative">
+                        <button onclick="adminPanel.hideErdModal()" style="position: absolute; top: 1rem; right: 1rem; background: none; border: none; font-size: 1.5rem; cursor: pointer">&times;</button>
+                        <h2 style="margin-bottom: 1rem; font-size: 1.2rem; color: #6366f1">نمودار ارتباط جداول (ERD)</h2>
+                        <div id="erdGraph" style="width: 80vw; max-width: 1200px; height: 70vh; min-height: 400px; background: #f8fafc; border-radius: 0.5rem"></div>
+                        <div id="erdLoading" style="display: none; text-align: center; padding: 1rem; color: #64748b">
+                              <div class="loading-spinner" style="margin: 2rem auto"></div>
+                              در حال بارگذاری نمودار...
+                        </div>
+                        <div id="erdError" style="display: none; text-align: center; padding: 1rem; color: #ef4444"></div>
                   </div>
             </div>
 
-            <div id="toastContainer" style="position:fixed;top:1.5rem;right:1.5rem;z-index:99999;"></div>
+            <div id="toastContainer" style="position: fixed; top: 1.5rem; right: 1.5rem; z-index: 99999"></div>
 
             <script src="./cytoscape.min.js"></script>
             <script>
@@ -1406,8 +1423,7 @@
                                     document.getElementById('selectDatabaseBtn').disabled = true;
                                     return;
                               }
-                              select.innerHTML = '<option value="">یک دیتابیس را انتخاب کنید...</option>' +
-                                    this.databases.map(db => `<option value="${db}">${db}</option>`).join('');
+                              select.innerHTML = '<option value="">یک دیتابیس را انتخاب کنید...</option>' + this.databases.map(db => `<option value="${db}">${db}</option>`).join('');
                               select.disabled = false;
                               document.getElementById('selectDatabaseBtn').disabled = true;
                         }
@@ -1791,13 +1807,17 @@
                               </tr>
                             </thead>
                             <tbody>
-                              ${largestTables.map(table => `
+                              ${largestTables
+                                    .map(
+                                          table => `
                                 <tr>
                                   <td><i class="fas fa-table" style="margin-right: 0.5rem; opacity: 0.7;"></i>${table.table_name}</td>
                                   <td>${table.size}</td>
                                   <td>${table.estimated_rows?.toLocaleString() || '0'}</td>
                                 </tr>
-                              `).join('')}
+                              `
+                                    )
+                                    .join('')}
                             </tbody>
                           </table>
                         </div>
@@ -1862,54 +1882,63 @@
                                           container: graph,
                                           elements: { nodes, edges },
                                           style: [
-                                                { selector: 'node', style: {
-                                                  'background-color': '#6366f1',
-                                                  'label': 'data(label)',
-                                                  'color': '#fff',
-                                                  'text-valign': 'center',
-                                                  'text-halign': 'center',
-                                                  'font-size': '28px',
-                                                  'width': 110,
-                                                  'height': 110,
-                                                  'border-width': 3,
-                                                  'border-color': '#4f46e5',
-                                                  'text-outline-width': 4,
-                                                  'text-outline-color': '#6366f1',
-                                                  'text-wrap': 'wrap',
-                                                  'text-max-width': 120
-                                                } },
-                                                { selector: 'edge', style: {
-                                                  'width': 4,
-                                                  'line-color': '#a5b4fc',
-                                                  'target-arrow-color': '#a5b4fc',
-                                                  'target-arrow-shape': 'triangle',
-                                                  'curve-style': 'bezier',
-                                                  'label': 'data(label)',
-                                                  'font-size': '18px',
-                                                  'color': '#64748b',
-                                                  'text-background-color': '#fff',
-                                                  'text-background-opacity': 1,
-                                                  'text-background-padding': 3
-                                                } },
-                                                { selector: ':selected', style: {
-                                                  'background-color': '#10b981',
-                                                  'line-color': '#10b981',
-                                                  'target-arrow-color': '#10b981',
-                                                  'source-arrow-color': '#10b981'
-                                                } }
+                                                {
+                                                      selector: 'node',
+                                                      style: {
+                                                            'background-color': '#6366f1',
+                                                            label: 'data(label)',
+                                                            color: '#fff',
+                                                            'text-valign': 'center',
+                                                            'text-halign': 'center',
+                                                            'font-size': '28px',
+                                                            width: 110,
+                                                            height: 110,
+                                                            'border-width': 3,
+                                                            'border-color': '#4f46e5',
+                                                            'text-outline-width': 4,
+                                                            'text-outline-color': '#6366f1',
+                                                            'text-wrap': 'wrap',
+                                                            'text-max-width': 120,
+                                                      },
+                                                },
+                                                {
+                                                      selector: 'edge',
+                                                      style: {
+                                                            width: 4,
+                                                            'line-color': '#a5b4fc',
+                                                            'target-arrow-color': '#a5b4fc',
+                                                            'target-arrow-shape': 'triangle',
+                                                            'curve-style': 'bezier',
+                                                            label: 'data(label)',
+                                                            'font-size': '18px',
+                                                            color: '#64748b',
+                                                            'text-background-color': '#fff',
+                                                            'text-background-opacity': 1,
+                                                            'text-background-padding': 3,
+                                                      },
+                                                },
+                                                {
+                                                      selector: ':selected',
+                                                      style: {
+                                                            'background-color': '#10b981',
+                                                            'line-color': '#10b981',
+                                                            'target-arrow-color': '#10b981',
+                                                            'source-arrow-color': '#10b981',
+                                                      },
+                                                },
                                           ],
                                           layout: {
-                                            name: nodes.length > 20 ? 'breadthfirst' : 'cose',
-                                            animate: true,
-                                            fit: true,
-                                            padding: 80,
-                                            spacingFactor: 1.5,
-                                            nodeRepulsion: 12000,
-                                            idealEdgeLength: 200
+                                                name: nodes.length > 20 ? 'breadthfirst' : 'cose',
+                                                animate: true,
+                                                fit: true,
+                                                padding: 80,
+                                                spacingFactor: 1.5,
+                                                nodeRepulsion: 12000,
+                                                idealEdgeLength: 200,
                                           },
                                           minZoom: 0.3,
                                           maxZoom: 2,
-                                          wheelSensitivity: 0.2
+                                          wheelSensitivity: 0.2,
                                     });
                                     cy.fit();
                               } catch (err) {
@@ -2088,10 +2117,12 @@
                               const toastContainer = document.getElementById('toastContainer');
                               const toast = document.createElement('div');
                               toast.className = `toast fade-in ${type}`;
-                              toast.style = `background:${type==='error'?'#ef4444':'#10b981'};color:#fff;padding:1rem 1.5rem;border-radius:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:0.75rem;min-width:220px;display:flex;align-items:center;gap:0.75rem;font-weight:600;`;
-                              toast.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-triangle':'check-circle'}"></i> ${message} <span style='flex:1'></span><button style='background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;' onclick='this.parentNode.remove()'>&times;</button>`;
+                              toast.style = `background:${type === 'error' ? '#ef4444' : '#10b981'};color:#fff;padding:1rem 1.5rem;border-radius:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:0.75rem;min-width:220px;display:flex;align-items:center;gap:0.75rem;font-weight:600;`;
+                              toast.innerHTML = `<i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'check-circle'}"></i> ${message} <span style='flex:1'></span><button style='background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;' onclick='this.parentNode.remove()'>&times;</button>`;
                               toastContainer.appendChild(toast);
-                              setTimeout(()=>{toast.remove();}, 6000);
+                              setTimeout(() => {
+                                    toast.remove();
+                              }, 6000);
                         }
 
                         async exportTable(format) {
@@ -2160,14 +2191,22 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${rels.length ? rels.map(rel => `
+                                            ${
+                                                  rels.length
+                                                        ? rels
+                                                                .map(
+                                                                      rel => `
                                                 <tr>
                                                     <td><div class="cell-content">${rel.column_name}</div></td>
                                                     <td><div class="cell-content">${rel.foreign_table_name}</div></td>
                                                     <td><div class="cell-content">${rel.foreign_column_name}</div></td>
                                                     <td><div class="cell-content">${rel.constraint_name}</div></td>
                                                 </tr>
-                                            `).join('') : `<tr><td colspan="4"><div class='empty-state'><i class='fas fa-unlink'></i>رابطه‌ای یافت نشد</div></td></tr>`}
+                                            `
+                                                                )
+                                                                .join('')
+                                                        : `<tr><td colspan="4"><div class='empty-state'><i class='fas fa-unlink'></i>رابطه‌ای یافت نشد</div></td></tr>`
+                                            }
                                         </tbody>
                                     </table>
                                 </div>
@@ -2225,13 +2264,21 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            ${activity.length ? activity.map(ev => `
+                                            ${
+                                                  activity.length
+                                                        ? activity
+                                                                .map(
+                                                                      ev => `
                                                 <tr>
                                                     <td><div class="cell-content">${ev.tablename}</div></td>
                                                     <td><div class="cell-content">${ev.last_vacuum || ev.last_autovacuum || '-'}</div></td>
                                                     <td><div class="cell-content">${ev.last_analyze || ev.last_autoanalyze || '-'}</div></td>
                                                 </tr>
-                                            `).join('') : `<tr><td colspan='3'><div class='empty-state'><i class='fas fa-inbox'></i>فعالیتی یافت نشد</div></td></tr>`}
+                                            `
+                                                                )
+                                                                .join('')
+                                                        : `<tr><td colspan='3'><div class='empty-state'><i class='fas fa-inbox'></i>فعالیتی یافت نشد</div></td></tr>`
+                                            }
                                         </tbody>
                                     </table>
                                 </div>
@@ -2270,11 +2317,26 @@
                                           container: document.getElementById('erdGraph'),
                                           elements: { nodes, edges },
                                           style: [
-                                                { selector: 'node', style: { 'background-color': '#6366f1', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '16px', 'width': 60, 'height': 60, 'border-width': 2, 'border-color': '#4f46e5' } },
-                                                { selector: 'edge', style: { 'width': 3, 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'font-size': '12px', 'color': '#64748b', 'text-background-color': '#fff', 'text-background-opacity': 1, 'text-background-padding': 2 } },
-                                                { selector: ':selected', style: { 'background-color': '#10b981', 'line-color': '#10b981', 'target-arrow-color': '#10b981', 'source-arrow-color': '#10b981' } }
+                                                { selector: 'node', style: { 'background-color': '#6366f1', label: 'data(label)', color: '#fff', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '16px', width: 60, height: 60, 'border-width': 2, 'border-color': '#4f46e5' } },
+                                                {
+                                                      selector: 'edge',
+                                                      style: {
+                                                            width: 3,
+                                                            'line-color': '#64748b',
+                                                            'target-arrow-color': '#64748b',
+                                                            'target-arrow-shape': 'triangle',
+                                                            'curve-style': 'bezier',
+                                                            label: 'data(label)',
+                                                            'font-size': '12px',
+                                                            color: '#64748b',
+                                                            'text-background-color': '#fff',
+                                                            'text-background-opacity': 1,
+                                                            'text-background-padding': 2,
+                                                      },
+                                                },
+                                                { selector: ':selected', style: { 'background-color': '#10b981', 'line-color': '#10b981', 'target-arrow-color': '#10b981', 'source-arrow-color': '#10b981' } },
                                           ],
-                                          layout: { name: 'cose', animate: true, fit: true, padding: 40 }
+                                          layout: { name: 'cose', animate: true, fit: true, padding: 40 },
                                     });
                                     cy.fit();
                               } catch (err) {

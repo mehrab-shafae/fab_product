@@ -963,17 +963,23 @@ export const categoryService = {
       async addAttribute(categoryId, attributeData, transaction = null) {
             const { name, type, required = false, order = 0 } = attributeData;
             // ساخت attribute جدید
-            const attribute = await CategoryAttribute.create({
-                  name,
-                  type,
-                  required,
-                  order,
-            }, transaction ? { transaction } : {});
+            const attribute = await CategoryAttribute.create(
+                  {
+                        name,
+                        type,
+                        required,
+                        order,
+                  },
+                  transaction ? { transaction } : {}
+            );
             // ثبت association در جدول join
-            await CategoryAttributeCategory.create({
-                  category_id: categoryId,
-                  category_attribute_id: attribute.id,
-            }, transaction ? { transaction } : {});
+            await CategoryAttributeCategory.create(
+                  {
+                        category_id: categoryId,
+                        category_attribute_id: attribute.id,
+                  },
+                  transaction ? { transaction } : {}
+            );
             return attribute;
       },
 
@@ -1017,11 +1023,14 @@ export const categoryService = {
 
       // Attribute option management
       async addAttributeOption(attributeId, value, order = 0, transaction = null) {
-            return await CategoryAttributeOption.create({
-                  category_attribute_id: attributeId,
-                  value,
-                  order,
-            }, transaction ? { transaction } : {});
+            return await CategoryAttributeOption.create(
+                  {
+                        category_attribute_id: attributeId,
+                        value,
+                        order,
+                  },
+                  transaction ? { transaction } : {}
+            );
       },
 
       async updateAttributeOption(optionId, value, order) {
