@@ -13,6 +13,7 @@
     "start": "node .",
     "start:minio": "node build/minio/index.js",
     "start:profile": "node build/profile/index.js",
+    "start:admin": "node build/admin-panel/index.js",
     "build": "tsc",
     "run": "tsc && node .",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""

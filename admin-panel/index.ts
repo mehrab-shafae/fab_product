@@ -83,9 +83,11 @@ const pgPool = new Pool({
 
 function free() {
       pgPool.end();
+      process.exit(0);
 }
 
 function main() {
+      try {
       app.locals.pgPool = pgPool;
 
       app.use('/', adminRoutes);
@@ -103,11 +105,15 @@ function main() {
       app.listen(PORT, function () {
             console.log(`Database Admin Panel available at http://localhost:${PORT}`);
       });
+
+      } catch (err) {
+            console.error('Failed to start admin panel:', err);
+            process.exit(1);
+      }
 }
 
 main();
 
-process.on('beforeExit', free);
 process.on('SIGINT', free);
 process.on('SIGTERM', free);
 process.on('SIGQUIT', free);

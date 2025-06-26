@@ -10,7 +10,7 @@ const router = express.Router();
 
 // Admin Panel HTML
 router.get('/', (req, res) => {
-      res.sendFile(cwd('admin-panel.html'));
+      res.sendFile(cwd('admin-panel/admin-panel.html'));
 });
 
 // Get all tables with detailed information
