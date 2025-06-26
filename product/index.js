@@ -14,7 +14,7 @@ import helmet from 'helmet';
 import YAML from 'yamljs';
 import { sequelize, seedDefaultLanguages } from './models/index.js';
 import categoryRoutes from './routes/categoryRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
+//import adminRoutes from '../admin-panel/adminRoutes.js';
 import i18nRoutes from './routes/i18nRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './models/index.js';
 import { generateSlug } from './utils/slugGenerator.js';
@@ -24,7 +24,7 @@ import { v4 as uuidv4 } from 'uuid';
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
 
-const PORT = process.env.PORT || 5003;
+const PORT = 7001;
 const POSTGRES_URI = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 
 const { combine, timestamp, printf, colorize } = format;
@@ -418,14 +418,14 @@ async function init() {
 
       app.use('/api/i18n', i18nRoutes);
 
-      if (isDevelopment) {
+      /*if (isDevelopment) {
             // Make pgPool available to routes
             app.locals.pgPool = pgPool;
 
             // Admin Panel Routes - Only available in development
             app.use('/admin', adminRoutes);
             app.use('/api/admin', adminRoutes);
-      }
+      }*/
 
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {

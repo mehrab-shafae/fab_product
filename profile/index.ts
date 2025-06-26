@@ -22,7 +22,7 @@ import userBlockRoutes from './routes/userBlockRoutes.js';
 import userPreferenceRoutes from './routes/userPreferenceRoutes.js';
 import { readFileSync } from 'fs';
 
-const PORT = process.env.PROFILE_PORT || 5005;
+const PORT = 7003;
 const app = express();
 
 // Load Swagger document
