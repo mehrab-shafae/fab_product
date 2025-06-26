@@ -6,7 +6,7 @@ import { i18nService } from './i18nService.js';
 export const categoryService = {
       // Create a new category
       async create(categoryData) {
-            let { image_ids, attributes, meta_keywords, ...rest } = categoryData;
+            let { image_ids, attributes, meta_keywords, attribute_metadata, ...rest } = categoryData;
             meta_keywords = normalizeMetaKeywords(meta_keywords);
             // Backward compatibility: if old data has image_url, convert to image_ids
             // if (!image_ids && categoryData.image_url) {
@@ -66,6 +66,7 @@ export const categoryService = {
                               order,
                               status,
                               is_featured,
+                              ...(attribute_metadata ? { attribute_metadata } : {}),
                         },
                         { transaction }
                   );
@@ -108,6 +109,27 @@ export const categoryService = {
                                     },
                                     { transaction }
                               );
+                        }
+                  }
+
+                  // Handle attribute_metadata if provided
+                  if (attribute_metadata && Array.isArray(attribute_metadata)) {
+                        for (const attrMeta of attribute_metadata) {
+                              // جدا کردن options از attribute
+                              const { options, ...attributeFields } = attrMeta;
+                              // ساخت attribute و association
+                              const attribute = await categoryService.addAttribute(category.id, attributeFields, transaction);
+                              // اگر options وجود داشت، هرکدام را جدا ثبت کن
+                              if (options && Array.isArray(options)) {
+                                    for (const option of options) {
+                                          // option می‌تواند object یا مقدار ساده باشد
+                                          if (typeof option === 'object') {
+                                                await categoryService.addAttributeOption(attribute.id, option.value, option.order, transaction);
+                                          } else {
+                                                await categoryService.addAttributeOption(attribute.id, option, 0, transaction);
+                                          }
+                                    }
+                              }
                         }
                   }
 
@@ -938,34 +960,20 @@ export const categoryService = {
       },
 
       // Category attribute management
-      async addAttribute(categoryId, attributeData) {
-            const { name, type, required = false, order = 0, options = [] } = attributeData;
-
+      async addAttribute(categoryId, attributeData, transaction = null) {
+            const { name, type, required = false, order = 0 } = attributeData;
             // ساخت attribute جدید
             const attribute = await CategoryAttribute.create({
                   name,
                   type,
                   required,
                   order,
-            });
-
+            }, transaction ? { transaction } : {});
             // ثبت association در جدول join
             await CategoryAttributeCategory.create({
                   category_id: categoryId,
                   category_attribute_id: attribute.id,
-            });
-
-            // Add options if provided
-            if (options && options.length > 0) {
-                  for (const option of options) {
-                        await CategoryAttributeOption.create({
-                              category_attribute_id: attribute.id,
-                              value: option.value,
-                              order: option.order || 0,
-                        });
-                  }
-            }
-
+            }, transaction ? { transaction } : {});
             return attribute;
       },
 
@@ -1008,12 +1016,12 @@ export const categoryService = {
       },
 
       // Attribute option management
-      async addAttributeOption(attributeId, value, order = 0) {
+      async addAttributeOption(attributeId, value, order = 0, transaction = null) {
             return await CategoryAttributeOption.create({
                   category_attribute_id: attributeId,
                   value,
                   order,
-            });
+            }, transaction ? { transaction } : {});
       },
 
       async updateAttributeOption(optionId, value, order) {
