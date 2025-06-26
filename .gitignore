@@ -1,5 +1,6 @@
 node_modules/
 *.lock
+*-lock.json
 **/*.log
 .env
 build/
