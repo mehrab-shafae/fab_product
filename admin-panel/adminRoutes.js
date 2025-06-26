@@ -7,12 +7,9 @@ import { Pool } from 'pg';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Serve static files from admin-panel directory
-//const staticPath = join(__dirname);
-//const staticMiddleware = express.static(staticPath);
-
 const router = express.Router();
-//router.use(staticMiddleware);
+
+router.use('/', express.static(cwd('admin-panel/pub')));
 
 // Helper to get a Pool for a specific database
 function getPoolForDatabase(req, dbName) {
@@ -20,11 +17,6 @@ function getPoolForDatabase(req, dbName) {
       const baseUri = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/`;
       return new Pool({ connectionString: baseUri + dbName });
 }
-
-// Admin Panel HTML
-/*router.get('/', (req, res) => {
-      res.sendFile(cwd('admin-panel/admin-panel.html'));
-});*/
 
 // List all databases (excluding templates)
 router.get('/databases', async (req, res) => {

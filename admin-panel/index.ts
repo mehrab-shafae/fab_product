@@ -258,7 +258,7 @@ function main() {
       app.locals.pgPool = pgPool;
 
       app.use(responseHandler);
-      app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+      app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
       app.use('/', adminRoutes);
 
       app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -273,7 +273,7 @@ function main() {
 
       app.listen(PORT, function () {
             console.log(`Database Admin Panel available at http://localhost:${PORT}`);
-            console.log(`Swagger UI available at http://localhost:${PORT}/docs`);
+            console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
       });
 
       } catch (err) {
