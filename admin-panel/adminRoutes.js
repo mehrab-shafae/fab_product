@@ -28,7 +28,6 @@ router.get('/databases', async (req, res) => {
             const result = await pgPool.query(
                   `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;`
             );
-            console.log('Databases:', result.rows);
             res.success(result.rows.map(r => r.datname));
       } catch (error) {
             res.error(error);
