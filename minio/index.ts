@@ -1,18 +1,19 @@
+import 'dotenv/config';
+import '../cwd.js';
+
 import express from 'express';
 import minioRoutes from './minioRoutes.js';
-import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
-import path from 'path';
-dotenv.config();
+import { readFileSync } from 'fs';
 
-const swaggerDocument = YAML.load(path.join(__dirname, 'swagger.yaml'));
+const swaggerDocument = YAML.parse(readFileSync(cwd('minio/swagger.yaml'), 'utf8'));
 
 const app = express();
 
 app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
-app.use('/minio', minioRoutes);
+app.use('/', minioRoutes);
 
 const PORT = 7004;
 app.listen(PORT, () => {

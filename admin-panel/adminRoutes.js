@@ -266,7 +266,7 @@ router.get('/overview', async (req, res) => {
 
             res.success({
                   database_info: {
-                        name: process.env.POSTGRES_DB || 'product_db',
+                        name: process.env.POSTGRES_DB || 'postgres',
                         size: dbSizeResult.rows[0].database_size,
                         size_bytes: parseInt(dbSizeResult.rows[0].size_bytes),
                         total_tables: parseInt(tablesCountResult.rows[0].total_tables),

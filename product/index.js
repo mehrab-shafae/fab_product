@@ -418,15 +418,6 @@ async function init() {
 
       app.use('/api/i18n', i18nRoutes);
 
-      /*if (isDevelopment) {
-            // Make pgPool available to routes
-            app.locals.pgPool = pgPool;
-
-            // Admin Panel Routes - Only available in development
-            app.use('/admin', adminRoutes);
-            app.use('/api/admin', adminRoutes);
-      }*/
-
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
                   error: err.message,
@@ -441,9 +432,6 @@ async function init() {
       app.listen(PORT, function () {
             console.log(`Product service is running on port ${PORT}`);
             console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
-            if (isDevelopment) {
-                  console.log(`Database Admin Panel available at http://localhost:${PORT}/admin`);
-            }
       });
 }
 
