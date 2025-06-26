@@ -1170,7 +1170,7 @@
                         <div class="table-name">
                             <i class="fas fa-table table-icon"></i>
                             ${table.name}
-                            ${(table.is_deleted || table.deleted_at) ? '<span class="deleted-badge">Deleted</span>' : ''}
+                            ${table.is_deleted || table.deleted_at ? '<span class="deleted-badge">Deleted</span>' : ''}
                         </div>
                         <div class="table-size">
                             <i class="fas fa-hdd"></i>

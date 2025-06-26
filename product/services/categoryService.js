@@ -101,10 +101,13 @@ export const categoryService = {
                               }
 
                               // Create association
-                              await CategoryAttributeCategory.create({
-                                    category_id: category.id,
-                                    category_attribute_id: categoryAttribute.id,
-                              }, { transaction });
+                              await CategoryAttributeCategory.create(
+                                    {
+                                          category_id: category.id,
+                                          category_attribute_id: categoryAttribute.id,
+                                    },
+                                    { transaction }
+                              );
                         }
                   }
 
@@ -299,7 +302,7 @@ export const categoryService = {
             // Validate and normalize ordering parameters
             const validOrderFields = ['id', 'name', 'order', 'created_at', 'updated_at'];
             const validOrderDirections = ['ASC', 'DESC'];
-            
+
             if (!validOrderFields.includes(orderBy)) {
                   orderBy = 'id';
             }
@@ -344,18 +347,20 @@ export const categoryService = {
             const offset = (page - 1) * limit;
 
             // Build nested children include with proper ordering
-            const buildChildrenInclude = (depth) => {
+            const buildChildrenInclude = depth => {
                   if (depth <= 0) return [];
-                  
-                  return [{
-                        model: Category,
-                        as: 'children',
-                        where,
-                        required: false,
-                        attributes: ['id', 'name', 'slug', 'parent_id', 'order', 'status', 'is_featured', 'image_ids', 'icon_ids'],
-                        order: [[orderBy, orderDirection]],
-                        include: buildChildrenInclude(depth - 1),
-                  }];
+
+                  return [
+                        {
+                              model: Category,
+                              as: 'children',
+                              where,
+                              required: false,
+                              attributes: ['id', 'name', 'slug', 'parent_id', 'order', 'status', 'is_featured', 'image_ids', 'icon_ids'],
+                              order: [[orderBy, orderDirection]],
+                              include: buildChildrenInclude(depth - 1),
+                        },
+                  ];
             };
 
             const result = await Category.findAll({
@@ -363,10 +368,7 @@ export const categoryService = {
                         ...where,
                         parent_id: null,
                   },
-                  include: [
-                        ...buildChildrenInclude(maxDepth),
-                        ...include,
-                  ],
+                  include: [...buildChildrenInclude(maxDepth), ...include],
                   attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_ids', 'icon_ids', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
                   order: [[orderBy, orderDirection]],
                   limit,
@@ -467,12 +469,10 @@ export const categoryService = {
                         await CategoryAttribute.destroy({
                               where: {
                                     id: {
-                                          [Op.notIn]: (
-                                                await CategoryAttributeCategory.findAll({ attributes: ['category_attribute_id'], transaction })
-                                          ).map(a => a.category_attribute_id)
-                                    }
+                                          [Op.notIn]: (await CategoryAttributeCategory.findAll({ attributes: ['category_attribute_id'], transaction })).map(a => a.category_attribute_id),
+                                    },
                               },
-                              transaction
+                              transaction,
                         });
 
                         // Create new attributes
@@ -505,10 +505,13 @@ export const categoryService = {
                               }
 
                               // Create association
-                              await CategoryAttributeCategory.create({
-                                    category_id: id,
-                                    category_attribute_id: categoryAttribute.id,
-                              }, { transaction });
+                              await CategoryAttributeCategory.create(
+                                    {
+                                          category_id: id,
+                                          category_attribute_id: categoryAttribute.id,
+                                    },
+                                    { transaction }
+                              );
                         }
                   }
 
@@ -1025,12 +1028,14 @@ export const categoryService = {
 
             while (currentCategoryId) {
                   const category = await Category.findByPk(currentCategoryId, {
-                        include: [{
-                              model: CategoryAttribute,
-                              as: 'attributes',
-                              where: { required: true },
-                              include: [{ model: CategoryAttributeOption, as: 'options' }]
-                        }]
+                        include: [
+                              {
+                                    model: CategoryAttribute,
+                                    as: 'attributes',
+                                    where: { required: true },
+                                    include: [{ model: CategoryAttributeOption, as: 'options' }],
+                              },
+                        ],
                   });
                   if (category) attributes.unshift(...category.attributes);
 
