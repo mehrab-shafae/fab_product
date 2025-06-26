@@ -33,11 +33,16 @@ router.get('/tree', async (req, res) => {
       try {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 10;
+            const orderBy = req.query.orderBy || 'id';
+            const orderDirection = req.query.orderDirection || 'ASC';
+            
             const treeResult = await categoryService.getTree({
                   status: req.query.status,
                   includeInactive: req.query.includeInactive === 'true',
                   page,
                   limit,
+                  orderBy,
+                  orderDirection,
             });
             res.json({
                   status: 'success',

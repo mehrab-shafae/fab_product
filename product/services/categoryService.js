@@ -293,8 +293,19 @@ export const categoryService = {
       },
 
       // Get optimized category tree with materialized path
-      async getTree({ status = 'active', includeInactive = false, includeStats = false, maxDepth = 3, includeAttributes = true, page = 1, limit = 10 } = {}) {
+      async getTree({ status = 'active', includeInactive = false, includeStats = false, maxDepth = 3, includeAttributes = true, page = 1, limit = 10, orderBy = 'id', orderDirection = 'ASC' } = {}) {
             const where = includeInactive ? {} : { status };
+
+            // Validate and normalize ordering parameters
+            const validOrderFields = ['id', 'name', 'order', 'created_at', 'updated_at'];
+            const validOrderDirections = ['ASC', 'DESC'];
+            
+            if (!validOrderFields.includes(orderBy)) {
+                  orderBy = 'id';
+            }
+            if (!validOrderDirections.includes(orderDirection.toUpperCase())) {
+                  orderDirection = 'ASC';
+            }
 
             const include = [];
             if (includeStats) {
@@ -332,39 +343,32 @@ export const categoryService = {
             });
             const offset = (page - 1) * limit;
 
+            // Build nested children include with proper ordering
+            const buildChildrenInclude = (depth) => {
+                  if (depth <= 0) return [];
+                  
+                  return [{
+                        model: Category,
+                        as: 'children',
+                        where,
+                        required: false,
+                        attributes: ['id', 'name', 'slug', 'parent_id', 'order', 'status', 'is_featured', 'image_ids', 'icon_ids'],
+                        order: [[orderBy, orderDirection]],
+                        include: buildChildrenInclude(depth - 1),
+                  }];
+            };
+
             const result = await Category.findAll({
                   where: {
                         ...where,
                         parent_id: null,
                   },
                   include: [
-                        {
-                              model: Category,
-                              as: 'children',
-                              where,
-                              required: false,
-                              attributes: ['id', 'name', 'slug', 'parent_id', 'order', 'status', 'is_featured', 'image_ids', 'icon_ids'],
-                              include: [
-                                    {
-                                          model: Category,
-                                          as: 'children',
-                                          where,
-                                          required: false,
-                                          attributes: ['id', 'name', 'slug', 'parent_id', 'order', 'status', 'is_featured', 'image_ids', 'icon_ids'],
-                                    },
-                              ],
-                        },
+                        ...buildChildrenInclude(maxDepth),
                         ...include,
                   ],
                   attributes: ['id', 'name', 'slug', 'parent_id', 'description', 'meta_title', 'meta_description', 'meta_keywords', 'image_ids', 'icon_ids', 'order', 'status', 'is_featured', 'level', 'path', 'created_at', 'updated_at'],
-                  order: [
-                        ['order', 'ASC'],
-                        ['name', 'ASC'],
-                        [{ model: Category, as: 'children' }, 'order', 'ASC'],
-                        [{ model: Category, as: 'children' }, 'name', 'ASC'],
-                        [{ model: Category, as: 'children' }, { model: Category, as: 'children' }, 'order', 'ASC'],
-                        [{ model: Category, as: 'children' }, { model: Category, as: 'children' }, 'name', 'ASC'],
-                  ],
+                  order: [[orderBy, orderDirection]],
                   limit,
                   offset,
             });

@@ -6996,6 +6996,17 @@ paths:
         - `maxDepth`: Maximum depth of children to include (default: 3)
         - `page`: Page number for pagination (default: 1)
         - `limit`: Number of root categories per page (default: 10)
+        - `orderBy`: Field to order by (default: id, options: id, name, order, created_at, updated_at)
+        - `orderDirection`: Order direction (default: ASC, options: ASC, DESC)
+        
+        **Ordering Examples:**
+        - `?orderBy=id&orderDirection=ASC` - Order by ID ascending (default, newest categories last)
+        - `?orderBy=id&orderDirection=DESC` - Order by ID descending (newest categories first)
+        - `?orderBy=name&orderDirection=ASC` - Order alphabetically by name
+        - `?orderBy=order&orderDirection=ASC` - Order by custom order field
+        - `?orderBy=created_at&orderDirection=DESC` - Order by creation date (newest first)
+        
+        **Note:** The ordering applies to all levels of the tree (root categories and all children).
       parameters:
         - in: query
           name: status
@@ -7034,6 +7045,20 @@ paths:
             type: integer
             default: 10
           description: Number of root categories per page
+        - in: query
+          name: orderBy
+          schema:
+            type: string
+            enum: [id, name, order, created_at, updated_at]
+            default: id
+          description: Field to order categories by (applies to all levels including children)
+        - in: query
+          name: orderDirection
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+          description: Order direction (ASC for ascending, DESC for descending)
       responses:
         '200':
           description: List of categories in tree structure (paginated)
@@ -7067,16 +7092,29 @@ paths:
                     name: "کالای دیجیتال"
                     slug: "digital-goods"
                     parent_id: null
+                    order: 1
+                    created_at: "2024-01-15T10:30:00Z"
                     children:
                       - id: 2
                         name: "موبایل"
                         slug: "mobile"
                         parent_id: 1
+                        order: 1
+                        created_at: "2024-01-16T09:15:00Z"
+                        children: []
+                      - id: 5
+                        name: "لپ تاپ"
+                        slug: "laptop"
+                        parent_id: 1
+                        order: 2
+                        created_at: "2024-01-17T14:20:00Z"
                         children: []
                   - id: 3
                     name: "لوازم خانگی"
                     slug: "home-appliances"
                     parent_id: null
+                    order: 2
+                    created_at: "2024-01-18T11:45:00Z"
                     children: []
                 pagination:
                   page: 1
