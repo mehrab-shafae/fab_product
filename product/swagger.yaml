@@ -6063,8 +6063,14 @@ paths:
                   items:
                     type: integer
                   description: Array of category IDs to delete
+                resetUniqueFields:
+                  type: boolean
+                  default: true
+                  description: |
+                    If true, unique fields (name and slug) will be changed before deletion so you can immediately create a new category with the same name. Default is true.
             example:
               categoryIds: [1, 2, 3]
+              resetUniqueFields: true
       responses:
         '200':
           description: Categories deleted successfully

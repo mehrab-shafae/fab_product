@@ -543,7 +543,7 @@ export const categoryService = {
       },
 
       // Delete category with optimized checks
-      async delete(id) {
+      async delete(id, resetUniqueFields = true) {
             const category = await Category.findByPk(id);
             if (!category) return false;
 
@@ -569,6 +569,14 @@ export const categoryService = {
 
             // حذف associationهای attribute با این category
             await CategoryAttributeCategory.destroy({ where: { category_id: id } });
+
+            // تغییر مقادیر یونیک قبل از حذف (در صورت نیاز)
+            if (resetUniqueFields) {
+                  const timestamp = Date.now();
+                  const newName = `${category.name}__deleted__${timestamp}`;
+                  const newSlug = category.slug ? `${category.slug}__deleted__${timestamp}` : null;
+                  await category.update({ name: newName, slug: newSlug });
+            }
 
             await category.destroy();
             return true;
@@ -770,7 +778,7 @@ export const categoryService = {
       },
 
       // Bulk delete with validation
-      async bulkDelete(categoryIds) {
+      async bulkDelete(categoryIds, resetUniqueFields = true) {
             const { sequelize } = await import('../models/index.js');
             const transaction = await sequelize.transaction();
 
@@ -802,6 +810,15 @@ export const categoryService = {
 
                         // حذف associationهای attribute با این category
                         await CategoryAttributeCategory.destroy({ where: { category_id: id }, transaction });
+
+                        // تغییر مقادیر یونیک قبل از حذف (در صورت نیاز)
+                        const category = await Category.findByPk(id, { transaction });
+                        if (category && resetUniqueFields) {
+                              const timestamp = Date.now();
+                              const newName = `${category.name}__deleted__${timestamp}`;
+                              const newSlug = category.slug ? `${category.slug}__deleted__${timestamp}` : null;
+                              await category.update({ name: newName, slug: newSlug }, { transaction });
+                        }
 
                         const deleted = await Category.destroy({
                               where: { id },

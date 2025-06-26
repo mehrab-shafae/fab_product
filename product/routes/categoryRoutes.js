@@ -98,10 +98,10 @@ router.put('/bulk', categoryValidation.bulkUpdate, handleValidationErrors, logCa
 // NEW: Bulk delete categories
 router.delete('/bulk', categoryValidation.bulkDelete, handleValidationErrors, logCategoryOperation('bulk_delete'), async (req, res) => {
       try {
-            const { categoryIds } = req.body;
-            const results = await Promise.all(categoryIds.map(id => categoryService.delete(id)));
+            const { categoryIds, resetUniqueFields = true } = req.body;
+            const results = await Promise.all(categoryIds.map(id => categoryService.delete(id, resetUniqueFields)));
 
-            const successCount = results.filter(result => result).length;
+            const successCount = results.filter(result => result && (result.success === undefined ? result : result.success)).length;
             const failedCount = results.length - successCount;
 
             res.json({
