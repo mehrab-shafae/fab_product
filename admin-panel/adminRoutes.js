@@ -7,7 +7,12 @@ import { Pool } from 'pg';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Serve static files from admin-panel directory
+//const staticPath = join(__dirname);
+//const staticMiddleware = express.static(staticPath);
+
 const router = express.Router();
+//router.use(staticMiddleware);
 
 // Helper to get a Pool for a specific database
 function getPoolForDatabase(req, dbName) {
@@ -17,9 +22,9 @@ function getPoolForDatabase(req, dbName) {
 }
 
 // Admin Panel HTML
-router.get('/', (req, res) => {
+/*router.get('/', (req, res) => {
       res.sendFile(cwd('admin-panel/admin-panel.html'));
-});
+});*/
 
 // List all databases (excluding templates)
 router.get('/databases', async (req, res) => {
@@ -399,6 +404,50 @@ router.get('/tables/:tableName/structure', async (req, res) => {
       } catch (error) {
             res.error(error);
       }
+});
+
+// Export table data as CSV or JSON
+router.get('/tables/:tableName/export', async (req, res) => {
+    try {
+        const { tableName } = req.params;
+        const dbName = req.query.database;
+        const format = req.query.format || 'csv';
+        const pgPool = getPoolForDatabase(req, dbName);
+        const dataResult = await pgPool.query(`SELECT * FROM "${tableName}"`);
+        if (format === 'json') {
+            res.setHeader('Content-Disposition', `attachment; filename="${tableName}.json"`);
+            res.setHeader('Content-Type', 'application/json');
+            return res.send(JSON.stringify(dataResult.rows, null, 2));
+        } else {
+            // Generate CSV
+            const rows = dataResult.rows;
+            if (!rows.length) {
+                res.setHeader('Content-Disposition', `attachment; filename="${tableName}.csv"`);
+                res.setHeader('Content-Type', 'text/csv');
+                return res.send('');
+            }
+            const escapeCSV = (val) => {
+                if (val === null || val === undefined) return '';
+                let str = String(val);
+                // Escape double quotes by doubling them
+                str = str.replace(/"/g, '""');
+                // If value contains comma, newline, or double quote, wrap in double quotes
+                if (/[",\n]/.test(str)) {
+                    str = `"${str}"`;
+                }
+                return str;
+            };
+            const columns = Object.keys(rows[0]);
+            const header = columns.map(escapeCSV).join(',');
+            const csvRows = rows.map(row => columns.map(col => escapeCSV(row[col])).join(','));
+            const csv = [header, ...csvRows].join('\n');
+            res.setHeader('Content-Disposition', `attachment; filename="${tableName}.csv"`);
+            res.setHeader('Content-Type', 'text/csv');
+            res.send(csv);
+        }
+    } catch (error) {
+        res.status(500).send('Export failed: ' + error.message);
+    }
 });
 
 export default router;

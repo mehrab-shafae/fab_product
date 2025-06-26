@@ -389,13 +389,12 @@
 
                   /* Table View */
                   .table-container {
-                        background: var(--bg-primary);
-                        border: 1px solid var(--border-color);
+                        background: #fffbe6 !important;
+                        border: 2px dashed #f59e0b !important;
                         border-radius: var(--radius-lg);
                         overflow: hidden;
                         box-shadow: var(--shadow-sm);
-                        height: calc(100vh - 300px);
-                        min-height: 400px;
+                        margin-bottom: 2rem;
                         display: flex;
                         flex-direction: column;
                   }
@@ -435,9 +434,12 @@
 
                   .table-content {
                         flex: 1;
-                        overflow: auto;
-                        min-height: 0;
+                        overflow: auto !important;
+                        min-height: 120px;
+                        max-height: 70vh;
                         position: relative;
+                        background: #f1f5f9 !important;
+                        border: 2px dashed #3b82f6 !important;
                   }
 
                   .data-table {
@@ -763,9 +765,12 @@
                         }
 
                         .table-container {
-                              height: auto;
-                              min-height: 300px;
-                              max-height: 60vh;
+                              min-height: 200px;
+                              max-height: none;
+                        }
+
+                        .table-content {
+                              max-height: 40vh;
                         }
 
                         .table-toolbar {
@@ -834,7 +839,12 @@
                         }
 
                         .table-container {
-                              max-height: 50vh;
+                              min-height: 120px;
+                              max-height: none;
+                        }
+
+                        .table-content {
+                              max-height: 30vh;
                         }
 
                         .data-table {
@@ -1136,6 +1146,19 @@
                   </div>
             </div>
 
+            <div id="erdModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:10000;background:rgba(30,41,59,0.7);align-items:center;justify-content:center;">
+                  <div style="background:#fff;border-radius:0.75rem;box-shadow:0 10px 40px rgba(0,0,0,0.15);padding:2rem;min-width:320px;max-width:95vw;max-height:90vh;overflow:auto;position:relative;">
+                        <button onclick="adminPanel.hideErdModal()" style="position:absolute;top:1rem;right:1rem;background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button>
+                        <h2 style="margin-bottom:1rem;font-size:1.2rem;color:#6366f1;">نمودار ارتباط جداول (ERD)</h2>
+                        <div id="erdGraph" style="width:80vw;max-width:1200px;height:70vh;min-height:400px;background:#f8fafc;border-radius:0.5rem;"></div>
+                        <div id="erdLoading" style="display:none;text-align:center;padding:1rem;color:#64748b;"><div class="loading-spinner" style="margin:2rem auto;"></div>در حال بارگذاری نمودار...</div>
+                        <div id="erdError" style="display:none;text-align:center;padding:1rem;color:#ef4444;"></div>
+                  </div>
+            </div>
+
+            <div id="toastContainer" style="position:fixed;top:1.5rem;right:1.5rem;z-index:99999;"></div>
+
+            <script src="./cytoscape.min.js"></script>
             <script>
                   class DatabaseAdminPanel {
                         constructor() {
@@ -1300,6 +1323,8 @@
                                     const tableName = item.querySelector('.table-name').textContent.toLowerCase();
                                     if (tableName.includes(searchTerm.toLowerCase())) {
                                           item.style.display = 'block';
+                                          // Highlight
+                                          item.querySelector('.table-name').innerHTML = tableName.replace(new RegExp(searchTerm, 'gi'), match => `<mark style="background:#fde68a;color:#92400e;">${match}</mark>`);
                                     } else {
                                           item.style.display = 'none';
                                     }
@@ -1393,6 +1418,22 @@
                                     <button class="btn btn-primary btn-sm" onclick="adminPanel.showTableStructure()">
                                         <i class="fas fa-cog"></i>
                                         Structure
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" onclick="adminPanel.exportTable('csv')">
+                                        <i class="fas fa-file-csv"></i>
+                                        Export CSV
+                                    </button>
+                                    <button class="btn btn-secondary btn-sm" onclick="adminPanel.exportTable('json')">
+                                        <i class="fas fa-file-code"></i>
+                                        Export JSON
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="adminPanel.showTableRelationships()">
+                                        <i class="fas fa-project-diagram"></i>
+                                        روابط
+                                    </button>
+                                    <button class="btn btn-primary btn-sm" onclick="adminPanel.showRecentActivity()">
+                                        <i class="fas fa-history"></i>
+                                        فعالیت‌های اخیر
                                     </button>
                                 </div>
                             </div>
@@ -1618,8 +1659,72 @@
                                 </table>
                             </div>
                         </div>
+                        <div class="table-container" style="margin-top:2rem;">
+                            <div class="table-toolbar">
+                                <div class="table-info">
+                                    <div class="info-item">
+                                        <i class="fas fa-project-diagram"></i>
+                                        ERD (Entity Relationship Diagram)
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-content">
+                                <div id="overviewErdLoading" class="loading-container" style="display:none;"><div class="loading-spinner"></div>در حال بارگذاری نمودار...</div>
+                                <div id="overviewErdError" class="error-container" style="display:none;"></div>
+                                <div id="overviewErdGraph" style="width:100%;min-height:400px;height:60vh;background:#f8fafc;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;">
+                                  <span style="color:#f59e0b;font-weight:bold;">[ERD CONTAINER VISIBLE]</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 `;
+                              this.renderOverviewErd();
+                        }
+
+                        async renderOverviewErd() {
+                              const loading = document.getElementById('overviewErdLoading');
+                              const error = document.getElementById('overviewErdError');
+                              const graph = document.getElementById('overviewErdGraph');
+                              if (!this.currentDatabase || !loading || !error || !graph) return;
+                              loading.style.display = 'block';
+                              error.style.display = 'none';
+                              graph.innerHTML = '';
+                              try {
+                                    // Fetch all tables
+                                    const tablesRes = await fetch(`http://localhost:7002/tables?database=${encodeURIComponent(this.currentDatabase)}`);
+                                    const tablesData = await tablesRes.json();
+                                    if (!tablesData.status || tablesData.status !== 'success') throw new Error('Failed to load tables');
+                                    const tables = tablesData.data;
+                                    // Fetch all relationships for all tables
+                                    const rels = [];
+                                    for (const table of tables) {
+                                          const relRes = await fetch(`http://localhost:7002/tables/${table.name}/relationships?database=${encodeURIComponent(this.currentDatabase)}`);
+                                          const relData = await relRes.json();
+                                          if (relData.status === 'success' && relData.data && Array.isArray(relData.data.relationships)) {
+                                                rels.push(...relData.data.relationships);
+                                          }
+                                    }
+                                    // Build Cytoscape elements
+                                    const nodes = tables.map(t => ({ data: { id: t.name, label: t.name } }));
+                                    const edges = rels.map(r => ({ data: { source: r.table_name, target: r.foreign_table_name, label: r.column_name + ' → ' + r.foreign_column_name } }));
+                                    loading.style.display = 'none';
+                                    // Render graph
+                                    const cy = cytoscape({
+                                          container: graph,
+                                          elements: { nodes, edges },
+                                          style: [
+                                                { selector: 'node', style: { 'background-color': '#6366f1', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '16px', 'width': 60, 'height': 60, 'border-width': 2, 'border-color': '#4f46e5' } },
+                                                { selector: 'edge', style: { 'width': 3, 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'font-size': '12px', 'color': '#64748b', 'text-background-color': '#fff', 'text-background-opacity': 1, 'text-background-padding': 2 } },
+                                                { selector: ':selected', style: { 'background-color': '#10b981', 'line-color': '#10b981', 'target-arrow-color': '#10b981', 'source-arrow-color': '#10b981' } }
+                                          ],
+                                          layout: { name: 'cose', animate: true, fit: true, padding: 40 }
+                                    });
+                                    cy.fit();
+                              } catch (err) {
+                                    loading.style.display = 'none';
+                                    error.style.display = 'block';
+                                    error.innerText = 'خطا در بارگذاری نمودار: ' + (err.message || err);
+                              }
                         }
 
                         async showTableStructure() {
@@ -1773,17 +1878,222 @@
                               document.getElementById('content').innerHTML = `
                     <div class="loading-container">
                         <div class="loading-spinner"></div>
-                        <div>Loading data...</div>
+                        <div>در حال بارگذاری...</div>
                     </div>
                 `;
                         }
 
                         showError(message) {
+                              this.showToast(message, 'error');
                               document.getElementById('content').innerHTML = `
                     <div class="error-container">
                         <strong>Error:</strong> ${message}
                     </div>
                 `;
+                        }
+
+                        showToast(message, type = 'info') {
+                              const toastContainer = document.getElementById('toastContainer');
+                              const toast = document.createElement('div');
+                              toast.className = `toast fade-in ${type}`;
+                              toast.style = `background:${type==='error'?'#ef4444':'#10b981'};color:#fff;padding:1rem 1.5rem;border-radius:0.5rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:0.75rem;min-width:220px;display:flex;align-items:center;gap:0.75rem;font-weight:600;`;
+                              toast.innerHTML = `<i class="fas fa-${type==='error'?'exclamation-triangle':'check-circle'}"></i> ${message} <span style='flex:1'></span><button style='background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;' onclick='this.parentNode.remove()'>&times;</button>`;
+                              toastContainer.appendChild(toast);
+                              setTimeout(()=>{toast.remove();}, 6000);
+                        }
+
+                        async exportTable(format) {
+                              if (!this.currentDatabase || !this.currentTable) return;
+                              fetch(`http://localhost:7002/tables/${this.currentTable}/export?database=${encodeURIComponent(this.currentDatabase)}&format=${format}`)
+                                    .then(response => response.blob())
+                                    .then(blob => {
+                                          const url = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = `${this.currentTable}.${format}`;
+                                          document.body.appendChild(a);
+                                          a.click();
+                                          a.remove();
+                                    });
+                        }
+
+                        async showTableRelationships() {
+                              if (!this.currentDatabase || !this.currentTable) return;
+                              this.showLoading();
+                              try {
+                                    const response = await fetch(`http://localhost:7002/tables/${this.currentTable}/relationships?database=${encodeURIComponent(this.currentDatabase)}`);
+                                    const data = await response.json();
+                                    if (data.status === 'success') {
+                                          this.renderTableRelationships(data.data);
+                                    } else {
+                                          throw new Error(data.message);
+                                    }
+                              } catch (error) {
+                                    this.showError('Failed to load relationships: ' + error.message);
+                              }
+                        }
+
+                        renderTableRelationships(data) {
+                              const content = document.getElementById('content');
+                              const rels = data.relationships || [];
+                              content.innerHTML = `
+                        <div class="content-header">
+                            <div class="content-title">${this.currentTable} - روابط جداول</div>
+                            <div class="content-subtitle">Foreign key relationships</div>
+                        </div>
+                        <div class="content-body">
+                            <div class="table-container">
+                                <div class="table-toolbar">
+                                    <div class="table-info">
+                                        <div class="info-item">
+                                            <i class="fas fa-project-diagram"></i>
+                                            ${rels.length} رابطه
+                                        </div>
+                                    </div>
+                                    <div class="table-actions">
+                                        <button class="btn btn-secondary btn-sm" onclick="adminPanel.fetchTableData()">
+                                            <i class="fas fa-arrow-left"></i>
+                                            بازگشت به داده‌ها
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-content">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ستون</th>
+                                                <th>جدول مرجع</th>
+                                                <th>ستون مرجع</th>
+                                                <th>نام کانسترینت</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${rels.length ? rels.map(rel => `
+                                                <tr>
+                                                    <td><div class="cell-content">${rel.column_name}</div></td>
+                                                    <td><div class="cell-content">${rel.foreign_table_name}</div></td>
+                                                    <td><div class="cell-content">${rel.foreign_column_name}</div></td>
+                                                    <td><div class="cell-content">${rel.constraint_name}</div></td>
+                                                </tr>
+                                            `).join('') : `<tr><td colspan="4"><div class='empty-state'><i class='fas fa-unlink'></i>رابطه‌ای یافت نشد</div></td></tr>`}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        }
+
+                        async showRecentActivity() {
+                              if (!this.currentDatabase) return;
+                              this.showLoading();
+                              try {
+                                    const response = await fetch(`http://localhost:7002/overview?database=${encodeURIComponent(this.currentDatabase)}`);
+                                    const data = await response.json();
+                                    if (data.status === 'success') {
+                                          this.renderRecentActivity(data.data.recent_activity);
+                                    } else {
+                                          throw new Error(data.message);
+                                    }
+                              } catch (error) {
+                                    this.showError('Failed to load recent activity: ' + error.message);
+                              }
+                        }
+
+                        renderRecentActivity(activity) {
+                              const content = document.getElementById('content');
+                              content.innerHTML = `
+                        <div class="content-header">
+                            <div class="content-title">فعالیت‌های اخیر جداول</div>
+                            <div class="content-subtitle">آخرین رویدادهای vacuum/analyze</div>
+                        </div>
+                        <div class="content-body">
+                            <div class="table-container">
+                                <div class="table-toolbar">
+                                    <div class="table-info">
+                                        <div class="info-item">
+                                            <i class="fas fa-history"></i>
+                                            ${activity.length} رویداد اخیر
+                                        </div>
+                                    </div>
+                                    <div class="table-actions">
+                                        <button class="btn btn-secondary btn-sm" onclick="adminPanel.showOverview()">
+                                            <i class="fas fa-arrow-left"></i>
+                                            بازگشت به نمای کلی
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="table-content">
+                                    <table class="data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>جدول</th>
+                                                <th>آخرین Vacuum</th>
+                                                <th>آخرین Analyze</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${activity.length ? activity.map(ev => `
+                                                <tr>
+                                                    <td><div class="cell-content">${ev.tablename}</div></td>
+                                                    <td><div class="cell-content">${ev.last_vacuum || ev.last_autovacuum || '-'}</div></td>
+                                                    <td><div class="cell-content">${ev.last_analyze || ev.last_autoanalyze || '-'}</div></td>
+                                                </tr>
+                                            `).join('') : `<tr><td colspan='3'><div class='empty-state'><i class='fas fa-inbox'></i>فعالیتی یافت نشد</div></td></tr>`}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                        }
+
+                        async showErd() {
+                              if (!this.currentDatabase) return;
+                              document.getElementById('erdModal').style.display = 'flex';
+                              document.getElementById('erdGraph').innerHTML = '';
+                              document.getElementById('erdLoading').style.display = 'block';
+                              document.getElementById('erdError').style.display = 'none';
+                              try {
+                                    // Fetch all tables
+                                    const tablesRes = await fetch(`http://localhost:7002/tables?database=${encodeURIComponent(this.currentDatabase)}`);
+                                    const tablesData = await tablesRes.json();
+                                    if (!tablesData.status || tablesData.status !== 'success') throw new Error('Failed to load tables');
+                                    const tables = tablesData.data;
+                                    // Fetch all relationships for all tables
+                                    const rels = [];
+                                    for (const table of tables) {
+                                          const relRes = await fetch(`http://localhost:7002/tables/${table.name}/relationships?database=${encodeURIComponent(this.currentDatabase)}`);
+                                          const relData = await relRes.json();
+                                          if (relData.status === 'success' && relData.data && Array.isArray(relData.data.relationships)) {
+                                                rels.push(...relData.data.relationships);
+                                          }
+                                    }
+                                    // Build Cytoscape elements
+                                    const nodes = tables.map(t => ({ data: { id: t.name, label: t.name } }));
+                                    const edges = rels.map(r => ({ data: { source: r.table_name, target: r.foreign_table_name, label: r.column_name + ' → ' + r.foreign_column_name } }));
+                                    // Render graph
+                                    document.getElementById('erdLoading').style.display = 'none';
+                                    const cy = cytoscape({
+                                          container: document.getElementById('erdGraph'),
+                                          elements: { nodes, edges },
+                                          style: [
+                                                { selector: 'node', style: { 'background-color': '#6366f1', 'label': 'data(label)', 'color': '#fff', 'text-valign': 'center', 'text-halign': 'center', 'font-size': '16px', 'width': 60, 'height': 60, 'border-width': 2, 'border-color': '#4f46e5' } },
+                                                { selector: 'edge', style: { 'width': 3, 'line-color': '#64748b', 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', 'curve-style': 'bezier', 'label': 'data(label)', 'font-size': '12px', 'color': '#64748b', 'text-background-color': '#fff', 'text-background-opacity': 1, 'text-background-padding': 2 } },
+                                                { selector: ':selected', style: { 'background-color': '#10b981', 'line-color': '#10b981', 'target-arrow-color': '#10b981', 'source-arrow-color': '#10b981' } }
+                                          ],
+                                          layout: { name: 'cose', animate: true, fit: true, padding: 40 }
+                                    });
+                                    cy.fit();
+                              } catch (err) {
+                                    document.getElementById('erdLoading').style.display = 'none';
+                                    document.getElementById('erdError').style.display = 'block';
+                                    document.getElementById('erdError').innerText = 'خطا در بارگذاری نمودار: ' + (err.message || err);
+                              }
+                        }
+
+                        hideErdModal() {
+                              document.getElementById('erdModal').style.display = 'none';
                         }
                   }
 
