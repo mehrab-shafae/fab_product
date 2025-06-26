@@ -271,10 +271,11 @@ router.get('/overview', async (req, res) => {
             // Get recent activity (last modified tables) - Using a safer approach
             let recentActivityResult = { rows: [] };
             try {
+                  // FIX: Use relname instead of tablename for pg_stat_user_tables
                   const recentActivityQuery = `
                 SELECT 
                     schemaname,
-                    tablename,
+                    relname AS tablename,
                     last_vacuum,
                     last_autovacuum,
                     last_analyze,

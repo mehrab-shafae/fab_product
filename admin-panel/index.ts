@@ -4,8 +4,13 @@ import express from 'express';
 import { Pool } from 'pg';
 import adminRoutes from './adminRoutes.js';
 import { createLogger, transports, format } from 'winston';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
+import { readFileSync } from 'fs';
 
 const { combine, timestamp, printf, colorize } = format;
+
+const swaggerDocument = YAML.parse(readFileSync(cwd('admin-panel/swagger.yaml'), 'utf8'));
 
 const PORT = 7002;
 
@@ -253,6 +258,7 @@ function main() {
       app.locals.pgPool = pgPool;
 
       app.use(responseHandler);
+      app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
       app.use('/', adminRoutes);
 
       app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
@@ -267,6 +273,7 @@ function main() {
 
       app.listen(PORT, function () {
             console.log(`Database Admin Panel available at http://localhost:${PORT}`);
+            console.log(`Swagger UI available at http://localhost:${PORT}/docs`);
       });
 
       } catch (err) {
