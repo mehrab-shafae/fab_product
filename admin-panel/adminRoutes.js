@@ -2,22 +2,44 @@ import express from 'express';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { Pool } from 'pg';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const router = express.Router();
 
+// Helper to get a Pool for a specific database
+function getPoolForDatabase(req, dbName) {
+      if (!dbName) return req.app.locals.pgPool;
+      const baseUri = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/`;
+      return new Pool({ connectionString: baseUri + dbName });
+}
+
 // Admin Panel HTML
 router.get('/', (req, res) => {
       res.sendFile(cwd('admin-panel/admin-panel.html'));
 });
 
-// Get all tables with detailed information
-router.get('/tables', async (req, res) => {
+// List all databases (excluding templates)
+router.get('/databases', async (req, res) => {
       try {
             const pgPool = req.app.locals.pgPool;
+            const result = await pgPool.query(
+                  `SELECT datname FROM pg_database WHERE datistemplate = false ORDER BY datname;`
+            );
+            console.log('Databases:', result.rows);
+            res.success(result.rows.map(r => r.datname));
+      } catch (error) {
+            res.error(error);
+      }
+});
 
+// Get all tables with detailed information
+router.get('/tables', async (req, res) => {
+      const dbName = req.query.database;
+      const pgPool = getPoolForDatabase(req, dbName);
+      try {
             // Get all tables with detailed information
             const query = `
             SELECT 
@@ -77,7 +99,8 @@ router.get('/tables/:tableName', async (req, res) => {
             const page = parseInt(req.query.page) || 1;
             const limit = parseInt(req.query.limit) || 50;
             const offset = (page - 1) * limit;
-            const pgPool = req.app.locals.pgPool;
+            const dbName = req.query.database;
+            const pgPool = getPoolForDatabase(req, dbName);
 
             // Get table columns with detailed information
             const columnsQuery = `
@@ -198,7 +221,8 @@ router.get('/tables/:tableName', async (req, res) => {
 // Get database overview
 router.get('/overview', async (req, res) => {
       try {
-            const pgPool = req.app.locals.pgPool;
+            const dbName = req.query.database;
+            const pgPool = getPoolForDatabase(req, dbName);
 
             // Get database size
             const dbSizeQuery = `
@@ -286,7 +310,8 @@ router.get('/overview', async (req, res) => {
 router.get('/tables/:tableName/relationships', async (req, res) => {
       try {
             const { tableName } = req.params;
-            const pgPool = req.app.locals.pgPool;
+            const dbName = req.query.database;
+            const pgPool = getPoolForDatabase(req, dbName);
 
             // Get foreign key relationships
             const fkQuery = `
@@ -321,7 +346,8 @@ router.get('/tables/:tableName/relationships', async (req, res) => {
 router.get('/tables/:tableName/structure', async (req, res) => {
       try {
             const { tableName } = req.params;
-            const pgPool = req.app.locals.pgPool;
+            const dbName = req.query.database;
+            const pgPool = getPoolForDatabase(req, dbName);
 
             // Get detailed column information
             const structureQuery = `

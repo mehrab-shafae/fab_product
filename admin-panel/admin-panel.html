@@ -1023,6 +1023,56 @@
                         color: #b91c1c;
                         text-decoration: line-through;
                   }
+
+                  /* Database selection modal styles */
+                  #databaseModal {
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(30,41,59,0.7);
+                        z-index: 9999;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                  }
+                  #databaseModal .modal-content {
+                        background: #fff;
+                        border-radius: 0.75rem;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+                        padding: 2.5rem 2rem 2rem 2rem;
+                        min-width: 320px;
+                        max-width: 90vw;
+                        text-align: center;
+                  }
+                  #databaseModal h2 {
+                        font-size: 1.3rem;
+                        font-weight: 700;
+                        margin-bottom: 1.5rem;
+                        color: var(--primary-color);
+                  }
+                  #databaseModal select {
+                        width: 100%;
+                        padding: 0.75rem 1rem;
+                        border-radius: var(--radius-md);
+                        border: 1px solid var(--border-color);
+                        font-size: 1rem;
+                        margin-bottom: 1.5rem;
+                  }
+                  #databaseModal button {
+                        padding: 0.5rem 1.5rem;
+                        background: var(--primary-color);
+                        color: #fff;
+                        border: none;
+                        border-radius: var(--radius-md);
+                        font-size: 1rem;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                  }
+                  #databaseModal button:disabled {
+                        background: var(--border-color);
+                        color: #aaa;
+                        cursor: not-allowed;
+                  }
             </style>
       </head>
       <body>
@@ -1076,30 +1126,91 @@
                   </div>
             </div>
 
+            <div id="databaseModal" style="display:none;">
+                  <div class="modal-content">
+                        <h2>انتخاب دیتابیس</h2>
+                        <select id="modalDatabaseSelect">
+                              <option value="">در حال بارگذاری...</option>
+                        </select>
+                        <button id="selectDatabaseBtn" disabled>تایید</button>
+                  </div>
+            </div>
+
             <script>
                   class DatabaseAdminPanel {
                         constructor() {
+                              this.currentDatabase = null;
                               this.currentTable = null;
                               this.currentPage = 1;
                               this.pageSize = 50;
                               this.tables = [];
                               this.overview = null;
+                              this.databases = [];
                               this.init();
                         }
 
                         async init() {
-                              await this.loadOverview();
-                              await this.loadTables();
+                              await this.loadDatabases();
                               this.setupEventListeners();
-                              this.showOverview();
+                              this.showDatabaseModal();
+                        }
+
+                        async loadDatabases() {
+                              try {
+                                    const response = await fetch('http://localhost:7002/databases');
+                                    if (response.ok) {
+                                          const data = await response.json();
+                                          if (data.status === 'success') {
+                                                this.databases = data.data;
+                                                this.populateDatabaseModal();
+                                          }
+                                    }
+                              } catch (error) {
+                                    console.error('Failed to load databases:', error);
+                              }
+                        }
+
+                        showDatabaseModal() {
+                              const modal = document.getElementById('databaseModal');
+                              modal.style.display = 'flex';
+                              this.populateDatabaseModal();
+                              // Block rest of UI
+                              document.body.style.overflow = 'hidden';
+                              // Handle select change
+                              const select = document.getElementById('modalDatabaseSelect');
+                              const btn = document.getElementById('selectDatabaseBtn');
+                              select.addEventListener('change', () => {
+                                    btn.disabled = !select.value;
+                              });
+                              btn.addEventListener('click', () => {
+                                    if (select.value) {
+                                          this.currentDatabase = select.value;
+                                          modal.style.display = 'none';
+                                          document.body.style.overflow = '';
+                                          this.refreshAll();
+                                    }
+                              });
+                        }
+
+                        populateDatabaseModal() {
+                              const select = document.getElementById('modalDatabaseSelect');
+                              if (!select) return;
+                              if (!this.databases.length) {
+                                    select.innerHTML = '<option value="">دیتابیسی یافت نشد</option>';
+                                    select.disabled = true;
+                                    document.getElementById('selectDatabaseBtn').disabled = true;
+                                    return;
+                              }
+                              select.innerHTML = '<option value="">یک دیتابیس را انتخاب کنید...</option>' +
+                                    this.databases.map(db => `<option value="${db}">${db}</option>`).join('');
+                              select.disabled = false;
+                              document.getElementById('selectDatabaseBtn').disabled = true;
                         }
 
                         setupEventListeners() {
                               document.getElementById('tableSearch').addEventListener('input', e => {
                                     this.filterTables(e.target.value);
                               });
-
-                              // Auto-refresh every 30 seconds
                               setInterval(() => {
                                     if (this.currentTable) {
                                           this.fetchTableData();
@@ -1108,8 +1219,9 @@
                         }
 
                         async loadOverview() {
+                              if (!this.currentDatabase) return;
                               try {
-                                    const response = await fetch('/api/admin/overview');
+                                    const response = await fetch(`http://localhost:7002/overview?database=${encodeURIComponent(this.currentDatabase)}`);
                                     if (response.ok) {
                                           const data = await response.json();
                                           if (data.status === 'success') {
@@ -1122,25 +1234,21 @@
                         }
 
                         async loadTables() {
+                              if (!this.currentDatabase) return;
                               try {
-                                    const response = await fetch('/api/admin/tables', { cache: 'no-store' });
+                                    const response = await fetch(`http://localhost:7002/tables?database=${encodeURIComponent(this.currentDatabase)}`, { cache: 'no-store' });
                                     if (!response.ok) {
                                           throw new Error(`HTTP error! status: ${response.status}`);
                                     }
-
                                     const data = await response.json();
-                                    console.log('Received from /api/admin/tables:', JSON.parse(JSON.stringify(data)));
                                     if (data.status === 'success') {
-                                          // Ensure tables is always an array
                                           if (Array.isArray(data.data)) {
                                                 this.tables = data.data;
                                           } else if (data.data && typeof data.data === 'object' && data.data !== null) {
-                                                // If data.data is an object, convert its values to an array
                                                 this.tables = Object.values(data.data);
                                           } else {
                                                 this.tables = [];
                                           }
-                                          console.log('Updated this.tables:', JSON.parse(JSON.stringify(this.tables)));
                                           this.renderTableList();
                                     } else {
                                           throw new Error(data.message || 'Unknown error');
@@ -1201,29 +1309,23 @@
                         async loadTableData(tableName) {
                               this.currentTable = tableName;
                               this.currentPage = 1;
-
-                              // Update active state
                               document.querySelectorAll('.table-item').forEach(item => {
                                     item.classList.remove('active');
                               });
                               event.target.closest('.table-item').classList.add('active');
-
                               this.showLoading();
                               await this.fetchTableData();
                         }
 
                         async fetchTableData() {
-                              // Add loading state to table refresh button
+                              if (!this.currentDatabase || !this.currentTable) return;
                               const tableRefreshBtn = document.querySelector('.table-actions .btn-secondary i.fa-sync-alt');
                               if (tableRefreshBtn) {
                                     tableRefreshBtn.classList.add('fa-spin');
                               }
-
                               try {
-                                    const response = await fetch(`/api/admin/tables/${this.currentTable}?page=${this.currentPage}&limit=${this.pageSize}`);
+                                    const response = await fetch(`http://localhost:7002/tables/${this.currentTable}?database=${encodeURIComponent(this.currentDatabase)}&page=${this.currentPage}&limit=${this.pageSize}`);
                                     const data = await response.json();
-                                    console.log(`Received from /api/admin/tables/${this.currentTable}:`, JSON.parse(JSON.stringify(data)));
-
                                     if (data.status === 'success') {
                                           this.renderTableData(data.data);
                                     } else {
@@ -1232,7 +1334,6 @@
                               } catch (error) {
                                     this.showError('Failed to load table data: ' + error.message);
                               } finally {
-                                    // Remove loading state
                                     if (tableRefreshBtn) {
                                           tableRefreshBtn.classList.remove('fa-spin');
                                     }
@@ -1522,10 +1623,9 @@
                         }
 
                         async showTableStructure() {
-                              if (!this.currentTable) return;
-
+                              if (!this.currentDatabase || !this.currentTable) return;
                               try {
-                                    const response = await fetch(`/api/admin/tables/${this.currentTable}/structure`);
+                                    const response = await fetch(`http://localhost:7002/tables/${this.currentTable}/structure?database=${encodeURIComponent(this.currentDatabase)}`);
                                     const data = await response.json();
 
                                     if (data.status === 'success') {
@@ -1649,12 +1749,11 @@
                         }
 
                         async refreshAll() {
-                              // Add loading state to refresh button
+                              if (!this.currentDatabase) return;
                               const refreshBtn = document.querySelector('.btn-secondary i.fa-sync-alt');
                               if (refreshBtn) {
                                     refreshBtn.classList.add('fa-spin');
                               }
-
                               try {
                                     await this.loadOverview();
                                     await this.loadTables();
@@ -1664,7 +1763,6 @@
                                           this.showOverview();
                                     }
                               } finally {
-                                    // Remove loading state
                                     if (refreshBtn) {
                                           refreshBtn.classList.remove('fa-spin');
                                     }
