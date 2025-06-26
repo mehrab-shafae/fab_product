@@ -9,7 +9,7 @@ const __dirname = dirname(__filename);
 
 const router = express.Router();
 
-router.use('/', express.static(cwd('admin-panel/pub')));
+router.use('/', express.static(cwd('pgui/pub')));
 
 // Helper to get a Pool for a specific database
 function getPoolForDatabase(req, dbName) {

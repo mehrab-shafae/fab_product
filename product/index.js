@@ -14,7 +14,7 @@ import helmet from 'helmet';
 import YAML from 'yamljs';
 import { sequelize, seedDefaultLanguages } from './models/index.js';
 import categoryRoutes from './routes/categoryRoutes.js';
-//import adminRoutes from '../admin-panel/adminRoutes.js';
+//import adminRoutes from '../pgui/adminRoutes.js';
 import i18nRoutes from './routes/i18nRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './models/index.js';
 import { generateSlug } from './utils/slugGenerator.js';

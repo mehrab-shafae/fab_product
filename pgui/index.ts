@@ -10,7 +10,7 @@ import { readFileSync } from 'fs';
 
 const { combine, timestamp, printf, colorize } = format;
 
-const swaggerDocument = YAML.parse(readFileSync(cwd('admin-panel/swagger.yaml'), 'utf8'));
+const swaggerDocument = YAML.parse(readFileSync(cwd('pgui/swagger.yaml'), 'utf8'));
 
 const PORT = 7002;
 
