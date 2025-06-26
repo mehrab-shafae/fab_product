@@ -20,6 +20,7 @@ import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductA
 import { generateSlug } from './utils/slugGenerator.js';
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
+import { spawn } from 'child_process';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -206,11 +207,6 @@ logger.debug = function (message, metadata = {}) {
 swaggerDocument.info.title = 'Product Microservice API';
 swaggerDocument.info.description = 'API for managing products and related features';
 swaggerDocument.servers[0].description = 'Development server';
-
-process.on('beforeExit', free);
-process.on('SIGINT', free);
-process.on('SIGTERM', free);
-process.on('SIGQUIT', free);
 
 // ======================================================================
 
@@ -432,6 +428,8 @@ async function init() {
       app.listen(PORT, function () {
             console.log(`Product service is running on port ${PORT}`);
             console.log(`Swagger documentation available at http://localhost:${PORT}/api-docs`);
+            // Start PGUi worker after successful startup
+            startPguiWorker();
       });
 }
 
@@ -2696,3 +2694,39 @@ function getRequestId(req) {
       req.requestId = id;
       return id;
 }
+
+// =====================[ PGUI Worker ]=====================
+let pguiProcess = null;
+function startPguiWorker() {
+      if (pguiProcess) return;
+      logger.info('Starting PGUI admin panel worker...');
+      pguiProcess = spawn('node', ['build/pgui/index.js'], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: process.env,
+            cwd: process.cwd(),
+      });
+      const grayBg = '\x1b[100m'; // ANSI gray background
+      const reset = '\x1b[0m';
+      pguiProcess.stdout.on('data', data => {
+            logger.info(`${grayBg}[PGUI] ${data.toString().trim()}${reset}`);
+      });
+      pguiProcess.stderr.on('data', data => {
+            logger.error(`${grayBg}[PGUI] ${data.toString().trim()}${reset}`);
+      });
+      pguiProcess.on('close', code => {
+            logger.info(`PGUI admin panel exited with code ${code}`);
+            pguiProcess = null;
+      });
+}
+function stopPguiWorker() {
+      if (pguiProcess) {
+            logger.info('Stopping PGUI admin panel worker...');
+            pguiProcess.kill('SIGTERM');
+            pguiProcess = null;
+      }
+}
+
+process.on('beforeExit', () => { stopPguiWorker();  free });
+process.on('SIGINT', () => { stopPguiWorker(); free(); });
+process.on('SIGTERM', () => { stopPguiWorker(); free(); });
+process.on('SIGQUIT', () => { stopPguiWorker(); free(); });
