@@ -1,5 +1,4 @@
 import { i18nService } from '../services/i18nService.js';
-import { Language, CategoryTranslation, ProductTranslation, CategoryAttributeTranslation, CategoryAttributeOptionTranslation } from '../models/index.js';
 
 /**
  * Get all available languages

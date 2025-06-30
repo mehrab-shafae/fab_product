@@ -1,5 +1,4 @@
 import { categoryService } from '../services/categoryService.js';
-import { i18nService } from '../services/i18nService.js';
 
 export const categoryController = {
       // Create a new category

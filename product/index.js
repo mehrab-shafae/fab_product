@@ -8,7 +8,7 @@ import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
 import rateLimit from 'express-rate-limit';
 import slowDown from 'express-slow-down';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync } from 'fs';
 import { createLogger, format, transports } from 'winston';
 import helmet from 'helmet';
 import YAML from 'yamljs';
@@ -16,8 +16,7 @@ import { sequelize, seedDefaultLanguages } from './models/index.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 //import adminRoutes from '../pgui/adminRoutes.js';
 import i18nRoutes from './routes/i18nRoutes.js';
-import { Category, CategoryAttribute, CategoryAttributeOption, Product, ProductAttributeValue } from './models/index.js';
-import { generateSlug } from './utils/slugGenerator.js';
+import { Category, CategoryAttribute, CategoryAttributeOption, ProductAttributeValue } from './models/index.js';
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
@@ -550,45 +549,6 @@ function normalizeMetaKeywords(meta_keywords) {
       return [];
 }
 
-function createCategory(categoryData) {
-      const { name, parent_id, meta_keywords } = categoryData;
-      const slug = generateSlug(name);
-      const normalizedParentId = normalizeParentId(parent_id);
-      const normalizedMetaKeywords = normalizeMetaKeywords(meta_keywords);
-      const query = `
-        INSERT INTO categories (name, slug, parent_id, meta_keywords)
-        SELECT 
-            $1::VARCHAR(255),
-            $2::VARCHAR(255),
-            $3::INTEGER,
-            $4::VARCHAR(255)[]
-        WHERE NOT EXISTS (
-            SELECT 1 FROM categories 
-            WHERE (name = $1::VARCHAR(255) OR slug = $2::VARCHAR(255))
-            AND deleted_at IS NULL
-        )
-        RETURNING *
-    `;
-      return pgPool.query(query, [name, slug, normalizedParentId, normalizedMetaKeywords]).then(result => (result.rows.length === 0 ? null : result.rows[0]));
-}
-
-function getCategoryTree() {
-      const query = `
-        WITH RECURSIVE category_tree AS (
-            SELECT id, name, parent_id, 1 as level
-            FROM categories
-            WHERE parent_id IS NULL
-            UNION ALL
-            SELECT c.id, c.name, c.parent_id, ct.level + 1
-            FROM categories c
-            JOIN category_tree ct ON c.parent_id = ct.id
-        )
-        SELECT * FROM category_tree
-        ORDER BY level, id
-    `;
-      return pgPool.query(query);
-}
-
 function addComment(commentData) {
       const { product_id, user_id, comment } = commentData;
       const query = `
@@ -787,55 +747,6 @@ function getProductAnalytics(productId) {
         LEFT JOIN categories c ON ps.id = c.id
     `;
       return pgPool.query(query, [productId]);
-}
-
-function getCategoryAnalytics(categoryId) {
-      const query = `
-        WITH RECURSIVE category_tree AS (
-            SELECT id, name, parent_id, 1 as level
-            FROM categories
-            WHERE id = $1
-            UNION ALL
-            SELECT c.id, c.name, c.parent_id, ct.level + 1
-            FROM categories c
-            JOIN category_tree ct ON c.parent_id = ct.id
-        ),
-        category_stats AS (
-            SELECT 
-                ct.id,
-                ct.name,
-                ct.level,
-                COUNT(DISTINCT p.id) as product_count,
-                COUNT(DISTINCT pc.user_id) as total_viewers,
-                COUNT(DISTINCT pt.tag_name) as total_tags,
-                AVG(p.price) as avg_price,
-                MIN(p.price) as min_price,
-                MAX(p.price) as max_price
-            FROM category_tree ct
-            LEFT JOIN products p ON p.category_id = ct.id
-            LEFT JOIN product_comments pc ON p.id = pc.product_id
-            LEFT JOIN product_tags pt ON p.id = pt.product_id
-            GROUP BY ct.id, ct.name, ct.level
-        )
-        SELECT 
-            cs.*,
-            (
-                SELECT json_agg(subcat_data)
-                FROM (
-                    SELECT 
-                        subcat.id,
-                        subcat.name,
-                        COUNT(DISTINCT p.id) as product_count
-                    FROM categories subcat
-                    LEFT JOIN products p ON p.category_id = subcat.id
-                    WHERE subcat.parent_id = cs.id
-                    GROUP BY subcat.id, subcat.name
-                ) subcat_data
-            ) as subcategories
-        FROM category_stats cs
-        ORDER BY cs.level, cs.product_count DESC
-    `;
-      return pgPool.query(query, [categoryId]);
 }
 
 function createProductVariant(variantData) {
@@ -1058,16 +969,6 @@ function getWishlist(user_id, { page = 1, limit = 10 } = {}) {
       return pgPool.query(query, [user_id, limit, offset]);
 }
 
-function shareProduct(shareData) {
-      const { product_id, user_id, share_type, share_data } = shareData;
-      const query = `
-        INSERT INTO product_shares (product_id, user_id, share_type, share_data)
-        VALUES ($1, $2, $3, $4)
-        RETURNING *
-    `;
-      return pgPool.query(query, [product_id, user_id, share_type, share_data]);
-}
-
 function createProductVersion(versionData) {
       const { product_id, version_number, changes, created_by } = versionData;
       const query = `
@@ -1145,73 +1046,6 @@ function requestLogger(req, res, next) {
       };
 
       next();
-}
-
-function updateCategory(categoryId, categoryData) {
-      const { name, parent_id } = categoryData;
-
-      // Only generate new slug if name is provided
-      let slug = undefined;
-      if (name) {
-            slug = generateSlug(name);
-      }
-
-      // Normalize parent_id: if 0, undefined, or null, set to null
-      const normalizedParentId = !parent_id || Number(parent_id) === 0 ? null : parent_id;
-
-      const query = `
-        UPDATE categories 
-        SET name = COALESCE($1, name),
-            slug = COALESCE($2, slug),
-            parent_id = COALESCE($3, parent_id),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = $4 
-        AND deleted_at IS NULL
-        AND NOT EXISTS (
-            SELECT 1 FROM categories c2 
-            WHERE (c2.name = $1 OR c2.slug = $2)
-            AND c2.id != $4 
-            AND c2.deleted_at IS NULL
-        )
-        RETURNING *
-    `;
-      return pgPool.query(query, [name, slug, normalizedParentId, categoryId]);
-}
-
-function deleteCategory(categoryId) {
-      const query = `
-        UPDATE categories 
-        SET deleted_at = CURRENT_TIMESTAMP
-        WHERE id = $1 AND deleted_at IS NULL
-        RETURNING *
-    `;
-      return pgPool.query(query, [categoryId]);
-}
-
-function getCategoryById(categoryId) {
-      const query = `
-        SELECT c.*, 
-               p.name as parent_name,
-               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
-               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count
-        FROM categories c
-        LEFT JOIN categories p ON c.parent_id = p.id
-        WHERE c.id = $1 AND c.deleted_at IS NULL
-    `;
-      return pgPool.query(query, [categoryId]);
-}
-
-function getCategoryBySlug(slug) {
-      const query = `
-        SELECT c.*, 
-               p.name as parent_name,
-               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
-               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count
-        FROM categories c
-        LEFT JOIN categories p ON c.parent_id = p.id
-        WHERE c.slug = $1 AND c.deleted_at IS NULL
-    `;
-      return pgPool.query(query, [slug]);
 }
 
 // =====================[ errorLogger Enhancement ]=====================
@@ -1715,96 +1549,6 @@ async function getCurrentSchemaVersion() {
       return result.rows[0]?.current_version || 0;
 }
 
-async function searchCategories(searchParams, { page = 1, limit = 10 } = {}) {
-      const { name, slug, parent_id, include_deleted = false } = searchParams;
-      const offset = (page - 1) * limit;
-
-      let conditions = [];
-      let params = [];
-      let paramIndex = 1;
-
-      if (name) {
-            conditions.push(`c.name ILIKE $${paramIndex}`);
-            params.push(`%${name}%`);
-            paramIndex++;
-      }
-
-      if (slug) {
-            conditions.push(`c.slug ILIKE $${paramIndex}`);
-            params.push(`%${slug}%`);
-            paramIndex++;
-      }
-
-      if (parent_id) {
-            conditions.push(`c.parent_id = $${paramIndex}`);
-            params.push(parent_id);
-            paramIndex++;
-      }
-
-      if (!include_deleted) {
-            conditions.push('c.deleted_at IS NULL');
-      }
-
-      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-      const query = `
-        SELECT c.*, 
-               p.name as parent_name,
-               (SELECT COUNT(*) FROM products WHERE category_id = c.id) as product_count,
-               (SELECT COUNT(*) FROM categories subcat WHERE subcat.parent_id = c.id AND subcat.deleted_at IS NULL) as subcategory_count,
-               COUNT(*) OVER() as total_count
-        FROM categories c
-        LEFT JOIN categories p ON c.parent_id = p.id
-        ${whereClause}
-        ORDER BY c.name
-        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
-    `;
-
-      params.push(limit, offset);
-
-      const result = await pgPool.query(query, params);
-
-      return {
-            items: result.rows,
-            pagination: {
-                  page,
-                  limit,
-                  total: parseInt(result.rows[0]?.total_count || 0),
-                  pages: Math.ceil(parseInt(result.rows[0]?.total_count || 0) / limit),
-            },
-      };
-}
-
-async function bulkUpdateCategories(categories) {
-      const client = await pgPool.connect();
-      try {
-            await client.query('BEGIN');
-            const results = [];
-
-            for (const category of categories) {
-                  const { id, name, parent_id } = category;
-                  const result = await client.query(
-                        `UPDATE categories 
-                 SET name = COALESCE($1, name),
-                     parent_id = COALESCE($2, parent_id),
-                     updated_at = CURRENT_TIMESTAMP
-                 WHERE id = $3 AND deleted_at IS NULL
-                 RETURNING *`,
-                        [name, parent_id, id]
-                  );
-                  results.push(result.rows[0]);
-            }
-
-            await client.query('COMMIT');
-            return results;
-      } catch (error) {
-            await client.query('ROLLBACK');
-            throw error;
-      } finally {
-            client.release();
-      }
-}
-
 async function applySchemaMigration(version, name, queries) {
       const client = await pgPool.connect();
       try {
@@ -1896,25 +1640,6 @@ function validateRequiredFieldsMiddleware(requiredFields) {
       };
 }
 
-function validateCategoryMiddleware(req, res, next) {
-      if (req.method === 'POST' || req.method === 'PUT') {
-            const { name, parent_id } = req.body;
-
-            if (!name) {
-                  return res.error('Category name is required', 400);
-            }
-
-            // Only validate parent_id if not null/undefined/empty string
-            if (parent_id !== undefined && parent_id !== null && parent_id !== '') {
-                  if (!Number.isInteger(Number(parent_id))) {
-                        return res.error('Parent ID must be a positive integer', 400);
-                  }
-            }
-      }
-
-      next();
-}
-
 // ======================================================================
 // Controller
 
@@ -1972,27 +1697,6 @@ async function searchProductsController(req, res) {
                   items: result.items,
                   pagination: result.pagination,
             });
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function createCategoryController(req, res) {
-      try {
-            const result = await createCategory(req.body);
-            if (!result) {
-                  return res.error('A category with this name or slug already exists', 409);
-            }
-            res.success(result, 'Category created successfully');
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function getCategoryTreeController(req, res) {
-      try {
-            const result = await getCategoryTree();
-            res.success(result.rows);
       } catch (error) {
             res.error(error);
       }
@@ -2239,7 +1943,6 @@ async function addToWishlistController(req, res) {
             }
 
             const result = await addToWishlist(userId, product_id);
-            await invalidateCachePattern(`/users/${userId}/wishlist`);
             res.json({ id: result.rows[0].id });
       } catch (error) {
             console.error('Error adding to wishlist:', error);
@@ -2324,7 +2027,6 @@ async function addChatMessageController(req, res) {
                   chat_id: req.params.chatId,
             };
             const result = await addChatMessage(messageData);
-            await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
             res.success(result, 'Chat message added successfully');
       } catch (error) {
             res.error(error);
@@ -2351,7 +2053,6 @@ async function getChatMessagesController(req, res) {
 async function markChatMessagesAsReadController(req, res) {
       try {
             const result = await markChatMessagesAsRead(req.params.chatId, req.body.user_id);
-            await invalidateCachePattern(`/chats/${req.params.chatId}/messages`);
             res.success(result, 'Chat messages marked as read successfully');
       } catch (error) {
             res.error(error);
@@ -2363,18 +2064,6 @@ async function getProductAnalyticsController(req, res) {
             const result = await getProductAnalytics(req.params.productId);
             if (!result) {
                   return res.error('Product not found', 404);
-            }
-            res.success(result);
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function getCategoryAnalyticsController(req, res) {
-      try {
-            const result = await getCategoryAnalytics(req.params.categoryId);
-            if (!result) {
-                  return res.error('Category not found', 404);
             }
             res.success(result);
       } catch (error) {
@@ -2404,68 +2093,6 @@ async function getProductPriceStatisticsController(req, res) {
       try {
             const result = await getProductPriceStatistics(req.params.productId, req.query.variant_id);
             res.success(result);
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function updateCategoryController(req, res) {
-      try {
-            const result = await updateCategory(req.params.id, req.body);
-            if (!result) {
-                  // Check if the category exists
-                  const categoryExists = await getCategoryById(req.params.id);
-                  if (!categoryExists) {
-                        return res.error('Category not found', 404);
-                  }
-                  return res.error('A category with this name or slug already exists', 409);
-            }
-            res.success(result, 'Category updated successfully');
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function deleteCategoryController(req, res) {
-      try {
-            const result = await deleteCategory(req.params.id);
-            if (!result) {
-                  return res.error('Category not found', 404);
-            }
-            res.success(result, 'Category deleted successfully');
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function getCategoryByIdController(req, res) {
-      try {
-            const result = await getCategoryById(req.params.id);
-            if (!result) {
-                  return res.error('Category not found', 404);
-            }
-            res.success(result);
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function searchCategoriesController(req, res) {
-      try {
-            const result = await searchCategories(req.query, req.pagination);
-            res.success({
-                  data: result.items || [],
-                  pagination: result.pagination || {},
-            });
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function bulkUpdateCategoriesController(req, res) {
-      try {
-            const result = await bulkUpdateCategories(req.body.categories);
-            res.success(result, 'Categories updated successfully');
       } catch (error) {
             res.error(error);
       }
@@ -2524,18 +2151,6 @@ async function getProductStatisticsController(req, res) {
       try {
             const result = await getProductStatistics();
             res.success(result, 'Product statistics retrieved successfully');
-      } catch (error) {
-            res.error(error);
-      }
-}
-
-async function getCategoryBySlugController(req, res) {
-      try {
-            const result = await getCategoryBySlug(req.params.slug);
-            if (!result) {
-                  return res.error('Category not found', 404);
-            }
-            res.success(result);
       } catch (error) {
             res.error(error);
       }
