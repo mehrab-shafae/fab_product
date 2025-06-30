@@ -2,7 +2,6 @@ import 'dotenv/config';
 import '../cwd.js';
 // ======================================================================
 import express from 'express';
-// import { execSync } from 'child_process';
 import { Pool } from 'pg';
 import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
@@ -14,7 +13,6 @@ import helmet from 'helmet';
 import YAML from 'yamljs';
 import { sequelize, seedDefaultLanguages } from './models/index.js';
 import categoryRoutes from './routes/categoryRoutes.js';
-//import adminRoutes from '../pgui/adminRoutes.js';
 import i18nRoutes from './routes/i18nRoutes.js';
 import { Category, CategoryAttribute, CategoryAttributeOption, ProductAttributeValue } from './models/index.js';
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
@@ -480,32 +478,6 @@ function apiV1Routers(app) {
       app.use('/categories', categoryRoutes);
 }
 
-// function executeLinuxCommand(command) {
-//     try {
-//         return execSync(command, { encoding: 'utf-8' });
-//     } catch (error) {
-//         console.error('Linux command execution failed:', error);
-//         throw error;
-//     }
-// }
-
-// function optimizeSystemForService() {
-//     executeLinuxCommand('ulimit -n 65535');
-
-//     executeLinuxCommand('sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = 500;"');
-//     executeLinuxCommand('sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = 2GB;"');
-//     executeLinuxCommand('sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = 6GB;"');
-//     executeLinuxCommand('sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = 512MB;"');
-//     executeLinuxCommand('sudo -u postgres psql -c "ALTER SYSTEM SET work_mem = 16MB;"');
-
-//     executeLinuxCommand('sync; echo 3 > /proc/sys/vm/drop_caches');
-
-//     executeLinuxCommand('redis-cli config set maxmemory 2gb');
-//     executeLinuxCommand('redis-cli config set maxmemory-policy allkeys-lru');
-
-//     executeLinuxCommand('echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq / scaling_governor');
-// }
-
 function createProduct(productData) {
       const { name, description, price, category_id, metadata } = productData;
 
@@ -533,20 +505,6 @@ function createProduct(productData) {
 
 function getProductById(id) {
       return pgPool.query('SELECT * FROM products WHERE id = $1', [id]);
-}
-
-function normalizeParentId(parent_id) {
-      if (parent_id === undefined || parent_id === null || parent_id === '' || parent_id === 0 || parent_id === '0') return null;
-      if (typeof parent_id === 'string' && parent_id.trim() === '') return null;
-      if (Number.isInteger(parent_id)) return parent_id;
-      const num = Number(parent_id);
-      return Number.isNaN(num) ? null : num;
-}
-function normalizeMetaKeywords(meta_keywords) {
-      if (meta_keywords === undefined || meta_keywords === null) return [];
-      if (Array.isArray(meta_keywords)) return meta_keywords;
-      if (typeof meta_keywords === 'string') return [meta_keywords];
-      return [];
 }
 
 function addComment(commentData) {
