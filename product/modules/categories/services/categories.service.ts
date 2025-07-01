@@ -33,8 +33,25 @@ export class CategoriesService {
     if (exists) throw new Error('Slug already exists');
 
     // آماده‌سازی داده‌های متا و تصاویر
-    const image_ids = data.image_ids || [];
-    const meta_keywords = data.meta_keywords || [];
+    let image_ids = data.image_ids;
+    if (typeof image_ids === 'string') {
+      image_ids = [image_ids];
+    } else if (!Array.isArray(image_ids)) {
+      image_ids = [];
+    }
+    let raw_meta_keywords: any = data.meta_keywords;
+    let meta_keywords: string[];
+    if (typeof raw_meta_keywords === 'string') {
+      if (raw_meta_keywords.includes(',')) {
+        meta_keywords = raw_meta_keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      } else {
+        meta_keywords = [raw_meta_keywords.trim()];
+      }
+    } else if (Array.isArray(raw_meta_keywords)) {
+      meta_keywords = raw_meta_keywords.map((k: any) => String(k).trim()).filter(Boolean);
+    } else {
+      meta_keywords = [];
+    }
     const meta_title = data.meta_title || data.name;
     const meta_description = data.meta_description || '';
 
@@ -214,8 +231,31 @@ export class CategoriesService {
       }
     }
     // بروزرسانی فیلدهای جدید
-    if (data.image_ids) category.image_ids = data.image_ids;
-    if (data.meta_keywords) category.meta_keywords = data.meta_keywords;
+    let image_ids = data.image_ids;
+    if (typeof image_ids === 'string') {
+      image_ids = [image_ids];
+    } else if (!Array.isArray(image_ids)) {
+      image_ids = undefined;
+    }
+    let raw_meta_keywords: any = data.meta_keywords;
+    let meta_keywords: string[] | undefined;
+    if (typeof raw_meta_keywords === 'string') {
+      if (raw_meta_keywords.includes(',')) {
+        meta_keywords = raw_meta_keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      } else {
+        meta_keywords = [raw_meta_keywords.trim()];
+      }
+    } else if (Array.isArray(raw_meta_keywords)) {
+      meta_keywords = raw_meta_keywords.map((k: any) => String(k).trim()).filter(Boolean);
+    } else {
+      meta_keywords = undefined;
+    }
+    if (image_ids) category.image_ids = image_ids;
+    if (meta_keywords !== undefined) {
+      category.meta_keywords = meta_keywords;
+    } else {
+      category.meta_keywords = [];
+    }
     if (data.meta_title) category.meta_title = data.meta_title;
     if (data.meta_description) category.meta_description = data.meta_description;
     // بروزرسانی سایر فیلدها

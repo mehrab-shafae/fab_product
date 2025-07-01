@@ -22,10 +22,22 @@ paths:
               name: "Digital Goods"
               slug: "digital-goods"
               parentId: null
-              level: 1
               order: 0
               status: "active"
-              is_featured: false
+              image_ids: ["img1", "img2"]
+              meta_keywords: ["keyword1", "keyword2"]
+              meta_title: "Meta Title"
+              meta_description: "Meta description here."
+              attribute_metadata:
+                - name: "Color"
+                  type: "enum"
+                  required: false
+                  order: 0
+                  options:
+                    - value: "Red"
+                      order: 1
+                    - value: "Blue"
+                      order: 2
       responses:
         '201':
           description: Category created
@@ -282,10 +294,22 @@ paths:
               name: "Updated Name"
               slug: "updated-name"
               parentId: null
-              level: 2
               order: 1
               status: "inactive"
-              is_featured: true
+              image_ids: ["img1", "img2"]
+              meta_keywords: ["keyword1", "keyword2"]
+              meta_title: "Meta Title"
+              meta_description: "Meta description here."
+              attribute_metadata:
+                - name: "Color"
+                  type: "enum"
+                  required: false
+                  order: 0
+                  options:
+                    - value: "Red"
+                      order: 1
+                    - value: "Blue"
+                      order: 2
       responses:
         '200':
           description: Category updated
@@ -1142,9 +1166,6 @@ components:
           type: string
           nullable: true
           example: null
-        level:
-          type: integer
-          example: 1
         order:
           type: integer
           example: 0
@@ -1152,9 +1173,51 @@ components:
           type: string
           enum: [active, inactive, pending, archived]
           example: "active"
-        is_featured:
-          type: boolean
-          example: false
+        image_ids:
+          type: array
+          items:
+            type: string
+          example: ["img1", "img2"]
+        meta_keywords:
+          type: array
+          items:
+            type: string
+          example: ["keyword1", "keyword2"]
+        meta_title:
+          type: string
+          example: "Meta Title"
+        meta_description:
+          type: string
+          example: "Meta description here."
+        attribute_metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Color"
+              type:
+                type: string
+                enum: [string, number, enum]
+                example: "enum"
+              required:
+                type: boolean
+                example: false
+              order:
+                type: integer
+                example: 0
+              options:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      example: "Red"
+                    order:
+                      type: integer
+                      example: 1
     CategoryUpdateInput:
       type: object
       properties:
@@ -1168,9 +1231,6 @@ components:
           type: string
           nullable: true
           example: null
-        level:
-          type: integer
-          example: 2
         order:
           type: integer
           example: 1
@@ -1178,9 +1238,51 @@ components:
           type: string
           enum: [active, inactive, pending, archived]
           example: "inactive"
-        is_featured:
-          type: boolean
-          example: true
+        image_ids:
+          type: array
+          items:
+            type: string
+          example: ["img1", "img2"]
+        meta_keywords:
+          type: array
+          items:
+            type: string
+          example: ["keyword1", "keyword2"]
+        meta_title:
+          type: string
+          example: "Meta Title"
+        meta_description:
+          type: string
+          example: "Meta description here."
+        attribute_metadata:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: "Color"
+              type:
+                type: string
+                enum: [string, number, enum]
+                example: "enum"
+              required:
+                type: boolean
+                example: false
+              order:
+                type: integer
+                example: 0
+              options:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: string
+                      example: "Red"
+                    order:
+                      type: integer
+                      example: 1
     Category:
       type: object
       properties:

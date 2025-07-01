@@ -60,6 +60,17 @@ export const checkCategoryExists = async (req: Request, res: Response, next: Nex
 // اعتبارسنجی yup برای ایجاد
 export const validateCreateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Convert meta_keywords and image_ids to array if they are string
+    if (typeof req.body.meta_keywords === 'string') {
+      if (req.body.meta_keywords.includes(',')) {
+        req.body.meta_keywords = req.body.meta_keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      } else {
+        req.body.meta_keywords = [req.body.meta_keywords.trim()];
+      }
+    }
+    if (typeof req.body.image_ids === 'string') {
+      req.body.image_ids = [req.body.image_ids.trim()];
+    }
     await createCategorySchema.validate(req.body);
     next();
   } catch (error) {
@@ -70,6 +81,17 @@ export const validateCreateCategory = async (req: Request, res: Response, next: 
 // اعتبارسنجی yup برای ویرایش
 export const validateUpdateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    // Convert meta_keywords and image_ids to array if they are string
+    if (typeof req.body.meta_keywords === 'string') {
+      if (req.body.meta_keywords.includes(',')) {
+        req.body.meta_keywords = req.body.meta_keywords.split(',').map((k: string) => k.trim()).filter(Boolean);
+      } else {
+        req.body.meta_keywords = [req.body.meta_keywords.trim()];
+      }
+    }
+    if (typeof req.body.image_ids === 'string') {
+      req.body.image_ids = [req.body.image_ids.trim()];
+    }
     await updateCategorySchema.validate(req.body);
     next();
   } catch (error) {
