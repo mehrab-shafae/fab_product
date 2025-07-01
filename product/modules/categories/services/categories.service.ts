@@ -48,7 +48,11 @@ export class CategoriesService {
     if (!category) return null;
     // دریافت children
     if (includeChildren && depth > 0) {
-      const children = await this._getChildrenRecursive(category._id, depth - 1);
+      const categoryIdStr =
+        typeof category._id === 'object' && category._id !== null && typeof category._id.toString === 'function'
+          ? category._id.toString()
+          : String(category._id);
+      const children = await this._getChildrenRecursive(new Types.ObjectId(categoryIdStr), depth - 1);
       (category as any).children = children;
     }
     // دریافت attributes
@@ -63,7 +67,12 @@ export class CategoriesService {
     if (depth < 0) return [];
     const children = await Category.find({ parentId }).lean();
     for (const child of children) {
-      child.children = await this._getChildrenRecursive(child._id, depth - 1);
+      // Ensure child._id is a valid ObjectId
+      const childIdStr =
+        typeof child._id === 'object' && child._id !== null && typeof child._id.toString === 'function'
+          ? child._id.toString()
+          : String(child._id);
+      (child as any).children = await this._getChildrenRecursive(new Types.ObjectId(childIdStr), depth - 1);
     }
     return children;
   }
@@ -84,8 +93,17 @@ export class CategoriesService {
     
     // دریافت children
     if (includeChildren && depth > 0) {
-      const children = await this._getChildrenRecursive(category._id, depth - 1);
+      const categoryIdStr =
+        typeof category._id === 'object' && category._id !== null && typeof category._id.toString === 'function'
+          ? category._id.toString()
+          : String(category._id);
+      const children = await this._getChildrenRecursive(new Types.ObjectId(categoryIdStr), depth - 1);
       (category as any).children = children;
+    }
+
+    if (includeAttributes) {
+      const attributes = await this.getAttributes(category._id.toString());
+      (category as any).attributes = attributes;
     }
     
     return category as ICategory;
@@ -113,7 +131,11 @@ export class CategoriesService {
       .lean();
     // دریافت children به صورت بازگشتی
     for (const root of roots) {
-      root.children = await this._getChildrenRecursive(root._id, maxDepth - 1);
+      const rootIdStr =
+        typeof root._id === 'object' && root._id !== null && typeof root._id.toString === 'function'
+          ? root._id.toString()
+          : String(root._id);
+      (root as any).children = await this._getChildrenRecursive(new Types.ObjectId(rootIdStr), maxDepth - 1);
     }
     return {
       data: roots,
@@ -168,14 +190,22 @@ export class CategoriesService {
     const category = await Category.findById(id);
     if (!category) return false;
     // حذف بازگشتی زیرمجموعه‌ها
-    await this._deleteRecursive(category._id);
+    const categoryIdStr =
+      typeof category._id === 'object' && category._id !== null && typeof category._id.toString === 'function'
+        ? category._id.toString()
+        : String(category._id);
+    await this._deleteRecursive(new Types.ObjectId(categoryIdStr));
     return true;
   }
 
   private async _deleteRecursive(categoryId: Types.ObjectId) {
     const children = await Category.find({ parentId: categoryId });
     for (const child of children) {
-      await this._deleteRecursive(child._id);
+      const childIdStr =
+        typeof child._id === 'object' && child._id !== null && typeof child._id.toString === 'function'
+          ? child._id.toString()
+          : String(child._id);
+      await this._deleteRecursive(new Types.ObjectId(childIdStr));
     }
     await Category.deleteOne({ _id: categoryId });
   }
@@ -260,7 +290,11 @@ export class CategoriesService {
     // تعداد زیرمجموعه‌ها
     const subcategoryCount = await Category.countDocuments({ parentId: category._id });
     // تعداد کل زیرمجموعه‌ها (بازگشتی)
-    const allDescendants = await this._getAllDescendants(category._id);
+    const categoryIdStr =
+      typeof category._id === 'object' && category._id !== null && typeof category._id.toString === 'function'
+        ? category._id.toString()
+        : String(category._id);
+    const allDescendants = await this._getAllDescendants(new Types.ObjectId(categoryIdStr));
     // تعداد محصولات (در صورت وجود مدل Product)
     // const productCount = await Product.countDocuments({ categoryId: category._id });
     return {
@@ -283,7 +317,11 @@ export class CategoriesService {
     const children = await Category.find({ parentId });
     for (const child of children) {
       descendants.push(child);
-      const sub = await this._getAllDescendants(child._id);
+      const childIdStr =
+        typeof child._id === 'object' && child._id !== null && typeof child._id.toString === 'function'
+          ? child._id.toString()
+          : String(child._id);
+      const sub = await this._getAllDescendants(new Types.ObjectId(childIdStr));
       descendants.push(...sub);
     }
     return descendants;
@@ -294,10 +332,12 @@ export class CategoriesService {
     const category = await Category.findById(id);
     if (!category) return [];
     const path: any[] = [];
-    let current = category;
+    let current: typeof category | null = category;
     while (current && current.parentId) {
-      current = await Category.findById(current.parentId);
-      if (current) path.unshift(current);
+      const next: typeof category | null = await Category.findById(current.parentId);
+      if (!next) break;
+      path.unshift(next);
+      current = next;
     }
     path.push(category);
     return path;
@@ -500,7 +540,7 @@ export class CategoriesService {
   }
 
   // ورودی گرفتن
-  async importCategories(format: string, data: any, options?: any): Promise<any> {
+  async importCategories(format: string, data: any, _options?: any): Promise<any> {
     let categories: any[] = [];
     if (format === 'json') {
       categories = JSON.parse(data);
@@ -518,7 +558,7 @@ export class CategoriesService {
       categories = matches.map((cat: string) => {
         const obj: any = {};
         const fieldMatches = cat.match(/<([^>]+)>([^<]*)<\/\1>/g) || [];
-        fieldMatches.forEach((f: string, i: number) => {
+        fieldMatches.forEach((f: string, _i: number) => {
           const [, key, value] = f.match(/<([^>]+)>([^<]*)<\/\1>/) || [];
           obj[key] = value;
         });
@@ -603,7 +643,7 @@ export class CategoriesService {
   }
 
   // --- Analytics & Reports ---
-  async getCategoryAnalytics(id: string, options?: any): Promise<any> {
+  async getCategoryAnalytics(id: string, _options?: any): Promise<any> {
     // آمار پایه: تعداد زیرمجموعه، تعداد attribute، تعداد option
     const category = await Category.findById(id);
     if (!category) throw new Error('Category not found');
@@ -624,7 +664,7 @@ export class CategoriesService {
     };
   }
 
-  async getCategoryPerformance(id: string, options?: any): Promise<any> {
+  async getCategoryPerformance(id: string, _options?: any): Promise<any> {
     // آمار پایه: تعداد زیرمجموعه، سطح، تعداد attribute
     const category = await Category.findById(id);
     if (!category) throw new Error('Category not found');
@@ -640,7 +680,7 @@ export class CategoriesService {
     };
   }
 
-  async getCategoryInsights(id: string, options?: any): Promise<any> {
+  async getCategoryInsights(id: string, _options?: any): Promise<any> {
     // بینش ساده: بیشترین attribute، بیشترین option، سطح دسته
     const attributes = await this.getAttributes(id);
     let maxOptions = 0;
@@ -661,7 +701,7 @@ export class CategoriesService {
     };
   }
 
-  async getCategoryGrowth(id: string, options?: any): Promise<any> {
+  async getCategoryGrowth(id: string, _options?: any): Promise<any> {
     // رشد ساده: تعداد زیرمجموعه در بازه‌های زمانی (اینجا فقط snapshot فعلی)
     const descendants = await this.getCategoryDescendants(id);
     return {
@@ -674,15 +714,22 @@ export class CategoriesService {
 
   async getHierarchyAnalytics(rootId?: string): Promise<any> {
     // آمار سلسله‌مراتبی: تعداد کل دسته‌ها و زیرمجموعه‌ها از یک ریشه
-    const root = rootId ? await Category.findById(rootId) : null;
-    const all = root ? await this.getCategoryDescendants(root._id.toString()) : await Category.find().lean();
+    const root = rootId ? await Category.findById(rootId).lean() : null;
+    let all: any[] = [];
+    if (root) {
+      // Ensure root._id is a string
+      const rootIdStr = typeof root._id === 'string' ? root._id : root._id?.toString?.() ?? '';
+      all = await this.getCategoryDescendants(rootIdStr);
+    } else {
+      all = await Category.find().lean();
+    }
     return {
       root: root ? { id: root._id, name: root.name } : 'all',
       totalCategories: all.length,
     };
   }
 
-  async getComparisonReport(categoryIds: string[], options?: any): Promise<any> {
+  async getComparisonReport(categoryIds: string[], _options?: any): Promise<any> {
     // مقایسه ساده: تعداد attribute و descendant برای هر دسته
     const result = [];
     for (const id of categoryIds) {
@@ -705,7 +752,7 @@ export class CategoriesService {
     const buildTree = async (parentId: string | null = null) => {
       const nodes = await Category.find(parentId ? { parentId } : { parentId: null }).lean();
       for (const node of nodes) {
-        node.children = await buildTree(node._id.toString());
+        (node as any).children = await buildTree(node._id.toString());
       }
       return nodes;
     };

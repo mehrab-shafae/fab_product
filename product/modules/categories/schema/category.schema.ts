@@ -1,5 +1,5 @@
 import * as yup from 'yup';
-import { CategoryStatus, ApprovalStatus } from '../types/category.types.js';
+import { CategoryStatus } from '../types/category.types.js';
 
 export const createCategorySchema = yup.object({
   name: yup.string().required('نام دسته‌بندی الزامی است'),
@@ -25,9 +25,9 @@ export const approvalSchema = yup.object({
   submittedBy: yup.string(),
   approvedBy: yup.string(),
   rejectedBy: yup.string(),
-  rejectionReason: yup.string().when('rejectedBy', {
-    is: (val: string) => val && val.length > 0,
-    then: yup.string().required('دلیل رد کردن الزامی است'),
-    otherwise: yup.string().optional(),
-  }),
+  rejectionReason: yup.string().when('rejectedBy', ([rejectedBy], schema) =>
+    rejectedBy && rejectedBy.length > 0
+      ? schema.required('دلیل رد کردن الزامی است')
+      : schema.optional()
+  ),
 }); 

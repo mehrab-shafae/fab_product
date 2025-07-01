@@ -421,7 +421,7 @@ export const getComparisonReport = async (req: Request, res: Response) => {
     res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
-export const getLegacyTree = async (req: Request, res: Response) => {
+export const getLegacyTree = async (_req: Request, res: Response) => {
   try {
     const tree = await categoriesService.getLegacyTree();
     res.json({ status: 'success', data: tree });

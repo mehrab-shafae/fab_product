@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import '../cwd.js';
+import '../asyncHandler.js';
 // ======================================================================
 import express from 'express';
 import { Pool } from 'pg';
@@ -18,6 +19,7 @@ import { Category, CategoryAttribute, CategoryAttributeOption, ProductAttributeV
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
+import { categoriesRouter } from './modules/categories/index.js';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -276,6 +278,7 @@ async function init() {
       const app = express();
 
       const apiV1Router = express.Router();
+      const apiV2Router = express.Router();
 
       if (isDevelopment) {
             // Configure Helmet with CSP that allows inline scripts for admin panel
@@ -406,8 +409,10 @@ async function init() {
       }
 
       apiV1Routers(apiV1Router);
+      apiV2Routers(apiV2Router);
 
       app.use('/api/product/v1', apiV1Router);
+      app.use('/api/product/v2', apiV2Router);
 
       app.use('/api/i18n', i18nRoutes);
 
@@ -428,6 +433,10 @@ async function init() {
             // Start PGUi worker after successful startup
             startPguiWorker();
       });
+}
+
+function apiV2Routers(app) {
+      app.use('/categories', categoriesRouter);
 }
 
 function apiV1Routers(app) {
