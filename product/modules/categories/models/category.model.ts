@@ -1,4 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
+import { CategoryStatus, ApprovalStatus } from '../types/category.types.js';
 
 export interface ICategory extends Document {
   name: string;
@@ -6,7 +7,17 @@ export interface ICategory extends Document {
   parentId?: Types.ObjectId | null;
   level: number;
   order: number;
-  status: 'active' | 'inactive' | 'pending' | 'archived';
+  status: CategoryStatus;
+  is_featured?: boolean;
+  slug_redirects?: string[];
+  approval_status?: ApprovalStatus;
+  submitted_by?: string;
+  approved_by?: string;
+  rejected_by?: string;
+  rejection_reason?: string;
+  submitted_at?: Date;
+  approved_at?: Date;
+  rejected_at?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -18,6 +29,16 @@ const CategorySchema = new Schema<ICategory>({
   level: { type: Number, default: 1 },
   order: { type: Number, default: 0 },
   status: { type: String, enum: ['active', 'inactive', 'pending', 'archived'], default: 'active' },
+  is_featured: { type: Boolean, default: false },
+  slug_redirects: [{ type: String }],
+  approval_status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+  submitted_by: { type: String },
+  approved_by: { type: String },
+  rejected_by: { type: String },
+  rejection_reason: { type: String },
+  submitted_at: { type: Date },
+  approved_at: { type: Date },
+  rejected_at: { type: Date },
 }, { timestamps: true });
 
 export const Category = model<ICategory>('Category', CategorySchema); 

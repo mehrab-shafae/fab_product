@@ -307,9 +307,7 @@ export const createFromTemplate = async (req: Request, res: Response) => {
 // Approval workflow
 export const submitForApproval = async (req: Request, res: Response) => {
   try {
-    const { submittedBy } = req.body;
-    if (!submittedBy) return res.status(400).json({ status: 'error', message: 'شناسه کاربر ارسال‌کننده الزامی است' });
-    const category = await categoriesService.submitForApproval(req.params.id, submittedBy);
+    const category = await categoriesService.submitForApproval(req.params.id, req.body);
     res.json({ status: 'success', data: category });
   } catch (error) {
     res.status(400).json({ status: 'error', message: (error as Error).message });
@@ -317,9 +315,7 @@ export const submitForApproval = async (req: Request, res: Response) => {
 };
 export const approveCategory = async (req: Request, res: Response) => {
   try {
-    const { approvedBy } = req.body;
-    if (!approvedBy) return res.status(400).json({ status: 'error', message: 'شناسه کاربر تاییدکننده الزامی است' });
-    const category = await categoriesService.approveCategory(req.params.id, approvedBy);
+    const category = await categoriesService.approveCategory(req.params.id, req.body);
     res.json({ status: 'success', data: category });
   } catch (error) {
     res.status(400).json({ status: 'error', message: (error as Error).message });
@@ -327,10 +323,7 @@ export const approveCategory = async (req: Request, res: Response) => {
 };
 export const rejectCategory = async (req: Request, res: Response) => {
   try {
-    const { rejectedBy, reason } = req.body;
-    if (!rejectedBy) return res.status(400).json({ status: 'error', message: 'شناسه کاربر ردکننده الزامی است' });
-    if (!reason) return res.status(400).json({ status: 'error', message: 'دلیل رد کردن الزامی است' });
-    const category = await categoriesService.rejectCategory(req.params.id, rejectedBy, reason);
+    const category = await categoriesService.rejectCategory(req.params.id, req.body);
     res.json({ status: 'success', data: category });
   } catch (error) {
     res.status(400).json({ status: 'error', message: (error as Error).message });
@@ -385,7 +378,7 @@ export const getCategoryAnalytics = async (req: Request, res: Response) => {
     const analytics = await categoriesService.getCategoryAnalytics(req.params.id, req.query);
     res.json({ status: 'success', data: analytics });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getCategoryPerformance = async (req: Request, res: Response) => {
@@ -393,7 +386,7 @@ export const getCategoryPerformance = async (req: Request, res: Response) => {
     const performance = await categoriesService.getCategoryPerformance(req.params.id, req.query);
     res.json({ status: 'success', data: performance });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getCategoryInsights = async (req: Request, res: Response) => {
@@ -401,7 +394,7 @@ export const getCategoryInsights = async (req: Request, res: Response) => {
     const insights = await categoriesService.getCategoryInsights(req.params.id, req.query);
     res.json({ status: 'success', data: insights });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getCategoryGrowth = async (req: Request, res: Response) => {
@@ -409,15 +402,15 @@ export const getCategoryGrowth = async (req: Request, res: Response) => {
     const growth = await categoriesService.getCategoryGrowth(req.params.id, req.query);
     res.json({ status: 'success', data: growth });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getHierarchyAnalytics = async (req: Request, res: Response) => {
   try {
-    const analytics = await categoriesService.getHierarchyAnalytics(req.query.rootId);
+    const analytics = await categoriesService.getHierarchyAnalytics(req.query.rootId as string);
     res.json({ status: 'success', data: analytics });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getComparisonReport = async (req: Request, res: Response) => {
@@ -425,7 +418,7 @@ export const getComparisonReport = async (req: Request, res: Response) => {
     const comparison = await categoriesService.getComparisonReport(req.body.categoryIds, req.query);
     res.json({ status: 'success', data: comparison });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 };
 export const getLegacyTree = async (req: Request, res: Response) => {
@@ -433,6 +426,6 @@ export const getLegacyTree = async (req: Request, res: Response) => {
     const tree = await categoriesService.getLegacyTree();
     res.json({ status: 'success', data: tree });
   } catch (error) {
-    res.status(501).json({ status: 'error', message: 'Not implemented' });
+    res.status(500).json({ status: 'error', message: (error as Error).message });
   }
 }; 

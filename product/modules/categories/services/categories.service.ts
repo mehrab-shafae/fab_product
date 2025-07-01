@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { ICategory, Category } from '../models/category.model.js';
-import { CategoryInput, CategoryUpdateInput } from '../types/category.types.js';
+import { CategoryInput, CategoryUpdateInput, CategoryApprovalInput } from '../types/category.types.js';
 import { CategoryAttribute, ICategoryAttribute } from '../models/categoryAttribute.model.js';
 import { CategoryAttributeOption, ICategoryAttributeOption } from '../models/categoryAttributeOption.model.js';
 
@@ -51,7 +51,11 @@ export class CategoriesService {
       const children = await this._getChildrenRecursive(category._id, depth - 1);
       (category as any).children = children;
     }
-    // TODO: attributes را بعداً اضافه کن
+    // دریافت attributes
+    if (includeAttributes) {
+      const attributes = await this.getAttributes(category._id.toString());
+      (category as any).attributes = attributes;
+    }
     return category as ICategory;
   }
 
@@ -66,8 +70,25 @@ export class CategoriesService {
 
   // دریافت دسته با اسلاگ
   async getBySlug(slug: string, options?: any): Promise<ICategory | null> {
-    // TODO: MongoDB implementation
-    throw new Error('Not implemented');
+    const { includeChildren = true, depth = 2, includeAttributes = true } = options || {};
+    
+    // ابتدا در slug اصلی جستجو کن
+    let category = await Category.findOne({ slug }).lean();
+    
+    // اگر پیدا نشد، در redirects جستجو کن
+    if (!category) {
+      category = await Category.findOne({ slug_redirects: slug }).lean();
+    }
+    
+    if (!category) return null;
+    
+    // دریافت children
+    if (includeChildren && depth > 0) {
+      const children = await this._getChildrenRecursive(category._id, depth - 1);
+      (category as any).children = children;
+    }
+    
+    return category as ICategory;
   }
 
   // دریافت درخت دسته‌بندی
@@ -385,36 +406,64 @@ export class CategoriesService {
   }
 
   // گردش تایید: ارسال برای تایید
-  async submitForApproval(categoryId: string, submittedBy: string): Promise<ICategory> {
+  async submitForApproval(categoryId: string, data: CategoryApprovalInput): Promise<ICategory> {
     const category = await Category.findById(categoryId);
     if (!category) throw new Error('Category not found');
-    if (category.status !== 'draft') throw new Error('Only draft categories can be submitted for approval');
-    category.status = 'pending_approval';
-    (category as any).submitted_by = submittedBy;
-    (category as any).submitted_at = new Date();
+    
+    if (category.approval_status === 'pending') {
+      throw new Error('Category is already pending approval');
+    }
+    
+    category.approval_status = 'pending';
+    category.submitted_by = data.submittedBy;
+    category.submitted_at = new Date();
+    category.approved_by = undefined;
+    category.rejected_by = undefined;
+    category.rejection_reason = undefined;
+    category.approved_at = undefined;
+    category.rejected_at = undefined;
+    
     await category.save();
     return category;
   }
+  
   // گردش تایید: تایید دسته
-  async approveCategory(categoryId: string, approvedBy: string): Promise<ICategory> {
+  async approveCategory(categoryId: string, data: CategoryApprovalInput): Promise<ICategory> {
     const category = await Category.findById(categoryId);
     if (!category) throw new Error('Category not found');
-    if (category.status !== 'pending_approval') throw new Error('Category is not pending approval');
+    
+    if (category.approval_status !== 'pending') {
+      throw new Error('Category is not pending approval');
+    }
+    
+    category.approval_status = 'approved';
+    category.approved_by = data.approvedBy;
+    category.approved_at = new Date();
     category.status = 'active';
-    (category as any).approved_by = approvedBy;
-    (category as any).approved_at = new Date();
+    
     await category.save();
     return category;
   }
+  
   // گردش تایید: رد دسته
-  async rejectCategory(categoryId: string, rejectedBy: string, reason: string): Promise<ICategory> {
+  async rejectCategory(categoryId: string, data: CategoryApprovalInput): Promise<ICategory> {
     const category = await Category.findById(categoryId);
     if (!category) throw new Error('Category not found');
-    if (category.status !== 'pending_approval') throw new Error('Category is not pending approval');
-    category.status = 'draft';
-    (category as any).rejected_by = rejectedBy;
-    (category as any).rejected_at = new Date();
-    (category as any).rejection_reason = reason;
+    
+    if (category.approval_status !== 'pending') {
+      throw new Error('Category is not pending approval');
+    }
+    
+    if (!data.rejectionReason || data.rejectionReason.trim().length === 0) {
+      throw new Error('Rejection reason is required');
+    }
+    
+    category.approval_status = 'rejected';
+    category.rejected_by = data.rejectedBy;
+    category.rejection_reason = data.rejectionReason.trim();
+    category.rejected_at = new Date();
+    category.status = 'inactive';
+    
     await category.save();
     return category;
   }

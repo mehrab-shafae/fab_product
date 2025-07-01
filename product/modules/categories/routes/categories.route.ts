@@ -5,7 +5,8 @@ import {
   checkParentCategoryExists,
   checkCategoryExists,
   validateCreateCategory,
-  validateUpdateCategory
+  validateUpdateCategory,
+  validateApproval
 } from '../middlewares/categoryMiddleware.js';
 
 const router = Router();
@@ -60,9 +61,9 @@ router.get('/templates/:templateId', categoriesController.getCategoryTemplate);
 router.post('/templates/:templateId/create', categoriesController.createFromTemplate);
 
 // Approval workflow
-router.post('/:id/submit-approval', checkCategoryExists, categoriesController.submitForApproval);
-router.post('/:id/approve', checkCategoryExists, categoriesController.approveCategory);
-router.post('/:id/reject', checkCategoryExists, categoriesController.rejectCategory);
+router.post('/:id/submit-approval', checkCategoryExists, validateApproval, categoriesController.submitForApproval);
+router.post('/:id/approve', checkCategoryExists, validateApproval, categoriesController.approveCategory);
+router.post('/:id/reject', checkCategoryExists, validateApproval, categoriesController.rejectCategory);
 
 // Reorder
 router.post('/reorder', categoriesController.reorderCategories);
