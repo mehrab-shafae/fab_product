@@ -375,34 +375,57 @@ export const getCategoriesByParent = async (req: Request, res: Response) => {
 // Analytics
 export const getCategoryAnalytics = async (req: Request, res: Response) => {
   try {
-    const analytics = await categoriesService.getCategoryAnalytics(req.params.id, req.query);
+    const { dateRange, metrics, groupBy, includeSubcategories, includeProducts, includeAttributes } = req.query;
+    const options = {
+      dateRange: dateRange as string,
+      metrics: metrics ? (Array.isArray(metrics) ? (metrics as any[]).map(String) : (metrics as string).split(',').map(String)) : undefined,
+      groupBy: groupBy as string,
+      includeSubcategories: includeSubcategories !== 'false',
+      includeProducts: includeProducts !== 'false',
+      includeAttributes: includeAttributes !== 'false',
+    };
+    const analytics = await categoriesService.getCategoryAnalytics(req.params.id, options);
     res.json({ status: 'success', data: analytics });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: (error as Error).message });
+    res.status(500).json({ status: 'error', message: (error instanceof Error ? error.message : String(error)) });
   }
 };
 export const getCategoryPerformance = async (req: Request, res: Response) => {
   try {
-    const performance = await categoriesService.getCategoryPerformance(req.params.id, req.query);
+    const { dateRange, metrics } = req.query;
+    const options = {
+      dateRange: dateRange as string,
+      metrics: metrics ? (Array.isArray(metrics) ? (metrics as any[]).map(String) : (metrics as string).split(',').map(String)) : undefined,
+    };
+    const performance = await categoriesService.getCategoryPerformance(req.params.id, options);
     res.json({ status: 'success', data: performance });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: (error as Error).message });
+    res.status(500).json({ status: 'error', message: (error instanceof Error ? error.message : String(error)) });
   }
 };
 export const getCategoryInsights = async (req: Request, res: Response) => {
   try {
-    const insights = await categoriesService.getCategoryInsights(req.params.id, req.query);
+    const { metrics } = req.query;
+    const options = {
+      metrics: metrics ? (Array.isArray(metrics) ? (metrics as any[]).map(String) : (metrics as string).split(',').map(String)) : undefined,
+    };
+    const insights = await categoriesService.getCategoryInsights(req.params.id, options);
     res.json({ status: 'success', data: insights });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: (error as Error).message });
+    res.status(500).json({ status: 'error', message: (error instanceof Error ? error.message : String(error)) });
   }
 };
 export const getCategoryGrowth = async (req: Request, res: Response) => {
   try {
-    const growth = await categoriesService.getCategoryGrowth(req.params.id, req.query);
+    const { periods, metrics } = req.query;
+    const options = {
+      periods: periods ? (Array.isArray(periods) ? (periods as any[]).map(String) : (periods as string).split(',').map(String)) : undefined,
+      metrics: metrics ? (Array.isArray(metrics) ? (metrics as any[]).map(String) : (metrics as string).split(',').map(String)) : undefined,
+    };
+    const growth = await categoriesService.getCategoryGrowth(req.params.id, options);
     res.json({ status: 'success', data: growth });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: (error as Error).message });
+    res.status(500).json({ status: 'error', message: (error instanceof Error ? error.message : String(error)) });
   }
 };
 export const getHierarchyAnalytics = async (req: Request, res: Response) => {
@@ -415,10 +438,16 @@ export const getHierarchyAnalytics = async (req: Request, res: Response) => {
 };
 export const getComparisonReport = async (req: Request, res: Response) => {
   try {
-    const comparison = await categoriesService.getComparisonReport(req.body.categoryIds, req.query);
-    res.json({ status: 'success', data: comparison });
+    const { dateRange, metrics } = req.query;
+    const options = {
+      dateRange: dateRange as string,
+      metrics: metrics ? (Array.isArray(metrics) ? (metrics as any[]).map(String) : (metrics as string).split(',').map(String)) : undefined,
+    };
+    const { categoryIds } = req.body;
+    const report = await categoriesService.getComparisonReport(categoryIds, options);
+    res.json({ status: 'success', data: report });
   } catch (error) {
-    res.status(500).json({ status: 'error', message: (error as Error).message });
+    res.status(500).json({ status: 'error', message: (error instanceof Error ? error.message : String(error)) });
   }
 };
 export const getLegacyTree = async (_req: Request, res: Response) => {

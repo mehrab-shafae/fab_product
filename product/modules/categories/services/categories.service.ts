@@ -643,73 +643,87 @@ export class CategoriesService {
   }
 
   // --- Analytics & Reports ---
-  async getCategoryAnalytics(id: string, _options?: any): Promise<any> {
-    // آمار پایه: تعداد زیرمجموعه، تعداد attribute، تعداد option
+  async getCategoryAnalytics(id: string, options?: { dateRange?: string; metrics?: string[]; groupBy?: string; includeSubcategories?: boolean; includeProducts?: boolean; includeAttributes?: boolean }): Promise<any> {
     const category = await Category.findById(id);
     if (!category) throw new Error('Category not found');
-    const descendants = await this.getCategoryDescendants(id);
-    const attributes = await this.getAttributes(id);
+    // Handle includeSubcategories
+    const descendants = options?.includeSubcategories !== false ? await this.getCategoryDescendants(id) : [];
+    // Handle includeAttributes
+    const attributes = options?.includeAttributes !== false ? await this.getAttributes(id) : [];
     let totalOptions = 0;
     for (const attr of attributes) {
       const opts = await this.getAttributeOptions((attr as any)._id.toString());
       totalOptions += opts.length;
     }
+    // Filter by metrics if provided
+    const stats: any = {};
+    if (!options?.metrics || options.metrics.includes('subcategories')) {
+      stats.subcategories = descendants.length;
+    }
+    if (!options?.metrics || options.metrics.includes('attributes')) {
+      stats.attributes = attributes.length;
+    }
+    if (!options?.metrics || options.metrics.includes('options')) {
+      stats.options = totalOptions;
+    }
+    // TODO: Use dateRange, groupBy for advanced analytics (aggregation, filtering by createdAt, etc.)
     return {
       category: { id: category._id, name: category.name, slug: category.slug },
-      stats: {
-        subcategories: descendants.length,
-        attributes: attributes.length,
-        options: totalOptions,
-      },
+      stats,
     };
   }
 
-  async getCategoryPerformance(id: string, _options?: any): Promise<any> {
-    // آمار پایه: تعداد زیرمجموعه، سطح، تعداد attribute
+  async getCategoryPerformance(id: string, options?: { dateRange?: string; metrics?: string[] }): Promise<any> {
     const category = await Category.findById(id);
     if (!category) throw new Error('Category not found');
     const descendants = await this.getCategoryDescendants(id);
     const attributes = await this.getAttributes(id);
+    const performance: any = {};
+    if (!options?.metrics || options.metrics.includes('totalDescendants')) {
+      performance.totalDescendants = descendants.length;
+    }
+    if (!options?.metrics || options.metrics.includes('level')) {
+      performance.level = category.level;
+    }
+    if (!options?.metrics || options.metrics.includes('attributes')) {
+      performance.attributes = attributes.length;
+    }
+    // TODO: Use dateRange for time-based performance metrics
     return {
       category: { id: category._id, name: category.name, slug: category.slug },
-      performance: {
-        totalDescendants: descendants.length,
-        level: category.level,
-        attributes: attributes.length,
-      },
+      performance,
     };
   }
 
-  async getCategoryInsights(id: string, _options?: any): Promise<any> {
-    // بینش ساده: بیشترین attribute، بیشترین option، سطح دسته
-    const attributes = await this.getAttributes(id);
-    let maxOptions = 0;
-    let maxAttr = null;
-    for (const attr of attributes) {
-      const opts = await this.getAttributeOptions((attr as any)._id.toString());
-      if (opts.length > maxOptions) {
-        maxOptions = opts.length;
-        maxAttr = attr.name;
-      }
-    }
-    return {
-      insights: {
-        mostOptionsAttribute: maxAttr,
-        maxOptions,
-        totalAttributes: attributes.length,
-      },
-    };
-  }
-
-  async getCategoryGrowth(id: string, _options?: any): Promise<any> {
-    // رشد ساده: تعداد زیرمجموعه در بازه‌های زمانی (اینجا فقط snapshot فعلی)
+  async getCategoryGrowth(id: string, options?: { periods?: string[]; metrics?: string[] }): Promise<any> {
+    // For now, just return totalDescendants; in future, use periods/metrics for time-based growth
     const descendants = await this.getCategoryDescendants(id);
-    return {
-      growth: {
-        totalDescendants: descendants.length,
-        // future: add time-based growth if you have timestamps
-      },
-    };
+    const growth: any = {};
+    if (!options?.metrics || options.metrics.includes('totalDescendants')) {
+      growth.totalDescendants = descendants.length;
+    }
+    // TODO: Use periods for time-based growth analysis (e.g., count new descendants in each period)
+    return { growth };
+  }
+
+  async getComparisonReport(categoryIds: string[], options?: { dateRange?: string; metrics?: string[] }): Promise<any> {
+    const result = [];
+    for (const id of categoryIds) {
+      const category = await Category.findById(id);
+      if (!category) continue;
+      const descendants = await this.getCategoryDescendants(id);
+      const attributes = await this.getAttributes(id);
+      const entry: any = { id: category._id, name: category.name };
+      if (!options?.metrics || options.metrics.includes('descendants')) {
+        entry.descendants = descendants.length;
+      }
+      if (!options?.metrics || options.metrics.includes('attributes')) {
+        entry.attributes = attributes.length;
+      }
+      // TODO: Use dateRange for time-based comparison
+      result.push(entry);
+    }
+    return result;
   }
 
   async getHierarchyAnalytics(rootId?: string): Promise<any> {
@@ -729,24 +743,6 @@ export class CategoriesService {
     };
   }
 
-  async getComparisonReport(categoryIds: string[], _options?: any): Promise<any> {
-    // مقایسه ساده: تعداد attribute و descendant برای هر دسته
-    const result = [];
-    for (const id of categoryIds) {
-      const category = await Category.findById(id);
-      if (!category) continue;
-      const descendants = await this.getCategoryDescendants(id);
-      const attributes = await this.getAttributes(id);
-      result.push({
-        id: category._id,
-        name: category.name,
-        descendants: descendants.length,
-        attributes: attributes.length,
-      });
-    }
-    return result;
-  }
-
   async getLegacyTree(): Promise<any> {
     // بازگشت ساختار درختی قدیمی (parent/children)
     const buildTree = async (parentId: string | null = null) => {
@@ -757,6 +753,31 @@ export class CategoriesService {
       return nodes;
     };
     return buildTree();
+  }
+
+  async getCategoryInsights(id: string, options?: { metrics?: string[] }): Promise<any> {
+    const attributes = await this.getAttributes(id);
+    let maxOptions = 0;
+    let maxAttr = null;
+    for (const attr of attributes) {
+      const opts = await this.getAttributeOptions((attr as any)._id.toString());
+      if (opts.length > maxOptions) {
+        maxOptions = opts.length;
+        maxAttr = attr.name;
+      }
+    }
+    const insights: any = {};
+    if (!options?.metrics || options.metrics.includes('mostOptionsAttribute')) {
+      insights.mostOptionsAttribute = maxAttr;
+    }
+    if (!options?.metrics || options.metrics.includes('maxOptions')) {
+      insights.maxOptions = maxOptions;
+    }
+    if (!options?.metrics || options.metrics.includes('totalAttributes')) {
+      insights.totalAttributes = attributes.length;
+    }
+    // TODO: Add more advanced insights based on metrics
+    return { insights };
   }
 }
 

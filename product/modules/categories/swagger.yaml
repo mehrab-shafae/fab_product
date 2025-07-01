@@ -718,9 +718,53 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of metrics to include (e.g. subcategories,attributes,options)
+        - in: query
+          name: dateRange
+          schema:
+            type: string
+          description: Date range for analytics (e.g. '30d', '2023-01-01:2023-01-31')
+        - in: query
+          name: groupBy
+          schema:
+            type: string
+          description: Grouping for analytics (e.g. 'day', 'month')
+        - in: query
+          name: includeSubcategories
+          schema:
+            type: boolean
+          description: Whether to include subcategories (default: true)
+        - in: query
+          name: includeProducts
+          schema:
+            type: boolean
+          description: Whether to include products (future use)
+        - in: query
+          name: includeAttributes
+          schema:
+            type: boolean
+          description: Whether to include attributes (default: true)
       responses:
         '200':
           description: Category analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                  stats:
+                    type: object
+                    description: Analytics metrics
   /{id}/performance:
     get:
       tags: [Analytics]
@@ -731,9 +775,33 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of metrics to include (e.g. totalDescendants,level,attributes)
+        - in: query
+          name: dateRange
+          schema:
+            type: string
+          description: Date range for performance (e.g. '30d', '2023-01-01:2023-01-31')
       responses:
         '200':
           description: Category performance
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  category:
+                    $ref: '#/components/schemas/Category'
+                  performance:
+                    type: object
+                    description: Performance metrics
   /{id}/insights:
     get:
       tags: [Analytics]
@@ -744,9 +812,26 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of insights to include (e.g. mostOptionsAttribute,maxOptions,totalAttributes)
       responses:
         '200':
           description: Category insights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  insights:
+                    type: object
+                    description: Insights metrics
   /{id}/growth:
     get:
       tags: [Analytics]
@@ -757,16 +842,35 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of growth metrics to include (e.g. totalDescendants)
+        - in: query
+          name: periods
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of periods for growth analysis (e.g. 7d,30d,1y)
       responses:
         '200':
           description: Category growth
-  /hierarchy/analytics:
-    get:
-      tags: [Analytics]
-      summary: Get hierarchy analytics
-      responses:
-        '200':
-          description: Hierarchy analytics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  growth:
+                    type: object
+                    description: Growth metrics
   /comparison:
     post:
       tags: [Analytics]
@@ -782,9 +886,39 @@ paths:
                   type: array
                   items:
                     type: string
+      parameters:
+        - in: query
+          name: metrics
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Comma-separated list of metrics to include in comparison (e.g. descendants,attributes)
+        - in: query
+          name: dateRange
+          schema:
+            type: string
+          description: Date range for comparison (e.g. '30d', '2023-01-01:2023-01-31')
       responses:
         '200':
           description: Comparison report
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    descendants:
+                      type: integer
+                    attributes:
+                      type: integer
   /legacy-tree:
     get:
       tags: [Categories]
