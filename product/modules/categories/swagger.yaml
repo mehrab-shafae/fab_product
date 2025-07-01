@@ -36,6 +36,36 @@ paths:
     get:
       tags: [Categories]
       summary: Get all categories
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: sort
+          schema:
+            type: string
+            example: '{"order":1}'
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: name
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: parentId
+          schema:
+            type: string
       responses:
         '200':
           description: List of categories
@@ -101,10 +131,26 @@ paths:
       summary: Search categories
       parameters:
         - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: sort
+          schema:
+            type: string
+            example: '{"order":1}'
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
           name: name
           schema:
             type: string
-          description: Name to search
         - in: query
           name: status
           schema:
@@ -113,14 +159,6 @@ paths:
           name: parentId
           schema:
             type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-        - in: query
-          name: limit
-          schema:
-            type: integer
       responses:
         '200':
           description: Search results
@@ -141,6 +179,23 @@ paths:
       summary: Advanced search for categories
       parameters:
         - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: sort
+          schema:
+            type: string
+            example: '{"order":1}'
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
           name: name
           schema:
             type: string
@@ -160,14 +215,6 @@ paths:
           name: slug
           schema:
             type: string
-        - in: query
-          name: page
-          schema:
-            type: integer
-        - in: query
-          name: limit
-          schema:
-            type: integer
       responses:
         '200':
           description: Advanced search results
@@ -366,7 +413,7 @@ paths:
                 $ref: '#/components/schemas/CategoryAttributeOption'
     get:
       tags: [Category Attributes]
-      summary: Get options of an attribute
+      summary: Get options of an attribute (with inherited flag)
       parameters:
         - in: path
           name: attributeId
@@ -926,6 +973,157 @@ paths:
       responses:
         '200':
           description: Legacy tree
+  /attributes:
+    get:
+      tags: [Category Attributes]
+      summary: Get all attributes (with pagination, filter, search)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+        - in: query
+          name: sort
+          schema:
+            type: string
+            example: '{"order":1}'
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: categoryId
+          schema:
+            type: string
+        - in: query
+          name: name
+          schema:
+            type: string
+        - in: query
+          name: type
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of attributes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategoryAttribute'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+  /attributes/bulk:
+    put:
+      tags: [Category Attributes]
+      summary: Bulk update attributes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attributes:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/CategoryAttribute'
+      responses:
+        '200':
+          description: Bulk update result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  success:
+                    type: integer
+                  failed:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        success:
+                          type: boolean
+                        error:
+                          type: string
+    delete:
+      tags: [Category Attributes]
+      summary: Bulk delete attributes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attributeIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Bulk delete result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  success:
+                    type: integer
+                  failed:
+                    type: integer
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        deleted:
+                          type: boolean
+                        error:
+                          type: string
+  /{categoryId}/attributes/inherited:
+    get:
+      tags: [Category Attributes]
+      summary: Get all attributes of a category including inherited from parents
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of attributes (with inherited flag)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CategoryAttribute'
 
 components:
   schemas:
@@ -1051,6 +1249,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CategoryAttributeOption'
+        inherited:
+          type: boolean
+          description: If true, this attribute is inherited from a parent category.
     CategoryAttributeOptionInput:
       type: object
       properties:
@@ -1069,6 +1270,9 @@ components:
           type: string
         order:
           type: integer
+        inherited:
+          type: boolean
+          description: If true, this option is inherited from a parent attribute.
     CategoryApprovalInput:
       type: object
       properties:

@@ -44,6 +44,10 @@ router.get('/:id/siblings', checkCategoryExists, categoriesController.getCategor
 // Attribute APIs
 router.post('/:categoryId/attributes', categoriesController.addAttribute);
 router.get('/:categoryId/attributes', categoriesController.getAttributes);
+router.get('/:categoryId/attributes/inherited', categoriesController.getAllAttributesWithInheritanceController);
+router.get('/attributes', categoriesController.getAttributesAdvanced);
+router.put('/attributes/bulk', categoriesController.bulkUpdateAttributes);
+router.delete('/attributes/bulk', categoriesController.bulkDeleteAttributes);
 router.put('/attributes/:attributeId', categoriesController.updateAttribute);
 router.delete('/attributes/:attributeId', categoriesController.deleteAttribute);
 router.post('/attributes/:attributeId/options', categoriesController.addAttributeOption);

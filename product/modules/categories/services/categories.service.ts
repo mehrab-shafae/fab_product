@@ -31,13 +31,47 @@ export class CategoriesService {
     // بررسی یکتایی slug
     const exists = await Category.findOne({ slug });
     if (exists) throw new Error('Slug already exists');
+
+    // آماده‌سازی داده‌های متا و تصاویر
+    const image_ids = data.image_ids || [];
+    const meta_keywords = data.meta_keywords || [];
+    const meta_title = data.meta_title || data.name;
+    const meta_description = data.meta_description || '';
+
     // ساخت دسته‌بندی
     const category = await Category.create({
       ...data,
       parentId,
       level,
       slug,
+      image_ids,
+      meta_keywords,
+      meta_title,
+      meta_description,
     });
+
+    // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را بساز
+    if (data.attribute_metadata && Array.isArray(data.attribute_metadata)) {
+      for (const attr of data.attribute_metadata) {
+        const attribute = await CategoryAttribute.create({
+          categoryId: category._id,
+          name: attr.name,
+          type: attr.type,
+          required: attr.required || false,
+          order: attr.order || 0,
+        });
+        // اگر options داشت، آن‌ها را هم بساز
+        if (attr.options && Array.isArray(attr.options)) {
+          for (const opt of attr.options) {
+            await CategoryAttributeOption.create({
+              attributeId: attribute._id,
+              value: opt.value,
+              order: opt.order || 0,
+            });
+          }
+        }
+      }
+    }
     return category;
   }
 
@@ -179,9 +213,69 @@ export class CategoriesService {
         category.slug_redirects.push(category.slug);
       }
     }
-    // بروزرسانی فیلدها
+    // بروزرسانی فیلدهای جدید
+    if (data.image_ids) category.image_ids = data.image_ids;
+    if (data.meta_keywords) category.meta_keywords = data.meta_keywords;
+    if (data.meta_title) category.meta_title = data.meta_title;
+    if (data.meta_description) category.meta_description = data.meta_description;
+    // بروزرسانی سایر فیلدها
     Object.assign(category, data, { parentId, level, slug });
     await category.save();
+    // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را مدیریت کن
+    if (data.attribute_metadata && Array.isArray(data.attribute_metadata)) {
+      for (const attr of data.attribute_metadata) {
+        // اگر attr.id وجود داشت، ویرایش کن، وگرنه جدید بساز
+        let attribute;
+        if ((attr as any).id) {
+          attribute = await CategoryAttribute.findById((attr as any).id);
+          if (attribute) {
+            attribute.name = attr.name;
+            attribute.type = attr.type;
+            attribute.required = attr.required || false;
+            attribute.order = attr.order || 0;
+            await attribute.save();
+            // مدیریت options
+            if (attr.options && Array.isArray(attr.options)) {
+              for (const opt of attr.options) {
+                // اگر opt.id وجود داشت، ویرایش کن، وگرنه جدید بساز
+                let option;
+                if ((opt as any).id) {
+                  option = await CategoryAttributeOption.findById((opt as any).id);
+                  if (option) {
+                    option.value = opt.value;
+                    option.order = opt.order || 0;
+                    await option.save();
+                  }
+                } else {
+                  await CategoryAttributeOption.create({
+                    attributeId: attribute._id,
+                    value: opt.value,
+                    order: opt.order || 0,
+                  });
+                }
+              }
+            }
+          }
+        } else {
+          attribute = await CategoryAttribute.create({
+            categoryId: category._id,
+            name: attr.name,
+            type: attr.type,
+            required: attr.required || false,
+            order: attr.order || 0,
+          });
+          if (attr.options && Array.isArray(attr.options)) {
+            for (const opt of attr.options) {
+              await CategoryAttributeOption.create({
+                attributeId: attribute._id,
+                value: opt.value,
+                order: opt.order || 0,
+              });
+            }
+          }
+        }
+      }
+    }
     return category;
   }
 
@@ -210,16 +304,26 @@ export class CategoriesService {
     await Category.deleteOne({ _id: categoryId });
   }
 
-  // جستجوی ساده
-  async search(params: any, options?: { page?: number; limit?: number; }): Promise<any> {
-    const { page = 1, limit = 10 } = options || {};
+  // جستجوی پیشرفته با صفحه‌بندی و فیلتر و مرتب‌سازی
+  async search(params: any, options?: { page?: number; limit?: number; sort?: any }): Promise<any> {
+    const { page = 1, limit = 10, sort = { createdAt: -1 } } = options || {};
     const query: any = {};
+    // فیلترها
     if (params.name) query.name = { $regex: params.name, $options: 'i' };
     if (params.status) query.status = params.status;
     if (params.parentId) query.parentId = params.parentId;
+    if (params.slug) query.slug = params.slug;
+    // جستجو
+    if (params.search) {
+      query.$or = [
+        { name: { $regex: params.search, $options: 'i' } },
+        { meta_title: { $regex: params.search, $options: 'i' } },
+        { meta_description: { $regex: params.search, $options: 'i' } }
+      ];
+    }
     const total = await Category.countDocuments(query);
     const skip = (page - 1) * limit;
-    const categories = await Category.find(query).skip(skip).limit(limit).lean();
+    const categories = await Category.find(query).sort(sort).skip(skip).limit(limit).lean();
     return {
       data: categories,
       pagination: {
@@ -257,22 +361,48 @@ export class CategoriesService {
   // بروزرسانی گروهی
   async bulkUpdate(categories: (CategoryUpdateInput & { _id: string })[]): Promise<any> {
     const results = [];
+    let success = 0;
+    let failed = 0;
     for (const cat of categories) {
       if (!cat || !cat._id) continue;
-      const updated = await this.update(cat._id, cat);
-      results.push(updated);
+      try {
+        const updated = await this.update(cat._id, cat);
+        if (updated) {
+          results.push({ id: cat._id, success: true });
+          success++;
+        } else {
+          results.push({ id: cat._id, success: false });
+          failed++;
+        }
+      } catch (e) {
+        results.push({ id: cat._id, success: false, error: (e as Error).message });
+        failed++;
+      }
     }
-    return results;
+    return { total: categories.length, success, failed, results };
   }
 
   // حذف گروهی
   async bulkDelete(ids: string[]): Promise<any> {
     const results = [];
+    let success = 0;
+    let failed = 0;
     for (const id of ids) {
-      const deleted = await this.delete(id);
-      results.push({ id, deleted });
+      try {
+        const deleted = await this.delete(id);
+        if (deleted) {
+          results.push({ id, deleted: true });
+          success++;
+        } else {
+          results.push({ id, deleted: false });
+          failed++;
+        }
+      } catch (e) {
+        results.push({ id, deleted: false, error: (e as Error).message });
+        failed++;
+      }
     }
-    return results;
+    return { total: ids.length, success, failed, results };
   }
 
   // تغییر ترتیب
@@ -793,6 +923,100 @@ export class CategoriesService {
     }
     // TODO: Add more advanced insights based on metrics
     return { insights };
+  }
+
+  // دریافت ویژگی‌های دسته با وراثت از والدها
+  async getAllAttributesWithInheritance(categoryId: string): Promise<any[]> {
+    const attributes: any[] = [];
+    const seenNames = new Set<string>();
+    let currentCategory = await Category.findById(categoryId);
+    while (currentCategory) {
+      const attrs = await CategoryAttribute.find({ categoryId: currentCategory._id }).lean();
+      for (const a of attrs) {
+        if (!seenNames.has(a.name)) {
+          // Ensure currentCategory._id is a string for comparison
+          const currentCategoryIdStr = typeof currentCategory._id === 'string' ? currentCategory._id : currentCategory._id?.toString?.();
+          attributes.push({ ...a, inherited: currentCategoryIdStr !== categoryId });
+          seenNames.add(a.name);
+        }
+      }
+      if (!currentCategory.parentId) break;
+      currentCategory = await Category.findById(currentCategory.parentId);
+    }
+    return attributes;
+  }
+
+  // دریافت ویژگی‌ها با صفحه‌بندی و فیلتر و جستجو
+  async getAttributesAdvanced(params: any, options?: { page?: number; limit?: number; sort?: any }): Promise<any> {
+    const { page = 1, limit = 10, sort = { order: 1 } } = options || {};
+    const query: any = {};
+    if (params.categoryId) query.categoryId = params.categoryId;
+    if (params.name) query.name = { $regex: params.name, $options: 'i' };
+    if (params.type) query.type = params.type;
+    if (params.search) {
+      query.$or = [
+        { name: { $regex: params.search, $options: 'i' } }
+      ];
+    }
+    const total = await CategoryAttribute.countDocuments(query);
+    const skip = (page - 1) * limit;
+    const attributes = await CategoryAttribute.find(query).sort(sort).skip(skip).limit(limit).lean();
+    return {
+      data: attributes,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  // بروزرسانی گروهی ویژگی‌ها
+  async bulkUpdateAttributes(attributes: (Partial<ICategoryAttribute> & { _id: string })[]): Promise<any> {
+    const results = [];
+    let success = 0;
+    let failed = 0;
+    for (const attr of attributes) {
+      if (!attr || !attr._id) continue;
+      try {
+        const updated = await CategoryAttribute.findByIdAndUpdate(attr._id, attr, { new: true });
+        if (updated) {
+          results.push({ id: attr._id, success: true });
+          success++;
+        } else {
+          results.push({ id: attr._id, success: false });
+          failed++;
+        }
+      } catch (e) {
+        results.push({ id: attr._id, success: false, error: (e as Error).message });
+        failed++;
+      }
+    }
+    return { total: attributes.length, success, failed, results };
+  }
+
+  // حذف گروهی ویژگی‌ها
+  async bulkDeleteAttributes(ids: string[]): Promise<any> {
+    const results = [];
+    let success = 0;
+    let failed = 0;
+    for (const id of ids) {
+      try {
+        const deleted = await CategoryAttribute.findByIdAndDelete(id);
+        if (deleted) {
+          results.push({ id, deleted: true });
+          success++;
+        } else {
+          results.push({ id, deleted: false });
+          failed++;
+        }
+      } catch (e) {
+        results.push({ id, deleted: false, error: (e as Error).message });
+        failed++;
+      }
+    }
+    return { total: ids.length, success, failed, results };
   }
 }
 

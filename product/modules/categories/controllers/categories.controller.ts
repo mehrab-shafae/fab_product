@@ -13,8 +13,25 @@ export const createCategory = async (req: Request, res: Response) => {
 
 export const getCategories = async (req: Request, res: Response) => {
   try {
-    const result = await categoriesService.search(req.query, req.query);
-    res.json({ status: 'success', data: result });
+    const { page, limit, sort, search, ...filters } = req.query;
+    // sort باید به صورت {field: جهت} باشد، مثلاً {order: 1}
+    let sortObj: any = { createdAt: -1 };
+    if (typeof sort === 'string') {
+      try {
+        sortObj = JSON.parse(sort);
+      } catch {
+        sortObj = { [sort]: 1 };
+      }
+    }
+    const result = await categoriesService.search(
+      { ...filters, search },
+      {
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+        sort: sortObj,
+      }
+    );
+    res.json({ status: 'success', ...result });
   } catch (error) {
     res.status(500).json({ status: 'error', message: (error as Error).message });
   }
@@ -454,6 +471,59 @@ export const getLegacyTree = async (_req: Request, res: Response) => {
   try {
     const tree = await categoriesService.getLegacyTree();
     res.json({ status: 'success', data: tree });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: (error as Error).message });
+  }
+};
+
+export const getAllAttributesWithInheritanceController = async (req: Request, res: Response) => {
+  try {
+    const { categoryId } = req.params;
+    const attributes = await categoriesService.getAllAttributesWithInheritance(categoryId);
+    res.json({ status: 'success', data: attributes });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: (error as Error).message });
+  }
+};
+
+export const getAttributesAdvanced = async (req: Request, res: Response) => {
+  try {
+    const { page, limit, sort, search, ...filters } = req.query;
+    let sortObj: any = { order: 1 };
+    if (typeof sort === 'string') {
+      try {
+        sortObj = JSON.parse(sort);
+      } catch {
+        sortObj = { [sort]: 1 };
+      }
+    }
+    const result = await categoriesService.getAttributesAdvanced(
+      { ...filters, search },
+      {
+        page: page ? Number(page) : 1,
+        limit: limit ? Number(limit) : 10,
+        sort: sortObj,
+      }
+    );
+    res.json({ status: 'success', ...result });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: (error as Error).message });
+  }
+};
+
+export const bulkUpdateAttributes = async (req: Request, res: Response) => {
+  try {
+    const result = await categoriesService.bulkUpdateAttributes(req.body.attributes);
+    res.json({ status: 'success', ...result });
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: (error as Error).message });
+  }
+};
+
+export const bulkDeleteAttributes = async (req: Request, res: Response) => {
+  try {
+    const result = await categoriesService.bulkDeleteAttributes(req.body.attributeIds);
+    res.json({ status: 'success', ...result });
   } catch (error) {
     res.status(500).json({ status: 'error', message: (error as Error).message });
   }

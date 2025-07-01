@@ -18,6 +18,10 @@ export interface ICategory extends Document {
   submitted_at?: Date;
   approved_at?: Date;
   rejected_at?: Date;
+  image_ids: string[];
+  meta_keywords: string[];
+  meta_title: string;
+  meta_description: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +43,10 @@ const CategorySchema = new Schema<ICategory>({
   submitted_at: { type: Date },
   approved_at: { type: Date },
   rejected_at: { type: Date },
+  image_ids: [{ type: String }],
+  meta_keywords: [{ type: String }],
+  meta_title: { type: String },
+  meta_description: { type: String },
 }, { timestamps: true });
 
 export const Category = model<ICategory>('Category', CategorySchema); 

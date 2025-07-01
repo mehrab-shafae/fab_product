@@ -9,6 +9,24 @@ export const createCategorySchema = yup.object({
   order: yup.number().default(0),
   status: yup.mixed<CategoryStatus>().oneOf(['active', 'inactive', 'pending', 'archived']).default('active'),
   is_featured: yup.boolean().default(false),
+  image_ids: yup.array().of(yup.string()).optional(),
+  meta_keywords: yup.array().of(yup.string()).optional(),
+  meta_title: yup.string().optional(),
+  meta_description: yup.string().optional(),
+  attribute_metadata: yup.array().of(
+    yup.object({
+      name: yup.string().required(),
+      type: yup.mixed<'string' | 'number' | 'enum'>().oneOf(['string', 'number', 'enum']).required(),
+      required: yup.boolean().optional(),
+      order: yup.number().optional(),
+      options: yup.array().of(
+        yup.object({
+          value: yup.string().required(),
+          order: yup.number().optional(),
+        })
+      ).optional(),
+    })
+  ).optional(),
 });
 
 export const updateCategorySchema = yup.object({
@@ -19,6 +37,24 @@ export const updateCategorySchema = yup.object({
   order: yup.number(),
   status: yup.mixed<CategoryStatus>().oneOf(['active', 'inactive', 'pending', 'archived']),
   is_featured: yup.boolean(),
+  image_ids: yup.array().of(yup.string()).optional(),
+  meta_keywords: yup.array().of(yup.string()).optional(),
+  meta_title: yup.string().optional(),
+  meta_description: yup.string().optional(),
+  attribute_metadata: yup.array().of(
+    yup.object({
+      name: yup.string().required(),
+      type: yup.mixed<'string' | 'number' | 'enum'>().oneOf(['string', 'number', 'enum']).required(),
+      required: yup.boolean().optional(),
+      order: yup.number().optional(),
+      options: yup.array().of(
+        yup.object({
+          value: yup.string().required(),
+          order: yup.number().optional(),
+        })
+      ).optional(),
+    })
+  ).optional(),
 });
 
 export const approvalSchema = yup.object({
