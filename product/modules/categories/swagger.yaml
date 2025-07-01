@@ -290,7 +290,7 @@ paths:
       summary: Get attributes of a category
       parameters:
         - in: path
-          name: categoryId
+          name: id
           required: true
           schema:
             type: string
