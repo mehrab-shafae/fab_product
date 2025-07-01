@@ -4,13 +4,9 @@ import '../asyncHandler.js';
 // ======================================================================
 import express from 'express';
 import { Pool } from 'pg';
-import cors from 'cors';
 import swaggerUi from 'swagger-ui-express';
-import rateLimit from 'express-rate-limit';
-import slowDown from 'express-slow-down';
 import { readFileSync } from 'fs';
 import { createLogger, format, transports } from 'winston';
-import helmet from 'helmet';
 import YAML from 'yamljs';
 import { sequelize, seedDefaultLanguages } from './models/index.js';
 import categoryRoutes from './routes/categoryRoutes.js';
@@ -19,7 +15,7 @@ import { Category, CategoryAttribute, CategoryAttributeOption, ProductAttributeV
 import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
-import { categoriesRouter } from './modules/categories/index.js';
+import { headMiddleware } from './headMidd.js';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -28,6 +24,8 @@ const PORT = 7001;
 const POSTGRES_URI = process.env.POSTGRES_URI || `postgresql://${process.env.POSTGRES_USER || 'postgres'}:${process.env.POSTGRES_PASSWORD || 'postgres'}@${process.env.POSTGRES_HOST || 'localhost'}:${process.env.POSTGRES_PORT || '5432'}/${process.env.POSTGRES_DB || 'product_db'}`;
 
 const { combine, timestamp, printf, colorize } = format;
+
+let categoriesWorkerProcess = null;
 
 const DB_ERROR_CODES = {
       23503: {
@@ -144,47 +142,6 @@ const logger = createLogger({
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: isDevelopment ? 0 : 250,
-      message: 'Too many requests from this IP, please try again later.',
-});
-
-const speedLimiter = slowDown({
-      windowMs: 15 * 60 * 1000,
-      delayAfter: isDevelopment ? 100 : 50,
-      delayMs: (used, req) => {
-            const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500);
-
-            const methodMultiplier =
-                  {
-                        GET: 0.5,
-                        POST: 2.0,
-                        PUT: 1.5,
-                        DELETE: 1.5,
-                        PATCH: 1.5,
-                  }[req.method] || 1.0;
-
-            const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
-
-            const cacheMultiplier = hasCaching ? 0.3 : 1.0;
-
-            const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
-
-            return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200);
-      },
-      keyGenerator: req => {
-            const routePattern = req.originalUrl.split('/')[1];
-            return `${req.ip}:${routePattern}`;
-      },
-      // skip: (req) => {
-      //     // Skip rate limiting for certain paths or conditions
-      //     return req.path.startsWith('/health') ||
-      //            req.path.startsWith('/metrics') ||
-      //            req.path.startsWith('/docs');
-      // }
-});
-
 const swaggerDocument = YAML.parse(readFileSync(cwd('product/swagger.yaml'), 'utf8'));
 
 const pgPool = new Pool({
@@ -195,6 +152,8 @@ const DEFAULT_PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_SORT_FIELD = 'created_at';
 const DEFAULT_SORT_ORDER = 'DESC';
+
+const apiV1Router = express.Router();
 
 // ======================================================================
 logger.debug = function (message, metadata = {}) {
@@ -209,130 +168,10 @@ swaggerDocument.servers[0].description = 'Development server';
 
 // ======================================================================
 
-const responseHandler = (req, res, next) => {
-      res.success = (data, message = 'Success') => {
-            // اگر اطلاعات زبان در res.locals وجود داشت، به خروجی اضافه کن
-            if (res.locals.languages && res.locals.currentLanguage) {
-                  res.json({
-                        status: 'success',
-                        data,
-                        message,
-                        language: {
-                              code: req.languageCode,
-                              name: res.locals.currentLanguage?.name,
-                              native_name: res.locals.currentLanguage?.native_name,
-                              direction: res.locals.currentLanguage?.direction,
-                        },
-                        availableLanguages: res.locals.languages.map(lang => ({
-                              code: lang.code,
-                              name: lang.name,
-                              native_name: lang.native_name,
-                              is_default: lang.is_default,
-                              direction: lang.direction,
-                        })),
-                  });
-            } else {
-                  res.json({
-                        status: 'success',
-                        data,
-                        message,
-                  });
-            }
-      };
-
-      res.error = (error, statusCode = 500) => {
-            if (typeof error === 'string') {
-                  return res.status(statusCode).json({
-                        status: 'error',
-                        message: error,
-                        data: null,
-                  });
-            }
-
-            logger.error('response Error', { error });
-            const handledError = handleDatabaseError(error);
-
-            // اگر پیام خطا کلی بود، پیام اختصاصی constraint را جایگزین کن
-            const genericMessages = ['Validation error', 'This record already exists', 'Referenced record does not exist', 'Required field is missing', 'Invalid value provided'];
-            let message = handledError.message;
-            if (genericMessages.includes(message) && error.detail) {
-                  // اگر دیتیل خطا وجود دارد، آن را نمایش بده
-                  message = error.detail;
-            } else if (genericMessages.includes(message) && error.constraint) {
-                  // اگر constraint وجود دارد، پیام اختصاصی constraint را نمایش بده
-                  message = `Constraint violation: ${error.constraint}`;
-            }
-
-            res.status(handledError.statusCode).json({
-                  status: 'error',
-                  message,
-                  data: null,
-                  ...(handledError.details && { details: handledError.details }),
-            });
-      };
-
-      next();
-};
-
 async function init() {
       const app = express();
 
-      const apiV1Router = express.Router();
-      const apiV2Router = express.Router();
-
-      if (isDevelopment) {
-            // Configure Helmet with CSP that allows inline scripts for admin panel
-            app.use(
-                  helmet({
-                        contentSecurityPolicy: {
-                              directives: {
-                                    defaultSrc: ["'self'"],
-                                    scriptSrc: ["'self'", "'unsafe-inline'"],
-                                    styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
-                                    scriptSrcAttr: ["'unsafe-inline'"],
-                                    imgSrc: ["'self'", 'data:', 'https:'],
-                                    connectSrc: ["'self'"],
-                                    fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
-                                    objectSrc: ["'none'"],
-                                    mediaSrc: ["'self'"],
-                                    frameSrc: ["'none'"],
-                                    workerSrc: ["'self'"],
-                                    manifestSrc: ["'self'"],
-                                    baseUri: ["'self'"],
-                                    formAction: ["'self'"],
-                                    frameAncestors: ["'none'"],
-                                    upgradeInsecureRequests: [],
-                              },
-                        },
-                        crossOriginEmbedderPolicy: false,
-                        crossOriginResourcePolicy: { policy: 'cross-origin' },
-                  })
-            );
-      } else {
-            app.use(helmet());
-      }
-
-      app.use(
-            cors({
-                  origin: ['http://localhost:3000'],
-                  credentials: true,
-            })
-      );
-      app.use(express.json({ limit: '1mb' }));
-      app.use(express.urlencoded({ limit: '1mb', extended: true }));
-      if (!isDevelopment) {
-            app.use(limiter);
-            app.use(speedLimiter);
-      }
-
-      // Add i18n middleware
-      app.use(i18nMiddleware);
-      app.use(validateLanguageMiddleware);
-      app.use(addLanguageInfoMiddleware);
-      app.use(translationFallbackMiddleware);
-
-      app.use(requestLogger);
-      app.use(errorLogger);
+      headMiddleware(app, express);
 
       app.use(
             '/api-docs/en',
@@ -367,8 +206,6 @@ async function init() {
       );
 
       app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
-
-      app.use(responseHandler);
 
       app.get('/health', healthCheckController);
 
@@ -409,10 +246,8 @@ async function init() {
       }
 
       apiV1Routers(apiV1Router);
-      apiV2Routers(apiV2Router);
 
       app.use('/api/product/v1', apiV1Router);
-      app.use('/api/product/v2', apiV2Router);
 
       app.use('/api/i18n', i18nRoutes);
 
@@ -433,10 +268,6 @@ async function init() {
             // Start PGUi worker after successful startup
             startPguiWorker();
       });
-}
-
-function apiV2Routers(app) {
-      app.use('/categories', categoriesRouter);
 }
 
 function apiV1Routers(app) {
@@ -605,7 +436,7 @@ function getChatMessages(chat_id, { page = 1, limit = 10 } = {}) {
 }
 
 // =====================[ handleDatabaseError Enhancement ]=====================
-function handleDatabaseError(error) {
+/*function handleDatabaseError(error) {
       if (!error.code || !DB_ERROR_CODES[error.code]) {
             return {
                   message: error.message,
@@ -651,7 +482,7 @@ function handleDatabaseError(error) {
                           }
                         : undefined,
       };
-}
+}*/
 
 function markChatMessagesAsRead(chat_id, user_id) {
       const query = `
@@ -1013,27 +844,6 @@ function requestLogger(req, res, next) {
       };
 
       next();
-}
-
-// =====================[ errorLogger Enhancement ]=====================
-function errorLogger(err, req, res, next) {
-      const requestId = getRequestId(req);
-      logger.error('Unhandled error', {
-            requestId,
-            error: err.message,
-            stack: err.stack,
-            method: req.method,
-            url: req.originalUrl,
-            ip: req.ip,
-            userAgent: req.get('user-agent'),
-      });
-      if (req.method !== 'GET' && req.body) {
-            logger.debug('Request body at error', {
-                  requestId,
-                  body: req.body,
-            });
-      }
-      next(err);
 }
 
 function getProductAttributes(product_id) {
@@ -2132,6 +1942,7 @@ function scheduleMaterializedViewRefresh() {
 // ======================================================================
 async function main() {
       init();
+      startCategoriesWorker();
 }
 main();
 // ======================================================================
@@ -2310,7 +2121,7 @@ function stopPguiWorker() {
 
 process.on('beforeExit', () => {
       stopPguiWorker();
-      free;
+      free();
 });
 process.on('SIGINT', () => {
       stopPguiWorker();
@@ -2324,3 +2135,25 @@ process.on('SIGQUIT', () => {
       stopPguiWorker();
       free();
 });
+
+function startCategoriesWorker() {
+      if (categoriesWorkerProcess) return;
+      const grayBg = '\x1b[100m'; // ANSI green background
+      const reset = '\x1b[0m';
+      logger.info(`${grayBg}[CategoriesWorker] Starting Categories worker...${reset}`);
+      categoriesWorkerProcess = spawn('node', ['build/product/categoriesWorker.js'], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: process.env,
+            cwd: process.cwd(),
+      });
+      categoriesWorkerProcess.stdout.on('data', data => {
+            logger.info(`${grayBg}[CategoriesWorker] ${data.toString().trim()}${reset}`);
+      });
+      categoriesWorkerProcess.stderr.on('data', data => {
+            logger.error(`${grayBg}[CategoriesWorker] ${data.toString().trim()}${reset}`);
+      });
+      categoriesWorkerProcess.on('close', code => {
+            logger.info(`${grayBg}[CategoriesWorker] Categories worker exited with code ${code}${reset}`);
+            categoriesWorkerProcess = null;
+      });
+}
