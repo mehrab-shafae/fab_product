@@ -1,10 +1,28 @@
+import 'dotenv/config';
+import '../cwd.js';
+import '../asyncHandler.js';
+
 import express from 'express';
 import { headMiddleware } from './headMidd.js';
 import { categoriesRouter } from './modules/categories/index.js';
+import mongoose from 'mongoose';
 
 const PORT = 7011;
 
 const app = express();
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
+
+async function connectToMongo() {
+  await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
+  console.log('MongoDB connected for categories worker')
+}
+
+await connectToMongo();
 
 headMiddleware(app, express);
 

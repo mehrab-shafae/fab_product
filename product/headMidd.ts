@@ -1,7 +1,3 @@
-import 'dotenv/config';
-import '../cwd.js';
-import '../asyncHandler.js';
-
 import cors from 'cors';
 import helmet from 'helmet';
 import { Express, NextFunction, Response, Request } from 'express';
