@@ -577,9 +577,24 @@ export class CategoriesService {
   }
 
   // مدیریت attribute و optionها (reference)
-  async addAttribute(categoryId: string, attributeData: any): Promise<ICategoryAttribute> {
+  async addAttribute(categoryId: string | Types.ObjectId, attributeData: any): Promise<ICategoryAttribute> {
+    // Debug log for incoming categoryId
+    console.log('addAttribute - received categoryId:', categoryId, 'type:', typeof categoryId);
+    let validCategoryId: Types.ObjectId | undefined;
+    if (categoryId instanceof Types.ObjectId) {
+      validCategoryId = categoryId;
+    } else if (typeof categoryId === 'string' && Types.ObjectId.isValid(categoryId)) {
+      validCategoryId = new Types.ObjectId(categoryId);
+    } else {
+      throw new Error(`Invalid categoryId: ${categoryId}`);
+    }
+    // Only allow valid types
+    const allowedTypes = ['string', 'number', 'enum'];
+    if (!allowedTypes.includes(attributeData.type)) {
+      throw new Error(`type: '${attributeData.type}' is not a valid enum value for path 'type'. Allowed: ${allowedTypes.join(', ')}`);
+    }
     const attribute = await CategoryAttribute.create({
-      categoryId,
+      categoryId: validCategoryId,
       ...attributeData,
     });
     return attribute;
