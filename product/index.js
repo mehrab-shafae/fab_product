@@ -8,14 +8,10 @@ import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 import { createLogger, format, transports } from 'winston';
 import YAML from 'yamljs';
-import { sequelize, seedDefaultLanguages } from './models/index.js';
-import categoryRoutes from './routes/categoryRoutes.js';
-import i18nRoutes from './routes/i18nRoutes.js';
-import { Category, CategoryAttribute, CategoryAttributeOption, ProductAttributeValue } from './models/index.js';
-import { i18nMiddleware, validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { headMiddleware } from './headMidd.js';
+import sequelize from './models/config.js';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -218,9 +214,6 @@ async function init() {
             await createDatabaseSchema();
             console.log('Database schema created successfully.');
 
-            // Seed default languages (fa, en, ar)
-            await seedDefaultLanguages();
-
             // Sync models with database - use force: false to preserve existing data
             // and alter: false to not modify existing tables
             try {
@@ -248,8 +241,6 @@ async function init() {
       apiV1Routers(apiV1Router);
 
       app.use('/api/product/v1', apiV1Router);
-
-      app.use('/api/i18n', i18nRoutes);
 
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
@@ -315,7 +306,6 @@ function apiV1Routers(app) {
       app.patch('/products/:id/status', validateRequiredFieldsMiddleware(['status']), validateProductIdMiddleware, requestLogger, updateProductStatusController);
       app.patch('/products/bulk-status', validateRequiredFieldsMiddleware(['productIds', 'status']), requestLogger, bulkUpdateProductStatusController);
 
-      app.use('/categories', categoryRoutes);
 }
 
 function createProduct(productData) {
