@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: Categories API
   version: 1.0.0
-  description: API documentation for the Categories module (independent, self-contained)
+  description: Full API documentation for the Categories module (self-contained)
 servers:
   - url: http://localhost:7011/api/product/v2/categories
     description: Local server
@@ -18,22 +18,70 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryInput'
+            example:
+              name: "Digital Goods"
+              slug: "digital-goods"
+              parentId: null
+              level: 1
+              order: 0
+              status: "active"
+              is_featured: false
       responses:
         '201':
           description: Category created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
     get:
       tags: [Categories]
       summary: Get all categories
       responses:
         '200':
           description: List of categories
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /tree:
     get:
       tags: [Categories]
       summary: Get category tree
+      parameters:
+        - in: query
+          name: maxDepth
+          schema:
+            type: integer
+          description: Maximum depth of tree
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
       responses:
         '200':
           description: Category tree
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
   /featured:
     get:
       tags: [Categories]
@@ -41,19 +89,116 @@ paths:
       responses:
         '200':
           description: Featured categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
   /search:
     get:
       tags: [Categories]
       summary: Search categories
       parameters:
         - in: query
-          name: q
+          name: name
           schema:
             type: string
-          description: Search query
+          description: Name to search
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: parentId
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
       responses:
         '200':
           description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+  /search/advanced:
+    get:
+      tags: [Categories]
+      summary: Advanced search for categories
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: level
+          schema:
+            type: integer
+        - in: query
+          name: parentId
+          schema:
+            type: string
+        - in: query
+          name: slug
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: limit
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Advanced search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Category'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+  /slug/{slug}:
+    get:
+      tags: [Categories]
+      summary: Get category by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
   /{id}:
     get:
       tags: [Categories]
@@ -67,6 +212,10 @@ paths:
       responses:
         '200':
           description: Category details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
     put:
       tags: [Categories]
       summary: Update category by ID
@@ -81,10 +230,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CategoryInput'
+              $ref: '#/components/schemas/CategoryUpdateInput'
+            example:
+              name: "Updated Name"
+              slug: "updated-name"
+              parentId: null
+              level: 2
+              order: 1
+              status: "inactive"
+              is_featured: true
       responses:
         '200':
           description: Category updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
     delete:
       tags: [Categories]
       summary: Delete category by ID
@@ -113,9 +274,17 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CategoryAttributeInput'
+            example:
+              name: "Color"
+              type: "select"
+              options: ["Red", "Blue", "Green"]
       responses:
         '201':
           description: Attribute added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttribute'
     get:
       tags: [Category Attributes]
       summary: Get attributes of a category
@@ -128,17 +297,598 @@ paths:
       responses:
         '200':
           description: List of attributes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryAttribute'
+  /attributes/{attributeId}:
+    put:
+      tags: [Category Attributes]
+      summary: Update attribute
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryAttributeInput'
+      responses:
+        '200':
+          description: Attribute updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttribute'
+    delete:
+      tags: [Category Attributes]
+      summary: Delete attribute
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Attribute deleted
+  /attributes/{attributeId}/options:
+    post:
+      tags: [Category Attributes]
+      summary: Add option to attribute
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryAttributeOptionInput'
+            example:
+              value: "Red"
+              order: 1
+      responses:
+        '201':
+          description: Option added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttributeOption'
+    get:
+      tags: [Category Attributes]
+      summary: Get options of an attribute
+      parameters:
+        - in: path
+          name: attributeId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of options
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CategoryAttributeOption'
+  /attributes/options/{optionId}:
+    put:
+      tags: [Category Attributes]
+      summary: Update option
+      parameters:
+        - in: path
+          name: optionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryAttributeOptionInput'
+      responses:
+        '200':
+          description: Option updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryAttributeOption'
+    delete:
+      tags: [Category Attributes]
+      summary: Delete option
+      parameters:
+        - in: path
+          name: optionId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Option deleted
+  /{id}/redirects:
+    post:
+      tags: [Categories]
+      summary: Add slug redirect
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                oldSlug:
+                  type: string
+      responses:
+        '201':
+          description: Slug redirect added
+    get:
+      tags: [Categories]
+      summary: Get slug redirects
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of slug redirects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+  /{id}/redirects/{oldSlug}:
+    delete:
+      tags: [Categories]
+      summary: Remove slug redirect
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: oldSlug
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Slug redirect removed
+  /export/{format}:
+    get:
+      tags: [Categories]
+      summary: Export categories
+      parameters:
+        - in: path
+          name: format
+          required: true
+          schema:
+            type: string
+            enum: [json, csv, xml]
+      responses:
+        '200':
+          description: Exported data
+  /import:
+    post:
+      tags: [Categories]
+      summary: Import categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format:
+                  type: string
+                  enum: [json, csv, xml]
+                data:
+                  type: string
+      responses:
+        '201':
+          description: Categories imported
+  /{id}/clone:
+    post:
+      tags: [Categories]
+      summary: Clone a category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                newName:
+                  type: string
+                newParentId:
+                  type: string
+      responses:
+        '201':
+          description: Category cloned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /templates/{templateId}:
+    get:
+      tags: [Categories]
+      summary: Get category template
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /templates/{templateId}/create:
+    post:
+      tags: [Categories]
+      summary: Create category from template
+      parameters:
+        - in: path
+          name: templateId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created from template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Category'
+  /{id}/submit-approval:
+    post:
+      tags: [Approval]
+      summary: Submit category for approval
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryApprovalInput'
+      responses:
+        '200':
+          description: Category submitted for approval
+  /{id}/approve:
+    post:
+      tags: [Approval]
+      summary: Approve category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryApprovalInput'
+      responses:
+        '200':
+          description: Category approved
+  /{id}/reject:
+    post:
+      tags: [Approval]
+      summary: Reject category
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryApprovalInput'
+      responses:
+        '200':
+          description: Category rejected
+  /reorder:
+    post:
+      tags: [Categories]
+      summary: Reorder categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                orderedIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Categories reordered
+  /status/{status}:
+    get:
+      tags: [Categories]
+      summary: Get categories by status
+      parameters:
+        - in: path
+          name: status
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of categories by status
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /level/{level}:
+    get:
+      tags: [Categories]
+      summary: Get categories by level
+      parameters:
+        - in: path
+          name: level
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: List of categories by level
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /parent/{parentId}:
+    get:
+      tags: [Categories]
+      summary: Get categories by parent
+      parameters:
+        - in: path
+          name: parentId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of categories by parent
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /{id}/analytics:
+    get:
+      tags: [Analytics]
+      summary: Get category analytics
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category analytics
+  /{id}/performance:
+    get:
+      tags: [Analytics]
+      summary: Get category performance
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category performance
+  /{id}/insights:
+    get:
+      tags: [Analytics]
+      summary: Get category insights
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category insights
+  /{id}/growth:
+    get:
+      tags: [Analytics]
+      summary: Get category growth
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category growth
+  /hierarchy/analytics:
+    get:
+      tags: [Analytics]
+      summary: Get hierarchy analytics
+      responses:
+        '200':
+          description: Hierarchy analytics
+  /comparison:
+    post:
+      tags: [Analytics]
+      summary: Get comparison report for categories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                categoryIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Comparison report
+  /legacy-tree:
+    get:
+      tags: [Categories]
+      summary: Get legacy category tree
+      responses:
+        '200':
+          description: Legacy tree
 
 components:
   schemas:
     CategoryInput:
       type: object
+      required:
+        - name
       properties:
+        name:
+          type: string
+          example: "Digital Goods"
+        slug:
+          type: string
+          example: "digital-goods"
+        parentId:
+          type: string
+          nullable: true
+          example: null
+        level:
+          type: integer
+          example: 1
+        order:
+          type: integer
+          example: 0
+        status:
+          type: string
+          enum: [active, inactive, pending, archived]
+          example: "active"
+        is_featured:
+          type: boolean
+          example: false
+    CategoryUpdateInput:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Updated Name"
+        slug:
+          type: string
+          example: "updated-name"
+        parentId:
+          type: string
+          nullable: true
+          example: null
+        level:
+          type: integer
+          example: 2
+        order:
+          type: integer
+          example: 1
+        status:
+          type: string
+          enum: [active, inactive, pending, archived]
+          example: "inactive"
+        is_featured:
+          type: boolean
+          example: true
+    Category:
+      type: object
+      properties:
+        _id:
+          type: string
         name:
           type: string
         parentId:
           type: string
           nullable: true
+        slug:
+          type: string
+        status:
+          type: string
+        is_featured:
+          type: boolean
+        level:
+          type: integer
+        order:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttribute'
+        slug_redirects:
+          type: array
+          items:
+            type: string
+        approval_status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     CategoryAttributeInput:
       type: object
       properties:
@@ -149,4 +899,61 @@ components:
         options:
           type: array
           items:
-            type: string 
+            type: string
+    CategoryAttribute:
+      type: object
+      properties:
+        _id:
+          type: string
+        categoryId:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        order:
+          type: integer
+        options:
+          type: array
+          items:
+            $ref: '#/components/schemas/CategoryAttributeOption'
+    CategoryAttributeOptionInput:
+      type: object
+      properties:
+        value:
+          type: string
+        order:
+          type: integer
+    CategoryAttributeOption:
+      type: object
+      properties:
+        _id:
+          type: string
+        attributeId:
+          type: string
+        value:
+          type: string
+        order:
+          type: integer
+    CategoryApprovalInput:
+      type: object
+      properties:
+        submittedBy:
+          type: string
+        approvedBy:
+          type: string
+        rejectedBy:
+          type: string
+        rejectionReason:
+          type: string
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        pages:
+          type: integer 
