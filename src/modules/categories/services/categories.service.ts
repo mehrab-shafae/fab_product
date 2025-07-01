@@ -204,7 +204,7 @@ export class CategoriesService {
   }
 
   // بروزرسانی گروهی
-  async bulkUpdate(categories: CategoryUpdateInput[]): Promise<any> {
+  async bulkUpdate(categories: (CategoryUpdateInput & { _id: string })[]): Promise<any> {
     const results = [];
     for (const cat of categories) {
       if (!cat || !cat._id) continue;
@@ -461,7 +461,7 @@ export class CategoriesService {
       categories = rows.map((row: string) => {
         const values = row.split(',');
         const obj: any = {};
-        fields.forEach((f, i) => { obj[f] = values[i]; });
+        fields.forEach((f: string, i: number) => { obj[f] = values[i]; });
         return obj;
       });
     } else if (format === 'xml') {
@@ -469,7 +469,7 @@ export class CategoriesService {
       categories = matches.map((cat: string) => {
         const obj: any = {};
         const fieldMatches = cat.match(/<([^>]+)>([^<]*)<\/\1>/g) || [];
-        fieldMatches.forEach((f: string) => {
+        fieldMatches.forEach((f: string, i: number) => {
           const [, key, value] = f.match(/<([^>]+)>([^<]*)<\/\1>/) || [];
           obj[key] = value;
         });
@@ -518,6 +518,149 @@ export class CategoriesService {
   }
   async getAttributeOptions(attributeId: string): Promise<ICategoryAttributeOption[]> {
     return CategoryAttributeOption.find({ attributeId }).sort({ order: 1 }).lean();
+  }
+
+  // دریافت تمام زیرمجموعه‌های یک دسته (بازگشتی)
+  async getCategoryDescendants(id: string): Promise<ICategory[]> {
+    const descendants: ICategory[] = [];
+    const findDescendants = async (parentId: string) => {
+      const children = await Category.find({ parentId }).lean();
+      for (const child of children) {
+        descendants.push(child as ICategory);
+        await findDescendants(child._id.toString());
+      }
+    };
+    await findDescendants(id);
+    return descendants;
+  }
+
+  // دریافت والدهای یک دسته (تا ریشه)
+  async getCategoryAncestors(id: string): Promise<ICategory[]> {
+    const ancestors: ICategory[] = [];
+    let current = await Category.findById(id).lean();
+    while (current && current.parentId) {
+      const parent = await Category.findById(current.parentId).lean();
+      if (parent) ancestors.unshift(parent as ICategory);
+      current = parent;
+    }
+    return ancestors;
+  }
+
+  // دریافت دسته‌های هم‌سطح (siblings)
+  async getCategorySiblings(id: string): Promise<ICategory[]> {
+    const category = await Category.findById(id).lean();
+    if (!category) return [];
+    return Category.find({ parentId: category.parentId, _id: { $ne: category._id } }).lean();
+  }
+
+  // --- Analytics & Reports ---
+  async getCategoryAnalytics(id: string, options?: any): Promise<any> {
+    // آمار پایه: تعداد زیرمجموعه، تعداد attribute، تعداد option
+    const category = await Category.findById(id);
+    if (!category) throw new Error('Category not found');
+    const descendants = await this.getCategoryDescendants(id);
+    const attributes = await this.getAttributes(id);
+    let totalOptions = 0;
+    for (const attr of attributes) {
+      const opts = await this.getAttributeOptions((attr as any)._id.toString());
+      totalOptions += opts.length;
+    }
+    return {
+      category: { id: category._id, name: category.name, slug: category.slug },
+      stats: {
+        subcategories: descendants.length,
+        attributes: attributes.length,
+        options: totalOptions,
+      },
+    };
+  }
+
+  async getCategoryPerformance(id: string, options?: any): Promise<any> {
+    // آمار پایه: تعداد زیرمجموعه، سطح، تعداد attribute
+    const category = await Category.findById(id);
+    if (!category) throw new Error('Category not found');
+    const descendants = await this.getCategoryDescendants(id);
+    const attributes = await this.getAttributes(id);
+    return {
+      category: { id: category._id, name: category.name, slug: category.slug },
+      performance: {
+        totalDescendants: descendants.length,
+        level: category.level,
+        attributes: attributes.length,
+      },
+    };
+  }
+
+  async getCategoryInsights(id: string, options?: any): Promise<any> {
+    // بینش ساده: بیشترین attribute، بیشترین option، سطح دسته
+    const attributes = await this.getAttributes(id);
+    let maxOptions = 0;
+    let maxAttr = null;
+    for (const attr of attributes) {
+      const opts = await this.getAttributeOptions((attr as any)._id.toString());
+      if (opts.length > maxOptions) {
+        maxOptions = opts.length;
+        maxAttr = attr.name;
+      }
+    }
+    return {
+      insights: {
+        mostOptionsAttribute: maxAttr,
+        maxOptions,
+        totalAttributes: attributes.length,
+      },
+    };
+  }
+
+  async getCategoryGrowth(id: string, options?: any): Promise<any> {
+    // رشد ساده: تعداد زیرمجموعه در بازه‌های زمانی (اینجا فقط snapshot فعلی)
+    const descendants = await this.getCategoryDescendants(id);
+    return {
+      growth: {
+        totalDescendants: descendants.length,
+        // future: add time-based growth if you have timestamps
+      },
+    };
+  }
+
+  async getHierarchyAnalytics(rootId?: string): Promise<any> {
+    // آمار سلسله‌مراتبی: تعداد کل دسته‌ها و زیرمجموعه‌ها از یک ریشه
+    const root = rootId ? await Category.findById(rootId) : null;
+    const all = root ? await this.getCategoryDescendants(root._id.toString()) : await Category.find().lean();
+    return {
+      root: root ? { id: root._id, name: root.name } : 'all',
+      totalCategories: all.length,
+    };
+  }
+
+  async getComparisonReport(categoryIds: string[], options?: any): Promise<any> {
+    // مقایسه ساده: تعداد attribute و descendant برای هر دسته
+    const result = [];
+    for (const id of categoryIds) {
+      const category = await Category.findById(id);
+      if (!category) continue;
+      const descendants = await this.getCategoryDescendants(id);
+      const attributes = await this.getAttributes(id);
+      result.push({
+        id: category._id,
+        name: category.name,
+        descendants: descendants.length,
+        attributes: attributes.length,
+      });
+    }
+    return result;
+  }
+
+  async getLegacyTree(): Promise<any> {
+    // بازگشت ساختار درختی قدیمی (parent/children)
+    const buildTree = async (parentId: string | null = null) => {
+      const nodes = await Category.find(parentId ? { parentId } : { parentId: null }).lean();
+      for (const node of nodes) {
+        node.children = await buildTree(node._id.toString());
+      }
+      return nodes;
+    };
+    return buildTree();
   }
 }
 

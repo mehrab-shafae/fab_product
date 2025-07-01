@@ -7,6 +7,7 @@ export interface CategoryInput {
   level?: number;
   order?: number;
   status?: CategoryStatus;
+  is_featured?: boolean;
 }
 
 export interface CategoryUpdateInput {
@@ -16,4 +17,5 @@ export interface CategoryUpdateInput {
   level?: number;
   order?: number;
   status?: CategoryStatus;
+  is_featured?: boolean;
 } 
