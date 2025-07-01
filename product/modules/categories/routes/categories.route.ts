@@ -8,8 +8,13 @@ import {
   validateUpdateCategory,
   validateApproval
 } from '../middlewares/categoryMiddleware.js';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 const router = Router();
+const swaggerDocument = YAML.load(cwd('product/modules/categories/swagger.yaml'));
+
+router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // CRUD
 router.post('/', validateCreateCategory, checkParentCategoryExists, preventCircularReference, categoriesController.createCategory);
@@ -18,10 +23,10 @@ router.get('/tree', categoriesController.getCategoryTree);
 router.get('/featured', categoriesController.getFeaturedCategories);
 router.get('/search', categoriesController.searchCategories);
 router.get('/search/advanced', categoriesController.advancedSearchCategories);
-router.get('/slug/:slug', categoriesController.getCategoryBySlug);
-router.get('/:id', checkCategoryExists, categoriesController.getCategoryById);
-router.put('/:id', validateUpdateCategory, checkCategoryExists, checkParentCategoryExists, preventCircularReference, categoriesController.updateCategory);
-router.delete('/:id', checkCategoryExists, categoriesController.deleteCategory);
+router.get('/slug/:slug', asyncHandler(categoriesController.getCategoryBySlug));
+router.get('/:id', checkCategoryExists, asyncHandler(categoriesController.getCategoryById));
+router.put('/:id', validateUpdateCategory, checkCategoryExists, checkParentCategoryExists, preventCircularReference, asyncHandler(categoriesController.updateCategory));
+router.delete('/:id', checkCategoryExists, asyncHandler(categoriesController.deleteCategory));
 
 // Bulk
 router.put('/bulk', categoriesController.bulkUpdateCategories);
@@ -31,7 +36,7 @@ router.delete('/bulk', categoriesController.bulkDeleteCategories);
 router.get('/:id/breadcrumb', checkCategoryExists, categoriesController.getCategoryBreadcrumb);
 router.get('/:id/stats', checkCategoryExists, categoriesController.getCategoryStats);
 router.get('/:id/statistics', checkCategoryExists, categoriesController.getCategoryStatistics);
-router.get('/:id/full', checkCategoryExists, categoriesController.getCategoryFullDetails);
+router.get('/:id/full', checkCategoryExists, asyncHandler(categoriesController.getCategoryFullDetails));
 router.get('/:id/descendants', checkCategoryExists, categoriesController.getCategoryDescendants);
 router.get('/:id/ancestors', checkCategoryExists, categoriesController.getCategoryAncestors);
 router.get('/:id/siblings', checkCategoryExists, categoriesController.getCategorySiblings);
@@ -47,7 +52,7 @@ router.put('/attributes/options/:optionId', categoriesController.updateAttribute
 router.delete('/attributes/options/:optionId', categoriesController.deleteAttributeOption);
 
 // Slug redirects
-router.post('/:id/redirects', checkCategoryExists, categoriesController.addSlugRedirect);
+router.post('/:id/redirects', checkCategoryExists, asyncHandler(categoriesController.addSlugRedirect));
 router.delete('/:id/redirects/:oldSlug', checkCategoryExists, categoriesController.removeSlugRedirect);
 router.get('/:id/redirects', checkCategoryExists, categoriesController.getSlugRedirects);
 
@@ -56,9 +61,9 @@ router.get('/export/:format', categoriesController.exportCategories);
 router.post('/import', categoriesController.importCategories);
 
 // Clone, template, create from template
-router.post('/:id/clone', checkCategoryExists, categoriesController.cloneCategory);
-router.get('/templates/:templateId', categoriesController.getCategoryTemplate);
-router.post('/templates/:templateId/create', categoriesController.createFromTemplate);
+router.post('/:id/clone', checkCategoryExists, asyncHandler(categoriesController.cloneCategory));
+router.get('/templates/:templateId', asyncHandler(categoriesController.getCategoryTemplate));
+router.post('/templates/:templateId/create', asyncHandler(categoriesController.createFromTemplate));
 
 // Approval workflow
 router.post('/:id/submit-approval', checkCategoryExists, validateApproval, categoriesController.submitForApproval);

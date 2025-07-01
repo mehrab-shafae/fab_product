@@ -1,0 +1,152 @@
+openapi: 3.0.0
+info:
+  title: Categories API
+  version: 1.0.0
+  description: API documentation for the Categories module (independent, self-contained)
+servers:
+  - url: http://localhost:3000
+    description: Local server
+
+paths:
+  /categories:
+    post:
+      tags: [Categories]
+      summary: Create a new category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '201':
+          description: Category created
+    get:
+      tags: [Categories]
+      summary: Get all categories
+      responses:
+        '200':
+          description: List of categories
+  /categories/tree:
+    get:
+      tags: [Categories]
+      summary: Get category tree
+      responses:
+        '200':
+          description: Category tree
+  /categories/featured:
+    get:
+      tags: [Categories]
+      summary: Get featured categories
+      responses:
+        '200':
+          description: Featured categories
+  /categories/search:
+    get:
+      tags: [Categories]
+      summary: Search categories
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search query
+      responses:
+        '200':
+          description: Search results
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get category by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Category details
+    put:
+      tags: [Categories]
+      summary: Update category by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryInput'
+      responses:
+        '200':
+          description: Category updated
+    delete:
+      tags: [Categories]
+      summary: Delete category by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Category deleted
+  /categories/{id}/attributes:
+    post:
+      tags: [Category Attributes]
+      summary: Add attribute to category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CategoryAttributeInput'
+      responses:
+        '201':
+          description: Attribute added
+    get:
+      tags: [Category Attributes]
+      summary: Get attributes of a category
+      parameters:
+        - in: path
+          name: categoryId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of attributes
+
+components:
+  schemas:
+    CategoryInput:
+      type: object
+      properties:
+        name:
+          type: string
+        parentId:
+          type: string
+          nullable: true
+    CategoryAttributeInput:
+      type: object
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        options:
+          type: array
+          items:
+            type: string 
