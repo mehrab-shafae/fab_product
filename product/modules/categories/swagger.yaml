@@ -8,7 +8,7 @@ servers:
     description: Local server
 
 paths:
-  /categories:
+  /:
     post:
       tags: [Categories]
       summary: Create a new category
@@ -27,21 +27,21 @@ paths:
       responses:
         '200':
           description: List of categories
-  /categories/tree:
+  /tree:
     get:
       tags: [Categories]
       summary: Get category tree
       responses:
         '200':
           description: Category tree
-  /categories/featured:
+  /featured:
     get:
       tags: [Categories]
       summary: Get featured categories
       responses:
         '200':
           description: Featured categories
-  /categories/search:
+  /search:
     get:
       tags: [Categories]
       summary: Search categories
@@ -54,7 +54,7 @@ paths:
       responses:
         '200':
           description: Search results
-  /categories/{id}:
+  /{id}:
     get:
       tags: [Categories]
       summary: Get category by ID
@@ -97,7 +97,7 @@ paths:
       responses:
         '204':
           description: Category deleted
-  /categories/{id}/attributes:
+  /{id}/attributes:
     post:
       tags: [Category Attributes]
       summary: Add attribute to category

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Category } from '../models/category.model.js';
 import { createCategorySchema, updateCategorySchema, approvalSchema } from '../schema/category.schema.js';
+import mongoose from 'mongoose';
 
 // جلوگیری از circular reference
 export const preventCircularReference = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -41,6 +42,13 @@ export const checkParentCategoryExists = async (req: Request, res: Response, nex
 // چک وجود دسته
 export const checkCategoryExists = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   const { id } = req.params;
+  if (!id) {
+    return next();
+  }
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    res.status(400).json({ status: 'error', message: 'شناسه دسته معتبر نیست.' });
+    return;
+  }
   const category = await Category.findById(id);
   if (!category) {
     res.status(404).json({ status: 'error', message: 'دسته مورد نظر یافت نشد.' });
