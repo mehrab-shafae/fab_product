@@ -3,8 +3,8 @@ import { upsertProductInventoryController, getProductInventoryController, delete
 
 const router = Router({ mergeParams: true });
 
-router.post('/', upsertProductInventoryController);
-router.get('/', getProductInventoryController);
-router.delete('/:inventoryId', deleteProductInventoryController);
+router.post('/', asyncHandler(upsertProductInventoryController));
+router.get('/', asyncHandler(getProductInventoryController));
+router.delete('/:inventoryId', asyncHandler(deleteProductInventoryController));
 
 export default router;

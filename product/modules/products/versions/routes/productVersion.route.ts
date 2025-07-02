@@ -3,8 +3,8 @@ import { createProductVersionController, getProductVersionsController, deletePro
 
 const router = Router({ mergeParams: true });
 
-router.post('/', createProductVersionController);
-router.get('/', getProductVersionsController);
-router.delete('/:versionId', deleteProductVersionController);
+router.post('/', asyncHandler(createProductVersionController));
+router.get('/', asyncHandler(getProductVersionsController));
+router.delete('/:versionId', asyncHandler(deleteProductVersionController));
 
 export default router;

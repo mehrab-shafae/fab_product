@@ -3,8 +3,8 @@ import { addProductRelationshipController, getProductRelationshipsController, de
 
 const router = Router({ mergeParams: true });
 
-router.post('/', addProductRelationshipController);
-router.get('/', getProductRelationshipsController);
-router.delete('/:relationshipId', deleteProductRelationshipController);
+router.post('/', asyncHandler(addProductRelationshipController));
+router.get('/', asyncHandler(getProductRelationshipsController));
+router.delete('/:relationshipId', asyncHandler(deleteProductRelationshipController));
 
 export default router;

@@ -3,8 +3,8 @@ import { createProductVariantController, getProductVariantsController, deletePro
 
 const router = Router({ mergeParams: true });
 
-router.post('/', createProductVariantController);
-router.get('/', getProductVariantsController);
-router.delete('/:variantId', deleteProductVariantController);
+router.post('/', asyncHandler(createProductVariantController));
+router.get('/', asyncHandler(getProductVariantsController));
+router.delete('/:variantId', asyncHandler(deleteProductVariantController));
 
 export default router;

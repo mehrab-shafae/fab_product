@@ -3,7 +3,7 @@ import { createProductAttributeController, getProductAttributesController } from
 
 const router = Router();
 
-router.post('/', createProductAttributeController);
-router.get('/', getProductAttributesController);
+router.post('/', asyncHandler(createProductAttributeController));
+router.get('/', asyncHandler(getProductAttributesController));
 
 export default router;

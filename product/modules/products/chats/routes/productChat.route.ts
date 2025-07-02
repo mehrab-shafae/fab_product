@@ -3,7 +3,7 @@ import { createProductChatController, getUserChatsController } from '../controll
 
 const router = Router({ mergeParams: true });
 
-router.post('/', createProductChatController);
-router.get('/users/:userId/chats', getUserChatsController);
+router.post('/', asyncHandler(createProductChatController));
+router.get('/users/:userId/chats', asyncHandler(getUserChatsController));
 
 export default router;

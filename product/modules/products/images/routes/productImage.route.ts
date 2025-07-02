@@ -4,8 +4,8 @@ import { validateProductImageInput } from '../../middlewares/product.middleware'
 
 const router = Router({ mergeParams: true });
 
-router.post('/', validateProductImageInput, addProductImageController);
-router.get('/', getProductImagesController);
-router.delete('/:imageId', deleteProductImageController);
+router.post('/', asyncHandler(validateProductImageInput), asyncHandler(addProductImageController));
+router.get('/', asyncHandler(getProductImagesController));
+router.delete('/:imageId', asyncHandler(deleteProductImageController));
 
 export default router;

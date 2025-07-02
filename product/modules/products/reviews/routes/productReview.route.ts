@@ -4,8 +4,8 @@ import { validateProductReviewInput } from '../../middlewares/product.middleware
 
 const router = Router({ mergeParams: true });
 
-router.post('/', validateProductReviewInput, addProductReviewController);
-router.get('/', getProductReviewsController);
-router.delete('/:reviewId', deleteProductReviewController);
+router.post('/', asyncHandler(validateProductReviewInput), asyncHandler(addProductReviewController));
+router.get('/', asyncHandler(getProductReviewsController));
+router.delete('/:reviewId', asyncHandler(deleteProductReviewController));
 
 export default router;

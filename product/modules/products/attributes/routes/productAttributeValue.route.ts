@@ -4,7 +4,7 @@ import { validateProductAttributeValue } from '../../middlewares/product.middlew
 
 const router = Router({ mergeParams: true });
 
-router.post('/', validateProductAttributeValue, addProductAttributeValueController);
-router.get('/', getProductAttributeValuesController);
+router.post('/', asyncHandler(validateProductAttributeValue), asyncHandler(addProductAttributeValueController));
+router.get('/', asyncHandler(getProductAttributeValuesController));
 
 export default router;

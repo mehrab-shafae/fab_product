@@ -1,27 +1,27 @@
 import { Router } from 'express';
-import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController } from '../controllers/product.controller';
-import { validateProductId, validateRequiredFields, validateProductSchema, validateRequiredAttributesOnCreateProduct } from '../middlewares/product.middleware';
-import { productCommentRouter } from '../comments';
-import { productTagRouter } from '../tags';
-import { productChatRouter, chatMessageRouter } from '../chats';
-import { productImageRouter } from '../images';
-import { productVariantRouter } from '../variants';
-import { productInventoryRouter } from '../inventory';
-import { productPriceHistoryRouter } from '../priceHistory';
-import { productAttributeRouter, productAttributeValueRouter } from '../attributes';
-import { productReviewRouter } from '../reviews';
-import { wishlistRouter } from '../wishlist';
-import { productVersionRouter } from '../versions';
-import { productRelationshipRouter } from '../relationships';
-import { productAnalyticsRouter } from '../analytics';
+import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController } from '../controllers/product.controller.js';
+import { validateProductId, validateRequiredFields, validateProductSchema, validateRequiredAttributesOnCreateProduct } from '../middlewares/product.middleware.js';
+import { productCommentRouter } from '../comments/index.js';
+import { productTagRouter } from '../tags/index.js';
+import { productChatRouter, chatMessageRouter } from '../chats/index.js';
+import { productImageRouter } from '../images/index.js';
+import { productVariantRouter } from '../variants/index.js';
+import { productInventoryRouter } from '../inventory/index.js';
+import { productPriceHistoryRouter } from '../priceHistory/index.js';
+import { productAttributeRouter, productAttributeValueRouter } from '../attributes/index.js';
+import { productReviewRouter } from '../reviews/index.js';
+import { wishlistRouter } from '../wishlist/index.js';
+import { productVersionRouter } from '../versions/index.js';
+import { productRelationshipRouter } from '../relationships/index.js';
+import { productAnalyticsRouter } from '../analytics/index.js';
 
 const router = Router();
 
-router.post('/', validateProductSchema, validateRequiredAttributesOnCreateProduct, createProduct);
-router.get('/:id', validateProductId, getProductById);
-router.put('/:id', validateProductId, validateProductSchema, updateProduct);
-router.delete('/:id', validateProductId, deleteProduct);
-router.get('/', searchProductsController);
+router.post('/', asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnCreateProduct), asyncHandler(createProduct));
+router.get('/:id', asyncHandler(validateProductId), asyncHandler(getProductById));
+router.put('/:id', asyncHandler(validateProductId), asyncHandler(validateProductSchema), asyncHandler(updateProduct));
+router.delete('/:id', asyncHandler(validateProductId), asyncHandler(deleteProduct));
+router.get('/', asyncHandler(searchProductsController));
 
 // اتصال روتر ویژگی به صورت مستقل
 router.use('/attributes', productAttributeRouter);

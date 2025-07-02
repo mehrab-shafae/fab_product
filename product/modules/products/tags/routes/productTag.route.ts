@@ -3,9 +3,9 @@ import { addProductTag, getProductTags, getProductsWithTag, removeProductTag } f
 
 const router = Router({ mergeParams: true });
 
-router.post('/', addProductTag);
-router.get('/', getProductTags);
-router.get('/tags/:tagName', getProductsWithTag);
-router.delete('/:tagId', removeProductTag);
+router.post('/', asyncHandler(addProductTag));
+router.get('/', asyncHandler(getProductTags));
+router.get('/tags/:tagName', asyncHandler(getProductsWithTag));
+router.delete('/:tagId', asyncHandler(removeProductTag));
 
 export default router;

@@ -1,0 +1,1 @@
+export { default as productAnalyticsRouter } from './routes/productAnalytics.route.js';

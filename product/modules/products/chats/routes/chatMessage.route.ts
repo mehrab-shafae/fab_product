@@ -3,8 +3,8 @@ import { addChatMessageController, getChatMessagesController, markChatMessagesAs
 
 const router = Router({ mergeParams: true });
 
-router.post('/', addChatMessageController);
-router.get('/', getChatMessagesController);
-router.post('/read', markChatMessagesAsReadController);
+router.post('/', asyncHandler(addChatMessageController));
+router.get('/', asyncHandler(getChatMessagesController));
+router.post('/read', asyncHandler(markChatMessagesAsReadController));
 
 export default router;

@@ -1,3 +1,3 @@
-import productCommentRouter from './routes/productComment.route';
+import productCommentRouter from './routes/productComment.route.js';
 
 export { productCommentRouter };

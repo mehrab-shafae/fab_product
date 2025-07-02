@@ -3,8 +3,8 @@ import { addToWishlistController, getWishlistController, removeFromWishlistContr
 
 const router = Router({ mergeParams: true });
 
-router.post('/', addToWishlistController);
-router.get('/', getWishlistController);
-router.delete('/:wishlistId', removeFromWishlistController);
+router.post('/', asyncHandler(addToWishlistController));
+router.get('/', asyncHandler(getWishlistController));
+router.delete('/:wishlistId', asyncHandler(removeFromWishlistController));
 
 export default router;

@@ -3,7 +3,7 @@ import { getProductAnalyticsController, updateProductAnalyticsController } from 
 
 const router = Router({ mergeParams: true });
 
-router.get('/', getProductAnalyticsController);
-router.put('/', updateProductAnalyticsController);
+router.get('/', asyncHandler(getProductAnalyticsController));
+router.put('/', asyncHandler(updateProductAnalyticsController));
 
 export default router;
