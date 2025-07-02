@@ -263,8 +263,26 @@ export class CategoriesService {
     await category.save();
     // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را مدیریت کن
     if (data.attribute_metadata && Array.isArray(data.attribute_metadata)) {
+      // 1. لیست attributeهای فعلی این دسته را بگیر
+      const currentAttributes = await CategoryAttribute.find({ categoryId: category._id });
+      // 2. لیست idهای attributeهای جدید را از ورودی استخراج کن
+      // توجه: فیلد id ممکن است وجود نداشته باشد، پس از _id استفاده می‌کنیم
+      const newAttrIds = data.attribute_metadata
+        .filter(a => (a as any)._id)
+        .map(a => String((a as any)._id));
+      // 3. attributeهایی که در دیتابیس هستند اما در ورودی نیستند را حذف کن
+      for (const attr of currentAttributes) {
+        const attrId = typeof attr._id === 'object' && attr._id !== null && typeof attr._id.toString === 'function'
+          ? attr._id.toString()
+          : String(attr._id);
+        if (!newAttrIds.includes(attrId)) {
+          // حذف attribute و optionهایش
+          await CategoryAttributeOption.deleteMany({ attributeId: attr._id });
+          await CategoryAttribute.findByIdAndDelete(attr._id);
+        }
+      }
+      // 4. حالا attributeهای جدید را ویرایش/ایجاد کن
       for (const attr of data.attribute_metadata) {
-        // اگر attr.id وجود داشت، ویرایش کن، وگرنه جدید بساز
         let attribute;
         if ((attr as any).id) {
           attribute = await CategoryAttribute.findById((attr as any).id);
@@ -275,9 +293,22 @@ export class CategoriesService {
             attribute.order = attr.order || 0;
             await attribute.save();
             // مدیریت options
+            // لیست optionهای فعلی این attribute
+            const currentOptions = await CategoryAttributeOption.find({ attributeId: attribute._id });
+            // توجه: فیلد id ممکن است وجود نداشته باشد، پس از _id استفاده می‌کنیم
+            const newOptIds = (attr.options || []).filter(o => (o as any)._id).map(o => String((o as any)._id));
+            // حذف optionهایی که دیگر در ورودی نیستند
+            for (const opt of currentOptions) {
+              const optId = typeof opt._id === 'object' && opt._id !== null && typeof opt._id.toString === 'function'
+                ? opt._id.toString()
+                : String(opt._id);
+              if (!newOptIds.includes(optId)) {
+                await CategoryAttributeOption.findByIdAndDelete(opt._id);
+              }
+            }
+            // ویرایش/ایجاد optionها
             if (attr.options && Array.isArray(attr.options)) {
               for (const opt of attr.options) {
-                // اگر opt.id وجود داشت، ویرایش کن، وگرنه جدید بساز
                 let option;
                 if ((opt as any).id) {
                   option = await CategoryAttributeOption.findById((opt as any).id);
