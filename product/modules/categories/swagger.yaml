@@ -295,7 +295,7 @@ paths:
               slug: "updated-name"
               parentId: null
               order: 1
-              status: "inactive"
+              status: "active"
               image_ids: ["img1", "img2"]
               meta_keywords: ["keyword1", "keyword2"]
               meta_title: "Meta Title"

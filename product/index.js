@@ -11,8 +11,8 @@ import YAML from 'yamljs';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { headMiddleware } from './headMidd.js';
-import { productRouter } from './modules/products';
-import { connectMongo } from './modules/products/models';
+//import { productRouter } from './modules/products';
+//import { connectMongo } from './modules/products/models';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -139,7 +139,7 @@ const logger = createLogger({
 const DEBUG_MODE = process.env.DEBUG_MODE === 'true';
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-const swaggerDocument = YAML.parse(readFileSync(cwd('product/swagger.yaml'), 'utf8'));
+//const swaggerDocument = YAML.parse(readFileSync(cwd('product/swagger.yaml'), 'utf8'));
 
 const pgPool = new Pool({
       connectionString: POSTGRES_URI,
@@ -159,9 +159,9 @@ logger.debug = function (message, metadata = {}) {
       }
 };
 
-swaggerDocument.info.title = 'Product Microservice API';
-swaggerDocument.info.description = 'API for managing products and related features';
-swaggerDocument.servers[0].description = 'Development server';
+//swaggerDocument.info.title = 'Product Microservice API';
+//swaggerDocument.info.description = 'API for managing products and related features';
+//swaggerDocument.servers[0].description = 'Development server';
 
 // ======================================================================
 
@@ -169,7 +169,7 @@ async function init() {
       const app = express();
 
       headMiddleware(app, express);
-
+/*
       app.use(
             '/api-docs/en',
             swaggerUi.serve,
@@ -203,7 +203,7 @@ async function init() {
       );
 
       app.get('/api-docs', (req, res) => res.redirect('/api-docs/en'));
-
+*/
       app.get('/health', healthCheckController);
 
       try {
@@ -229,8 +229,8 @@ async function init() {
 
       app.use('/api/product/v1', apiV1Router);
 
-      await connectMongo(process.env.MONGO_URI || 'mongodb://localhost:27017/product_db');
-      app.use('/api/product/v2', productRouter);
+      //await connectMongo(process.env.MONGO_URI || 'mongodb://localhost:27017/product_db');
+      //app.use('/api/product/v2', productRouter);
 
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
