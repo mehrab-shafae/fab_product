@@ -8,4 +8,4 @@ router.post('/', validatePriceHistoryInput, addPriceHistoryController);
 router.get('/', getProductPriceHistoryController);
 router.get('/statistics', getProductPriceStatisticsController);
 
-export default router; 
+export default router;

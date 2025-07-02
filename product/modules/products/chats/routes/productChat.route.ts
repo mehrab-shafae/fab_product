@@ -6,4 +6,4 @@ const router = Router({ mergeParams: true });
 router.post('/', createProductChatController);
 router.get('/users/:userId/chats', getUserChatsController);
 
-export default router; 
+export default router;

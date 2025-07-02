@@ -8,4 +8,4 @@ router.post('/', validateProductReviewInput, addProductReviewController);
 router.get('/', getProductReviewsController);
 router.delete('/:reviewId', deleteProductReviewController);
 
-export default router; 
+export default router;

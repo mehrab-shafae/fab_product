@@ -7,4 +7,4 @@ const router = Router({ mergeParams: true });
 router.post('/', validateProductAttributeValue, addProductAttributeValueController);
 router.get('/', getProductAttributeValuesController);
 
-export default router; 
+export default router;

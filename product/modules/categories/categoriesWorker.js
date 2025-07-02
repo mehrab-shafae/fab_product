@@ -14,12 +14,11 @@ const app = express();
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 
 async function connectToMongo() {
-  await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
-  console.log('MongoDB connected for categories worker')
+      await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).catch(err => {
+            console.error('MongoDB connection error:', err);
+            process.exit(1);
+      });
+      console.log('MongoDB connected for categories worker');
 }
 
 await connectToMongo();
@@ -29,25 +28,23 @@ headMiddleware(app, express);
 app.use('/api/product/v2/categories', categoriesRouter);
 
 app.listen(PORT, () => {
-  console.log(`Categories worker running on port ${PORT}`);
-  console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/categories/api-docs`);
+      console.log(`Categories worker running on port ${PORT}`);
+      console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/categories/api-docs`);
 });
 
 function free() {
-    setTimeout(() => {
-          process.exit(0);
-    }, 1000);
+      process.exit(0);
 }
 
 process.on('beforeExit', () => {
-    free();
+      free();
 });
 process.on('SIGINT', () => {
-    free();
+      free();
 });
 process.on('SIGTERM', () => {
-    free();
+      free();
 });
 process.on('SIGQUIT', () => {
-    free();
+      free();
 });

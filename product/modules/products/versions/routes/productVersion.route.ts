@@ -7,4 +7,4 @@ router.post('/', createProductVersionController);
 router.get('/', getProductVersionsController);
 router.delete('/:versionId', deleteProductVersionController);
 
-export default router; 
+export default router;

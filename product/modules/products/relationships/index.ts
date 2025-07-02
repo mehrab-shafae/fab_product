@@ -1,3 +1,3 @@
 import productRelationshipRouter from './routes/productRelationship.route';
 
-export { productRelationshipRouter }; 
+export { productRelationshipRouter };

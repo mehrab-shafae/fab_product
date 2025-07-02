@@ -1,13 +1,6 @@
 import { Router } from 'express';
 import * as categoriesController from '../controllers/categories.controller.js';
-import {
-  preventCircularReference,
-  checkParentCategoryExists,
-  checkCategoryExists,
-  validateCreateCategory,
-  validateUpdateCategory,
-  validateApproval
-} from '../middlewares/categoryMiddleware.js';
+import { preventCircularReference, checkParentCategoryExists, checkCategoryExists, validateCreateCategory, validateUpdateCategory, validateApproval } from '../middlewares/categoryMiddleware.js';
 import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 
@@ -93,4 +86,4 @@ router.post('/comparison', categoriesController.getComparisonReport);
 // Legacy tree
 router.get('/legacy-tree', categoriesController.getLegacyTree);
 
-export default router; 
+export default router;

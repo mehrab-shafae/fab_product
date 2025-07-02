@@ -19,4 +19,4 @@ export { default as categoriesRouter } from './routes/categories.route.js';
 export * from './middlewares/categoryMiddleware.js';
 
 // Schemas
-export * from './schema/category.schema.js'; 
+export * from './schema/category.schema.js';

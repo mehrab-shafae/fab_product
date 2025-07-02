@@ -54,4 +54,4 @@ router.use('/:productId/relationships', productRelationshipRouter);
 // اتصال روتر آمار و آنالیتیکس به عنوان زیرمجموعه product
 router.use('/:productId/analytics', productAnalyticsRouter);
 
-export default router; 
+export default router;

@@ -6,4 +6,4 @@ const router = Router();
 router.post('/', createProductAttributeController);
 router.get('/', getProductAttributesController);
 
-export default router; 
+export default router;

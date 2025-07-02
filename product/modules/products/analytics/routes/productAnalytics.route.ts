@@ -6,4 +6,4 @@ const router = Router({ mergeParams: true });
 router.get('/', getProductAnalyticsController);
 router.put('/', updateProductAnalyticsController);
 
-export default router; 
+export default router;

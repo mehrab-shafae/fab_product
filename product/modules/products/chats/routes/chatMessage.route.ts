@@ -7,4 +7,4 @@ router.post('/', addChatMessageController);
 router.get('/', getChatMessagesController);
 router.post('/read', markChatMessagesAsReadController);
 
-export default router; 
+export default router;

@@ -7,4 +7,4 @@ router.post('/', addProductRelationshipController);
 router.get('/', getProductRelationshipsController);
 router.delete('/:relationshipId', deleteProductRelationshipController);
 
-export default router; 
+export default router;

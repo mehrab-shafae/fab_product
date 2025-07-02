@@ -7,4 +7,4 @@ router.post('/', createProductVariantController);
 router.get('/', getProductVariantsController);
 router.delete('/:variantId', deleteProductVariantController);
 
-export default router; 
+export default router;

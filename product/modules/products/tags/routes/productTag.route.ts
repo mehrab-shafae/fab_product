@@ -8,4 +8,4 @@ router.get('/', getProductTags);
 router.get('/tags/:tagName', getProductsWithTag);
 router.delete('/:tagId', removeProductTag);
 
-export default router; 
+export default router;

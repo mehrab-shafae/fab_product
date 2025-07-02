@@ -8,18 +8,18 @@ import { CategoryAttribute } from '../../../../categories/models/categoryAttribu
  * @returns Promise<Array<{_id, name, type, required, categoryId}>>
  */
 export async function getRequiredAttributesRecursive(categoryId: Types.ObjectId | string) {
-  let attributes: any[] = [];
-  let currentCategoryId: Types.ObjectId | string | null = categoryId;
-  const visited = new Set<string>();
-  while (currentCategoryId) {
-    if (visited.has(currentCategoryId.toString())) break; // جلوگیری از حلقه بی‌نهایت
-    visited.add(currentCategoryId.toString());
-    // دریافت attributeهای اجباری این دسته
-    const attrs = await CategoryAttribute.find({ categoryId: currentCategoryId, required: true }).lean();
-    attributes = [...attrs, ...attributes];
-    // دریافت والد
-    const cat = await Category.findById(currentCategoryId).lean();
-    currentCategoryId = cat && cat.parentId ? cat.parentId : null;
-  }
-  return attributes;
-} 
+      let attributes: any[] = [];
+      let currentCategoryId: Types.ObjectId | string | null = categoryId;
+      const visited = new Set<string>();
+      while (currentCategoryId) {
+            if (visited.has(currentCategoryId.toString())) break; // جلوگیری از حلقه بی‌نهایت
+            visited.add(currentCategoryId.toString());
+            // دریافت attributeهای اجباری این دسته
+            const attrs = await CategoryAttribute.find({ categoryId: currentCategoryId, required: true }).lean();
+            attributes = [...attrs, ...attributes];
+            // دریافت والد
+            const cat = await Category.findById(currentCategoryId).lean();
+            currentCategoryId = cat && cat.parentId ? cat.parentId : null;
+      }
+      return attributes;
+}

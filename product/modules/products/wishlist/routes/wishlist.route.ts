@@ -7,4 +7,4 @@ router.post('/', addToWishlistController);
 router.get('/', getWishlistController);
 router.delete('/:wishlistId', removeFromWishlistController);
 
-export default router; 
+export default router;

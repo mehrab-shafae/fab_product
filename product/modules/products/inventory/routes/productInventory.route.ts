@@ -7,4 +7,4 @@ router.post('/', upsertProductInventoryController);
 router.get('/', getProductInventoryController);
 router.delete('/:inventoryId', deleteProductInventoryController);
 
-export default router; 
+export default router;

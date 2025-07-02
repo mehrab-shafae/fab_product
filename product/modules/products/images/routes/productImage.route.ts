@@ -8,4 +8,4 @@ router.post('/', validateProductImageInput, addProductImageController);
 router.get('/', getProductImagesController);
 router.delete('/:imageId', deleteProductImageController);
 
-export default router; 
+export default router;
