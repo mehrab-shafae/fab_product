@@ -14,8 +14,14 @@ import { wishlistRouter } from '../wishlist/index.js';
 import { productVersionRouter } from '../versions/index.js';
 import { productRelationshipRouter } from '../relationships/index.js';
 import { productAnalyticsRouter } from '../analytics/index.js';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 const router = Router();
+
+const swaggerDocument = YAML.load(cwd('product/modules/products/swagger.yaml'));
+
+router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 router.post('/', asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnCreateProduct), asyncHandler(createProduct));
 router.get('/:id', asyncHandler(validateProductId), asyncHandler(getProductById));

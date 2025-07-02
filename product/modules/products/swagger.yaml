@@ -1,0 +1,1480 @@
+openapi: 3.0.0
+info:
+  title: Product API
+  version: 1.0.0
+  description: API documentation for product CRUD and search endpoints
+servers:
+  - url: http://localhost:7021/api/product/v2
+    description: Local server
+paths:
+  /:
+    post:
+      summary: Create a new product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input
+    get:
+      summary: Search products
+      parameters:
+        - in: query
+          name: name
+          schema:
+            type: string
+          description: Product name to search
+        - in: query
+          name: category_id
+          schema:
+            type: string
+          description: Category ID
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [active, inactive, draft, archived]
+          description: Product status
+        - in: query
+          name: min_price
+          schema:
+            type: number
+          description: Minimum price
+        - in: query
+          name: max_price
+          schema:
+            type: number
+          description: Maximum price
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: Page size
+      responses:
+        '200':
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+  /{id}:
+    get:
+      summary: Get product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+    put:
+      summary: Update product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          description: Invalid input
+        '404':
+          description: Product not found
+    delete:
+      summary: Delete product by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '204':
+          description: Product deleted
+        '404':
+          description: Product not found
+  /attributes:
+    post:
+      summary: Create a new product attribute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductAttributeInput'
+      responses:
+        '201':
+          description: Product attribute created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAttribute'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all product attributes
+      responses:
+        '200':
+          description: List of product attributes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductAttribute'
+  /{productId}/attributes:
+    post:
+      summary: Add attribute value to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductAttributeValueInput'
+      responses:
+        '201':
+          description: Attribute value added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAttributeValue'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all attribute values for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of attribute values
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductAttributeValue'
+  /{productId}/reviews:
+    post:
+      summary: Add a review to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductReviewInput'
+      responses:
+        '201':
+          description: Review added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductReview'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all reviews for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of reviews
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductReview'
+    delete:
+      summary: Delete a review by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: reviewId
+          required: true
+          schema:
+            type: string
+          description: Review ID
+      responses:
+        '200':
+          description: Review deleted
+        '404':
+          description: Review not found
+  /{productId}/comments:
+    post:
+      summary: Add a comment to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCommentInput'
+      responses:
+        '201':
+          description: Comment added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductComment'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all comments for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Page size
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductComment'
+    delete:
+      summary: Delete a comment by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: commentId
+          required: true
+          schema:
+            type: string
+          description: Comment ID
+      responses:
+        '200':
+          description: Comment deleted
+        '404':
+          description: Comment not found
+  /{productId}/tags:
+    post:
+      summary: Add a tag to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductTagInput'
+      responses:
+        '201':
+          description: Tag added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductTag'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all tags for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductTag'
+    delete:
+      summary: Delete a tag by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: tagId
+          required: true
+          schema:
+            type: string
+          description: Tag ID
+      responses:
+        '200':
+          description: Tag deleted
+        '404':
+          description: Tag not found
+  /{productId}/images:
+    post:
+      summary: Add an image to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductImageInput'
+      responses:
+        '201':
+          description: Image added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductImage'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all images for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of images
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductImage'
+    delete:
+      summary: Delete an image by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: imageId
+          required: true
+          schema:
+            type: string
+          description: Image ID
+      responses:
+        '200':
+          description: Image deleted
+        '404':
+          description: Image not found
+  /{productId}/variants:
+    post:
+      summary: Add a variant to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVariantInput'
+      responses:
+        '201':
+          description: Variant added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVariant'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all variants for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of variants
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductVariant'
+    delete:
+      summary: Delete a variant by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: variantId
+          required: true
+          schema:
+            type: string
+          description: Variant ID
+      responses:
+        '200':
+          description: Variant deleted
+        '404':
+          description: Variant not found
+  /{productId}/inventory:
+    post:
+      summary: Upsert inventory for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInventoryInput'
+      responses:
+        '201':
+          description: Inventory upserted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductInventory'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get inventory for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Inventory info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductInventory'
+    delete:
+      summary: Delete inventory by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: inventoryId
+          required: true
+          schema:
+            type: string
+          description: Inventory ID
+      responses:
+        '200':
+          description: Inventory deleted
+        '404':
+          description: Inventory not found
+  /{productId}/price-history:
+    post:
+      summary: Add a price history record to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductPriceHistoryInput'
+      responses:
+        '201':
+          description: Price history added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductPriceHistory'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all price history records for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of price history records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductPriceHistory'
+    delete:
+      summary: Delete a price history record by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: priceHistoryId
+          required: true
+          schema:
+            type: string
+          description: PriceHistory ID
+      responses:
+        '200':
+          description: Price history deleted
+        '404':
+          description: Price history not found
+    get:
+      summary: Get price statistics for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Price statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  min:
+                    type: number
+                  max:
+                    type: number
+                  avg:
+                    type: number
+  /{productId}/versions:
+    post:
+      summary: Add a version to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductVersionInput'
+      responses:
+        '201':
+          description: Version added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductVersion'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all versions for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of versions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductVersion'
+    delete:
+      summary: Delete a version by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: versionId
+          required: true
+          schema:
+            type: string
+          description: Version ID
+      responses:
+        '200':
+          description: Version deleted
+        '404':
+          description: Version not found
+  /{productId}/relationships:
+    post:
+      summary: Add a relationship to a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRelationshipInput'
+      responses:
+        '201':
+          description: Relationship added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductRelationship'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all relationships for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of relationships
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductRelationship'
+    delete:
+      summary: Delete a relationship by ID
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: relationshipId
+          required: true
+          schema:
+            type: string
+          description: Relationship ID
+      responses:
+        '200':
+          description: Relationship deleted
+        '404':
+          description: Relationship not found
+  /users/{userId}/wishlist:
+    post:
+      summary: Add a product to user's wishlist
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WishlistInput'
+      responses:
+        '201':
+          description: Product added to wishlist
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wishlist'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get user's wishlist
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+      responses:
+        '200':
+          description: List of wishlist items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Wishlist'
+    delete:
+      summary: Remove a product from wishlist
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: wishlistId
+          required: true
+          schema:
+            type: string
+          description: Wishlist ID
+      responses:
+        '200':
+          description: Product removed from wishlist
+        '404':
+          description: Wishlist item not found
+  /{productId}/chats:
+    post:
+      summary: Create a chat for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductChatInput'
+      responses:
+        '201':
+          description: Chat created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductChat'
+        '400':
+          description: Invalid input
+    get:
+      summary: Get all chats for a user
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+        - in: query
+          name: userId
+          required: true
+          schema:
+            type: string
+          description: User ID
+      responses:
+        '200':
+          description: List of chats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProductChat'
+  /{productId}/analytics:
+    get:
+      summary: Get analytics for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: Product analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAnalytics'
+    put:
+      summary: Update analytics for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductAnalyticsInput'
+      responses:
+        '200':
+          description: Analytics updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductAnalytics'
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category_id:
+          type: string
+        metadata:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive, draft, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductInput:
+      type: object
+      required:
+        - name
+        - price
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category_id:
+          type: string
+        metadata:
+          type: object
+        status:
+          type: string
+          enum: [active, inactive, draft, archived]
+    ProductAttribute:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        data_type:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductAttributeInput:
+      type: object
+      required:
+        - name
+        - data_type
+      properties:
+        name:
+          type: string
+        data_type:
+          type: string
+        options:
+          type: array
+          items:
+            type: string
+    ProductAttributeValue:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        attribute_id:
+          type: string
+        value:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductAttributeValueInput:
+      type: object
+      required:
+        - attribute_id
+        - value
+      properties:
+        attribute_id:
+          type: string
+        value:
+          type: string
+    ProductReview:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        user_id:
+          type: string
+        rating:
+          type: number
+        review_text:
+          type: string
+        is_verified:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductReviewInput:
+      type: object
+      required:
+        - user_id
+        - rating
+      properties:
+        user_id:
+          type: string
+        rating:
+          type: number
+        review_text:
+          type: string
+    ProductComment:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        user_id:
+          type: string
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductCommentInput:
+      type: object
+      required:
+        - user_id
+        - comment
+      properties:
+        user_id:
+          type: string
+        comment:
+          type: string
+    ProductTag:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        tag_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductTagInput:
+      type: object
+      required:
+        - tag_name
+      properties:
+        tag_name:
+          type: string
+    ProductImage:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        variant_id:
+          type: string
+        image_id:
+          type: string
+        is_primary:
+          type: boolean
+        order_index:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductImageInput:
+      type: object
+      required:
+        - image_id
+      properties:
+        variant_id:
+          type: string
+        image_id:
+          type: string
+        is_primary:
+          type: boolean
+        order_index:
+          type: integer
+    ProductVariant:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        stock_quantity:
+          type: integer
+        attributes:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductVariantInput:
+      type: object
+      required:
+        - sku
+        - name
+        - price
+      properties:
+        sku:
+          type: string
+        name:
+          type: string
+        price:
+          type: number
+        stock_quantity:
+          type: integer
+        attributes:
+          type: object
+    ProductInventory:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        variant_id:
+          type: string
+        quantity:
+          type: integer
+        reserved_quantity:
+          type: integer
+        location:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductInventoryInput:
+      type: object
+      required:
+        - quantity
+      properties:
+        variant_id:
+          type: string
+        quantity:
+          type: integer
+        reserved_quantity:
+          type: integer
+        location:
+          type: string
+    ProductPriceHistory:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        variant_id:
+          type: string
+        price:
+          type: number
+        change_reason:
+          type: string
+        effective_date:
+          type: string
+          format: date-time
+        discount_percentage:
+          type: number
+        currency:
+          type: string
+        source:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductPriceHistoryInput:
+      type: object
+      required:
+        - price
+      properties:
+        variant_id:
+          type: string
+        price:
+          type: number
+        change_reason:
+          type: string
+        effective_date:
+          type: string
+          format: date-time
+        discount_percentage:
+          type: number
+        currency:
+          type: string
+        source:
+          type: string
+    ProductVersion:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        version_number:
+          type: string
+        changes:
+          type: string
+        created_by:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductVersionInput:
+      type: object
+      required:
+        - version_number
+        - changes
+      properties:
+        version_number:
+          type: string
+        changes:
+          type: string
+        created_by:
+          type: string
+    ProductRelationship:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        related_product_id:
+          type: string
+        relationship_type:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductRelationshipInput:
+      type: object
+      required:
+        - related_product_id
+        - relationship_type
+      properties:
+        related_product_id:
+          type: string
+        relationship_type:
+          type: string
+    Wishlist:
+      type: object
+      properties:
+        _id:
+          type: string
+        user_id:
+          type: string
+        product_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    WishlistInput:
+      type: object
+      required:
+        - product_id
+      properties:
+        product_id:
+          type: string
+    ProductChat:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        user_id:
+          type: string
+        seller_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+    ProductChatInput:
+      type: object
+      required:
+        - user_id
+        - seller_id
+      properties:
+        user_id:
+          type: string
+        seller_id:
+          type: string
+    ProductAnalytics:
+      type: object
+      properties:
+        _id:
+          type: string
+        product_id:
+          type: string
+        views:
+          type: integer
+        unique_viewers:
+          type: integer
+        tag_count:
+          type: integer
+        comment_count:
+          type: integer
+        chat_count:
+          type: integer
+        avg_price:
+          type: number
+        min_price:
+          type: number
+        max_price:
+          type: number
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ProductAnalyticsInput:
+      type: object
+      properties:
+        views:
+          type: integer
+        unique_viewers:
+          type: integer
+        tag_count:
+          type: integer
+        comment_count:
+          type: integer
+        chat_count:
+          type: integer
+        avg_price:
+          type: number
+        min_price:
+          type: number
+        max_price:
+          type: number 
