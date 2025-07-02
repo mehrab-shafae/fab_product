@@ -6,5 +6,5 @@ export const addProductAttributeValue = async (data: Partial<IProductAttributeVa
 };
 
 export const getProductAttributeValues = async (product_id: string) => {
-  return await ProductAttributeValue.find({ product_id, deleted_at: null });
+  return await ProductAttributeValue.find({ product_id, deleted_at: null }).populate('attribute_id');
 }; 

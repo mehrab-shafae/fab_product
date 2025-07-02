@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createProduct, getProductById, updateProduct, deleteProduct } from '../controllers/product.controller';
+import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController } from '../controllers/product.controller';
 import { validateProductId, validateRequiredFields, validateProductSchema, validateRequiredAttributesOnCreateProduct } from '../middlewares/product.middleware';
 import { productCommentRouter } from '../comments';
 import { productTagRouter } from '../tags';
@@ -21,6 +21,7 @@ router.post('/', validateProductSchema, validateRequiredAttributesOnCreateProduc
 router.get('/:id', validateProductId, getProductById);
 router.put('/:id', validateProductId, validateProductSchema, updateProduct);
 router.delete('/:id', validateProductId, deleteProduct);
+router.get('/', searchProductsController);
 
 // اتصال روتر ویژگی به صورت مستقل
 router.use('/attributes', productAttributeRouter);
