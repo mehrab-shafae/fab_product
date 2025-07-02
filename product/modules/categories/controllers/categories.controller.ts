@@ -108,7 +108,7 @@ export const deleteCategory = async (req: Request, res: Response) => {
   try {
     const success = await categoriesService.delete(req.params.id);
     if (!success) return res.status(404).json({ status: 'error', message: 'دسته مورد نظر یافت نشد' });
-    res.status(204).send();
+    res.json({ status: 'success' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: (error as Error).message });
   }
@@ -204,7 +204,7 @@ export const updateAttribute = async (req: Request, res: Response) => {
 export const deleteAttribute = async (req: Request, res: Response) => {
   try {
     const success = await categoriesService.deleteAttribute(req.params.attributeId);
-    if (success) res.status(204).send();
+    if (success) res.json({ status: 'success' });
     else res.status(404).json({ status: 'error', message: 'ویژگی مورد نظر یافت نشد' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: (error as Error).message });
@@ -237,7 +237,7 @@ export const updateAttributeOption = async (req: Request, res: Response) => {
 export const deleteAttributeOption = async (req: Request, res: Response) => {
   try {
     const success = await categoriesService.deleteAttributeOption(req.params.optionId);
-    if (success) res.status(204).send();
+    if (success) res.json({ status: 'success' });
     else res.status(404).json({ status: 'error', message: 'گزینه مورد نظر یافت نشد' });
   } catch (error) {
     res.status(500).json({ status: 'error', message: (error as Error).message });

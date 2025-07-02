@@ -777,8 +777,16 @@ export class CategoriesService {
     const res = await CategoryAttribute.findByIdAndDelete(attributeId);
     return !!res;
   }
-  async getAttributes(categoryId: string): Promise<ICategoryAttribute[]> {
-    return CategoryAttribute.find({ categoryId }).sort({ order: 1 }).lean();
+  async getAttributes(categoryId: string): Promise<any[]> {
+    const objectId = typeof categoryId === 'string' && Types.ObjectId.isValid(categoryId) ? new Types.ObjectId(categoryId) : categoryId;
+    const attributes = await CategoryAttribute.find({ categoryId: objectId }).sort({ order: 1 }).lean();
+    const attributesWithOptions = await Promise.all(
+      attributes.map(async (attr) => {
+        const options = await this.getAttributeOptions(attr._id.toString());
+        return { ...attr, options };
+      })
+    );
+    return attributesWithOptions;
   }
   async addAttributeOption(attributeId: string, value: string, order: number = 0): Promise<ICategoryAttributeOption> {
     return CategoryAttributeOption.create({ attributeId, value, order });
@@ -971,12 +979,13 @@ export class CategoriesService {
     const seenNames = new Set<string>();
     let currentCategory = await Category.findById(categoryId);
     while (currentCategory) {
-      const attrs = await CategoryAttribute.find({ categoryId: currentCategory._id }).lean();
+      const objectId = typeof currentCategory._id === 'string' && Types.ObjectId.isValid(currentCategory._id) ? new Types.ObjectId(currentCategory._id) : currentCategory._id;
+      const attrs = await CategoryAttribute.find({ categoryId: objectId }).lean();
       for (const a of attrs) {
         if (!seenNames.has(a.name)) {
-          // Ensure currentCategory._id is a string for comparison
           const currentCategoryIdStr = typeof currentCategory._id === 'string' ? currentCategory._id : currentCategory._id?.toString?.();
-          attributes.push({ ...a, inherited: currentCategoryIdStr !== categoryId });
+          const options = await this.getAttributeOptions(a._id.toString());
+          attributes.push({ ...a, inherited: currentCategoryIdStr !== categoryId, options });
           seenNames.add(a.name);
         }
       }
