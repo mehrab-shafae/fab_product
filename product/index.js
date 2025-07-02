@@ -11,7 +11,6 @@ import YAML from 'yamljs';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { headMiddleware } from './headMidd.js';
-import sequelize from './models/config.js';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -206,23 +205,9 @@ async function init() {
       app.get('/health', healthCheckController);
 
       try {
-            // Initialize Sequelize
-            await sequelize.authenticate();
-            console.log('Sequelize connection has been established successfully.');
-
             // Create database schema first
             await createDatabaseSchema();
             console.log('Database schema created successfully.');
-
-            // Sync models with database - use force: false to preserve existing data
-            // and alter: false to not modify existing tables
-            try {
-                  await sequelize.sync({ alter: false, force: false });
-                  console.log('Database synchronized successfully.');
-            } catch (syncError) {
-                  console.log('Sequelize sync had some issues, but continuing with existing database structure...');
-                  console.log('Sync error details:', syncError.message);
-            }
 
             // Create materialized views and indexes
             await createMaterializedViews();
@@ -1215,12 +1200,6 @@ async function createDatabaseSchema() {
                   }
             }
 
-            // Add missing columns for Sequelize compatibility
-            await addMissingColumnsForSequelize();
-
-            // Create missing tables for Sequelize models
-            await createMissingTablesForSequelize();
-
             logger.info('Database schema creation completed successfully');
       } catch (error) {
             logger.error('Database schema creation failed', {
@@ -1228,72 +1207,6 @@ async function createDatabaseSchema() {
                   stack: error.stack,
             });
             throw error;
-      }
-}
-
-async function addMissingColumnsForSequelize() {
-      const client = await pgPool.connect();
-      try {
-            logger.info('Adding missing columns for Sequelize compatibility');
-            await client.query('BEGIN');
-
-            // Add missing columns to categories table
-            const categoryColumns = [
-                  "attribute_metadata JSONB DEFAULT '{}'",
-                  'slug VARCHAR(255)',
-                  'description TEXT',
-                  'level INTEGER DEFAULT 1',
-                  "path INTEGER[] DEFAULT '{}'",
-                  '"order" INTEGER DEFAULT 0',
-                  "status VARCHAR(20) DEFAULT 'active'",
-                  'is_featured BOOLEAN DEFAULT false',
-                  'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]',
-                  'meta_title VARCHAR(255)',
-                  'meta_description TEXT',
-                  "meta_keywords VARCHAR(255)[] DEFAULT '{}'",
-                  "settings JSONB DEFAULT '{}'",
-                  'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP',
-                  'deleted_at TIMESTAMP',
-            ];
-
-            for (const column of categoryColumns) {
-                  try {
-                        await client.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS ${column}`);
-                  } catch (error) {
-                        logger.warn(`Could not add column ${column} to categories table`, { error: error.message });
-                  }
-            }
-
-            // Add missing columns to products table
-            const productColumns = ["status VARCHAR(20) DEFAULT 'active'", "metadata JSONB DEFAULT '{}'", 'image_ids TEXT[] DEFAULT ARRAY[]::TEXT[]', 'created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP', 'deleted_at TIMESTAMP'];
-
-            for (const column of productColumns) {
-                  try {
-                        await client.query(`ALTER TABLE products ADD COLUMN IF NOT EXISTS ${column}`);
-                  } catch (error) {
-                        logger.warn(`Could not add column ${column} to products table`, { error: error.message });
-                  }
-            }
-
-            // Make category_id optional in products table
-            try {
-                  await client.query('ALTER TABLE products ALTER COLUMN category_id DROP NOT NULL');
-            } catch (error) {
-                  logger.warn('Could not make category_id optional in products table', { error: error.message });
-            }
-
-            await client.query('COMMIT');
-            logger.info('Missing columns added successfully');
-      } catch (error) {
-            await client.query('ROLLBACK');
-            logger.error('Failed to add missing columns', {
-                  error: error.message,
-                  stack: error.stack,
-            });
-            throw error;
-      } finally {
-            client.release();
       }
 }
 
@@ -1982,94 +1895,6 @@ async function createProductWithAttributes(productData, attributeValues) {
       return product;
 }
 
-async function createMissingTablesForSequelize() {
-      const client = await pgPool.connect();
-      try {
-            logger.info('Creating missing tables for Sequelize models');
-            await client.query('BEGIN');
-
-            // Create languages table
-            await client.query(`
-                  CREATE TABLE IF NOT EXISTS languages (
-                      id SERIAL PRIMARY KEY,
-                      code VARCHAR(10) UNIQUE NOT NULL,
-                      name VARCHAR(100) NOT NULL,
-                      native_name VARCHAR(100) NOT NULL,
-                      is_default BOOLEAN DEFAULT false,
-                      is_active BOOLEAN DEFAULT true,
-                      direction VARCHAR(3) DEFAULT 'ltr',
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                  )
-            `);
-
-            // Create category_attributes table
-            await client.query(`
-                  CREATE TABLE IF NOT EXISTS category_attributes (
-                      id SERIAL PRIMARY KEY,
-                      category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,
-                      name VARCHAR(255) NOT NULL,
-                      type VARCHAR(20) NOT NULL,
-                      required BOOLEAN DEFAULT false,
-                      "order" INTEGER DEFAULT 0,
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                  )
-            `);
-
-            // Create category_attribute_options table
-            await client.query(`
-                  CREATE TABLE IF NOT EXISTS category_attribute_options (
-                      id SERIAL PRIMARY KEY,
-                      category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE,
-                      value VARCHAR(255) NOT NULL,
-                      "order" INTEGER DEFAULT 0,
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                  )
-            `);
-
-            // Create product_attribute_values table (if it doesn't exist)
-            await client.query(`
-                  CREATE TABLE IF NOT EXISTS product_attribute_values (
-                      id SERIAL PRIMARY KEY,
-                      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-                      category_attribute_id INTEGER REFERENCES category_attributes(id) ON DELETE CASCADE,
-                      value TEXT NOT NULL,
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      UNIQUE(product_id, category_attribute_id)
-                  )
-            `);
-
-            // Create product_images table
-            await client.query(`
-                  CREATE TABLE IF NOT EXISTS product_images (
-                      id SERIAL PRIMARY KEY,
-                      product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-                      variant_id INTEGER,
-                      image_id TEXT NOT NULL, -- شناسه یونیک عکس
-                      is_primary BOOLEAN DEFAULT false,
-                      order_index INTEGER DEFAULT 0,
-                      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                  )
-            `);
-
-            await client.query('COMMIT');
-            logger.info('Missing tables created successfully');
-      } catch (error) {
-            await client.query('ROLLBACK');
-            logger.error('Failed to create missing tables', {
-                  error: error.message,
-                  stack: error.stack,
-            });
-            throw error;
-      } finally {
-            client.release();
-      }
-}
-
 // =====================[ Request ID Utility ]=====================
 function getRequestId(req) {
       if (req.requestId) return req.requestId;
@@ -2131,7 +1956,7 @@ function startCategoriesWorker() {
       const grayBg = '\x1b[100m'; // ANSI green background
       const reset = '\x1b[0m';
       logger.info(`${grayBg}[CategoriesWorker] Starting Categories worker...${reset}`);
-      categoriesWorkerProcess = spawn('node', ['build/product/categoriesWorker.js'], {
+      categoriesWorkerProcess = spawn('node', ['build/product/modules/categories/categoriesWorker.js'], {
             stdio: ['ignore', 'pipe', 'pipe'],
             env: process.env,
             cwd: process.cwd(),

@@ -1,10 +1,10 @@
 import 'dotenv/config';
-import '../cwd.js';
-import '../asyncHandler.js';
+import '../../../cwd.js';
+import '../../../asyncHandler.js';
 
 import express from 'express';
-import { headMiddleware } from './headMidd.js';
-import { categoriesRouter } from './modules/categories/index.js';
+import { headMiddleware } from '../../headMidd.js';
+import { categoriesRouter } from './index.js';
 import mongoose from 'mongoose';
 
 const PORT = 7011;
