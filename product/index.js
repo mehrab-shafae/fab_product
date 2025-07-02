@@ -11,6 +11,8 @@ import YAML from 'yamljs';
 import { v4 as uuidv4 } from 'uuid';
 import { spawn } from 'child_process';
 import { headMiddleware } from './headMidd.js';
+import { productRouter } from './modules/products';
+import { connectMongo } from './modules/products/models';
 
 // ======================================================================
 const schemaConfig = JSON.parse(readFileSync(cwd('product/database-schema.json'), 'utf8'));
@@ -226,6 +228,9 @@ async function init() {
       apiV1Routers(apiV1Router);
 
       app.use('/api/product/v1', apiV1Router);
+
+      await connectMongo(process.env.MONGO_URI || 'mongodb://localhost:27017/product_db');
+      app.use('/api/product/v2', productRouter);
 
       app.use((err, req, res, next) => {
             logger.error('Unhandled error', {
