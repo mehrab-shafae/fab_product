@@ -42,7 +42,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       }
 };
 
-export const searchProductsController = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const searchProductsController = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
       try {
             // تبدیل query string به پارامترهای مناسب
             const { page = 1, limit = 10, name, category_id, min_price, max_price, tags, sortField, sortOrder, ...rest } = req.query;

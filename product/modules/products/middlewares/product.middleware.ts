@@ -164,7 +164,7 @@ export const validateProductReviewInput = (req: Request, res: Response, next: Ne
       (async () => {
             try {
                   const { productId } = req.params;
-                  const { user_id, rating, review_text } = req.body;
+                  const { user_id, rating } = req.body; // TODO: review_text
                   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
                         return res.status(400).json({ error: 'Rating must be a number between 1 and 5.' });
                   }
