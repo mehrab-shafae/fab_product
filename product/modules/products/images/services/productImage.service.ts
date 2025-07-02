@@ -1,4 +1,4 @@
-import { ProductImage, IProductImage } from '../models/productImage.model';
+import { ProductImage, IProductImage } from '../models/productImage.model.js';
 
 export const addProductImage = async (data: Partial<IProductImage>) => {
       const image = new ProductImage(data);

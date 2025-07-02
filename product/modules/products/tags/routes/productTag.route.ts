@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addProductTag, getProductTags, getProductsWithTag, removeProductTag } from '../controllers/productTag.controller';
+import { addProductTag, getProductTags, getProductsWithTag, removeProductTag } from '../controllers/productTag.controller.js';
 
 const router = Router({ mergeParams: true });
 

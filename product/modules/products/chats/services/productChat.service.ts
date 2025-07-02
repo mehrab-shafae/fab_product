@@ -1,4 +1,4 @@
-import { ProductChat, IProductChat } from '../models/productChat.model';
+import { ProductChat, IProductChat } from '../models/productChat.model.js';
 
 export const createProductChat = async (data: Partial<IProductChat>) => {
       const chat = new ProductChat(data);

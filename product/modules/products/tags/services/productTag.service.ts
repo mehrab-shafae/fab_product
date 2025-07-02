@@ -1,4 +1,4 @@
-import { ProductTag, IProductTag } from '../models/productTag.model';
+import { ProductTag, IProductTag } from '../models/productTag.model.js';
 
 export const addTagToProduct = async (data: Partial<IProductTag>) => {
       const tag = new ProductTag(data);

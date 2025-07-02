@@ -1,4 +1,4 @@
-import { Product, IProduct } from '../models/product.model';
+import { Product, IProduct } from '../models/product.model.js';
 
 export const createProduct = async (data: Partial<IProduct>) => {
       const product = new Product(data);
@@ -29,7 +29,7 @@ export const searchProducts = async (params: any) => {
       // فیلتر بر اساس تگ‌ها
       let productIdsByTags: string[] | undefined = undefined;
       if (tags && Array.isArray(tags) && tags.length > 0) {
-            const tagDocs = await (await import('../tags/models/productTag.model')).ProductTag.find({ tag_name: { $in: tags }, deleted_at: null }).select('product_id');
+            const tagDocs = await (await import('../tags/models/productTag.model.js')).ProductTag.find({ tag_name: { $in: tags }, deleted_at: null }).select('product_id');
             productIdsByTags = tagDocs.map((t: any) => t.product_id.toString());
             query._id = { $in: productIdsByTags };
       }

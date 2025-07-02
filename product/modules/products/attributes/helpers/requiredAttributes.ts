@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import { Category } from '../../../../categories/models/category.model';
-import { CategoryAttribute } from '../../../../categories/models/categoryAttribute.model';
+import { Category } from '../../../categories/models/category.model.js';
+import { CategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 
 /**
  * دریافت لیست attributeهای اجباری یک دسته و والدهایش (به ترتیب والد تا فرزند)
@@ -18,7 +18,7 @@ export async function getRequiredAttributesRecursive(categoryId: Types.ObjectId 
             const attrs = await CategoryAttribute.find({ categoryId: currentCategoryId, required: true }).lean();
             attributes = [...attrs, ...attributes];
             // دریافت والد
-            const cat = await Category.findById(currentCategoryId).lean();
+            const cat: any = await Category.findById(currentCategoryId).lean();
             currentCategoryId = cat && cat.parentId ? cat.parentId : null;
       }
       return attributes;

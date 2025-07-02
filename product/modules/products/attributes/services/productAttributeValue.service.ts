@@ -1,4 +1,4 @@
-import { ProductAttributeValue, IProductAttributeValue } from '../models/productAttributeValue.model';
+import { ProductAttributeValue, IProductAttributeValue } from '../models/productAttributeValue.model.js';
 
 export const addProductAttributeValue = async (data: Partial<IProductAttributeValue>) => {
       const value = new ProductAttributeValue(data);

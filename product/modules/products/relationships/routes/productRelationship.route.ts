@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addProductRelationshipController, getProductRelationshipsController, deleteProductRelationshipController } from '../controllers/productRelationship.controller';
+import { addProductRelationshipController, getProductRelationshipsController, deleteProductRelationshipController } from '../controllers/productRelationship.controller.js';
 
 const router = Router({ mergeParams: true });
 

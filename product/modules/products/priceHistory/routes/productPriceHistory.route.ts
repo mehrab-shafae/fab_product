@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { addPriceHistoryController, getProductPriceHistoryController, getProductPriceStatisticsController } from '../controllers/productPriceHistory.controller';
-import { validatePriceHistoryInput } from '../../middlewares/product.middleware';
+import { addPriceHistoryController, getProductPriceHistoryController, getProductPriceStatisticsController } from '../controllers/productPriceHistory.controller.js';
+import { validatePriceHistoryInput } from '../../middlewares/product.middleware.js';
 
 const router = Router({ mergeParams: true });
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addChatMessageController, getChatMessagesController, markChatMessagesAsReadController } from '../controllers/chatMessage.controller';
+import { addChatMessageController, getChatMessagesController, markChatMessagesAsReadController } from '../controllers/chatMessage.controller.js';
 
 const router = Router({ mergeParams: true });
 

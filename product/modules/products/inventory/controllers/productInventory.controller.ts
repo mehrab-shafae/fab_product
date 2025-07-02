@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
-import { upsertProductInventory, getProductInventory, deleteProductInventory } from '../services/productInventory.service';
+import { upsertProductInventory, getProductInventory, deleteProductInventory } from '../services/productInventory.service.js';
 
 export const upsertProductInventoryController = async (req: Request, res: Response) => {
       try {
             const data = { ...req.body, product_id: req.params.productId, variant_id: req.body.variant_id };
             const inventory = await upsertProductInventory(data);
             res.status(201).json({ success: true, data: inventory, message: 'Inventory updated successfully' });
-      } catch (error) {
+      } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
 };
@@ -16,7 +16,7 @@ export const getProductInventoryController = async (req: Request, res: Response)
             const { variant_id } = req.query;
             const inventory = await getProductInventory(req.params.productId, variant_id as string);
             res.json({ success: true, data: inventory });
-      } catch (error) {
+      } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
 };
@@ -26,7 +26,7 @@ export const deleteProductInventoryController = async (req: Request, res: Respon
             const inventory = await deleteProductInventory(req.params.inventoryId);
             if (!inventory) return res.status(404).json({ success: false, error: 'Inventory not found' });
             res.json({ success: true, data: inventory, message: 'Inventory deleted successfully' });
-      } catch (error) {
+      } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
 };

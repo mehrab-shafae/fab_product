@@ -1,4 +1,4 @@
-import { ProductVariant, IProductVariant } from '../models/productVariant.model';
+import { ProductVariant, IProductVariant } from '../models/productVariant.model.js';
 
 export const createProductVariant = async (data: Partial<IProductVariant>) => {
       const variant = new ProductVariant(data);

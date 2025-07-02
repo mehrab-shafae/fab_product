@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { addProductImageController, getProductImagesController, deleteProductImageController } from '../controllers/productImage.controller';
-import { validateProductImageInput } from '../../middlewares/product.middleware';
+import { addProductImageController, getProductImagesController, deleteProductImageController } from '../controllers/productImage.controller.js';
+import { validateProductImageInput } from '../../middlewares/product.middleware.js';
 
 const router = Router({ mergeParams: true });
 

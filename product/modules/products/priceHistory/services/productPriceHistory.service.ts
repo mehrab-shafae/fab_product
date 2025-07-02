@@ -1,4 +1,4 @@
-import { ProductPriceHistory, IProductPriceHistory } from '../models/productPriceHistory.model';
+import { ProductPriceHistory, IProductPriceHistory } from '../models/productPriceHistory.model.js';
 import mongoose from 'mongoose';
 
 export const addPriceHistory = async (data: Partial<IProductPriceHistory>) => {

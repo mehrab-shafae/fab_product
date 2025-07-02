@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createProductVersionController, getProductVersionsController, deleteProductVersionController } from '../controllers/productVersion.controller';
+import { createProductVersionController, getProductVersionsController, deleteProductVersionController } from '../controllers/productVersion.controller.js';
 
 const router = Router({ mergeParams: true });
 

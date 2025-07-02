@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getProductAnalyticsController, updateProductAnalyticsController } from '../controllers/productAnalytics.controller';
+import { getProductAnalyticsController, updateProductAnalyticsController } from '../controllers/productAnalytics.controller.js';
 
 const router = Router({ mergeParams: true });
 

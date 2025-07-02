@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { addProductReviewController, getProductReviewsController, deleteProductReviewController } from '../controllers/productReview.controller';
-import { validateProductReviewInput } from '../../middlewares/product.middleware';
+import { addProductReviewController, getProductReviewsController, deleteProductReviewController } from '../controllers/productReview.controller.js';
+import { validateProductReviewInput } from '../../middlewares/product.middleware.js';
 
 const router = Router({ mergeParams: true });
 

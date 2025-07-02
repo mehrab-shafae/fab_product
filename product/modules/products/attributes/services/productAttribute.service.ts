@@ -1,4 +1,4 @@
-import { ProductAttribute, IProductAttribute } from '../models/productAttribute.model';
+import { ProductAttribute, IProductAttribute } from '../models/productAttribute.model.js';
 
 export const createProductAttribute = async (data: Partial<IProductAttribute>) => {
       const attribute = new ProductAttribute(data);

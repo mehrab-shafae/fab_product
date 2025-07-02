@@ -1,3 +1,3 @@
-import productReviewRouter from './routes/productReview.route';
+import productReviewRouter from './routes/productReview.route.js';
 
 export { productReviewRouter };

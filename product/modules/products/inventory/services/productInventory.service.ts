@@ -1,4 +1,4 @@
-import { ProductInventory, IProductInventory } from '../models/productInventory.model';
+import { ProductInventory, IProductInventory } from '../models/productInventory.model.js';
 
 export const upsertProductInventory = async (data: Partial<IProductInventory>) => {
       const { product_id, variant_id, location } = data;

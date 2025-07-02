@@ -1,3 +1,3 @@
-import productRouter from './routes/product.route';
+import productRouter from './routes/product.route.js';
 
 export { productRouter };

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createProductVariantController, getProductVariantsController, deleteProductVariantController } from '../controllers/productVariant.controller';
+import { createProductVariantController, getProductVariantsController, deleteProductVariantController } from '../controllers/productVariant.controller.js';
 
 const router = Router({ mergeParams: true });
 

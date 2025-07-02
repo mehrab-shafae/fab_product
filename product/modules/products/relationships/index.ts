@@ -1,3 +1,3 @@
-import productRelationshipRouter from './routes/productRelationship.route';
+import productRelationshipRouter from './routes/productRelationship.route.js';
 
 export { productRelationshipRouter };

@@ -1,4 +1,4 @@
-import { ChatMessage, IChatMessage } from '../models/chatMessage.model';
+import { ChatMessage, IChatMessage } from '../models/chatMessage.model.js';
 
 export const addChatMessage = async (data: Partial<IChatMessage>) => {
       const message = new ChatMessage(data);

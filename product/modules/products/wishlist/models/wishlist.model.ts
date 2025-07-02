@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+// TODO: check this model
 export interface IWishlist extends Document {
       user_id: mongoose.Types.ObjectId;
       product_id: mongoose.Types.ObjectId;

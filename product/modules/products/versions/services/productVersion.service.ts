@@ -1,4 +1,4 @@
-import { ProductVersion, IProductVersion } from '../models/productVersion.model';
+import { ProductVersion, IProductVersion } from '../models/productVersion.model.js';
 
 export const createProductVersion = async (data: Partial<IProductVersion>) => {
       const version = new ProductVersion(data);

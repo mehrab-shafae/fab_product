@@ -1,4 +1,4 @@
-import { ProductAnalytics, IProductAnalytics } from '../models/productAnalytics.model';
+import { ProductAnalytics, IProductAnalytics } from '../models/productAnalytics.model.js';
 
 export const getProductAnalytics = async (product_id: string) => {
       return await ProductAnalytics.findOne({ product_id });

@@ -291,7 +291,7 @@ function getRequestId(req: Request & { requestId?: string }) {
 }
 
 export function handleError(app: Express) {
-      app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
             logger.error('Unhandled error', {
                   error: err.message,
                   stack: err.stack,

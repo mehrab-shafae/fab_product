@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { addProductComment, getProductComments, removeProductComment } from '../controllers/productComment.controller';
+import { addProductComment, getProductComments, removeProductComment } from '../controllers/productComment.controller.js';
 
 const router = Router({ mergeParams: true });
 

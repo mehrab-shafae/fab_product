@@ -1,14 +1,14 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
-import { productSchema } from '../schema/product.schema';
-import { Category } from '../../categories/models/category.model';
-import { getRequiredAttributesRecursive } from '../attributes/helpers/requiredAttributes';
-import { CategoryAttributeOption } from '../../categories/models/categoryAttributeOption.model';
-import { CategoryAttribute } from '../../categories/models/categoryAttribute.model';
-import { Product } from '../models/product.model';
-import { ProductVariant } from '../variants/models/productVariant.model';
-import sequelize from '../../../../profile/models/sequelize';
-import { ProductImage } from '../images/models/productImage.model';
+import { productSchema } from '../schema/product.schema.js';
+import { Category } from '../../categories/models/category.model.js';
+import { getRequiredAttributesRecursive } from '../attributes/helpers/requiredAttributes.js';
+import { CategoryAttributeOption } from '../../categories/models/categoryAttributeOption.model.js';
+import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
+import { Product } from '../models/product.model.js';
+import { ProductVariant } from '../variants/models/productVariant.model.js';
+import sequelize from '../../../../profile/models/sequelize.js';
+import { ProductImage } from '../images/models/productImage.model.js';
 
 export const validateProductId = (req: Request, res: Response, next: NextFunction) => {
       const { id } = req.params;
@@ -18,6 +18,7 @@ export const validateProductId = (req: Request, res: Response, next: NextFunctio
       next();
 };
 
+// TODO: check this middleware
 export const validateRequiredFields = (fields: string[]) => (req: Request, res: Response, next: NextFunction) => {
       const missing = fields.filter(f => !req.body[f]);
       if (missing.length > 0) {

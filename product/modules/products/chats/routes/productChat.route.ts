@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createProductChatController, getUserChatsController } from '../controllers/productChat.controller';
+import { createProductChatController, getUserChatsController } from '../controllers/productChat.controller.js';
 
 const router = Router({ mergeParams: true });
 

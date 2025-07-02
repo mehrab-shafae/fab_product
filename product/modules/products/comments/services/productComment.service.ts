@@ -1,4 +1,4 @@
-import { ProductComment, IProductComment } from '../models/productComment.model';
+import { ProductComment, IProductComment } from '../models/productComment.model.js';
 
 export const addComment = async (data: Partial<IProductComment>) => {
       const comment = new ProductComment(data);

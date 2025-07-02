@@ -1,4 +1,4 @@
-import { ProductReview, IProductReview } from '../models/productReview.model';
+import { ProductReview, IProductReview } from '../models/productReview.model.js';
 
 export const addProductReview = async (data: Partial<IProductReview>) => {
       const review = new ProductReview(data);

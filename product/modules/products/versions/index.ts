@@ -1,3 +1,3 @@
-import productVersionRouter from './routes/productVersion.route';
+import productVersionRouter from './routes/productVersion.route.js';
 
 export { productVersionRouter };

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { upsertProductInventoryController, getProductInventoryController, deleteProductInventoryController } from '../controllers/productInventory.controller';
+import { upsertProductInventoryController, getProductInventoryController, deleteProductInventoryController } from '../controllers/productInventory.controller.js';
 
 const router = Router({ mergeParams: true });
 

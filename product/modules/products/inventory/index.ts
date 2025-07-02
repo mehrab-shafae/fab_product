@@ -1,3 +1,3 @@
-import productInventoryRouter from './routes/productInventory.route';
+import productInventoryRouter from './routes/productInventory.route.js';
 
 export { productInventoryRouter };

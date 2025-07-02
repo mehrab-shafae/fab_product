@@ -1,4 +1,4 @@
-import { ProductRelationship, IProductRelationship } from '../models/productRelationship.model';
+import { ProductRelationship, IProductRelationship } from '../models/productRelationship.model.js';
 
 export const addProductRelationship = async (data: Partial<IProductRelationship>) => {
       const relationship = new ProductRelationship(data);
