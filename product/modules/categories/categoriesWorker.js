@@ -25,11 +25,11 @@ await connectToMongo();
 
 headMiddleware(app, express);
 
-app.use('/api/product/v2/categories', categoriesRouter);
+app.use('/api/product/v2', categoriesRouter);
 
 app.listen(PORT, () => {
       console.log(`Categories worker running on port ${PORT}`);
-      console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/categories/api-docs`);
+      console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/api-docs`);
 });
 
 function free() {
