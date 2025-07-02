@@ -291,3 +291,16 @@ function getRequestId(req: Request & { requestId?: string }) {
     req.requestId = id;
     return id;
 }
+
+export function handleError(app: Express) {
+      app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+        logger.error('Unhandled error', {
+              error: err.message,
+              stack: err.stack,
+        });
+        res.status(500).json({
+              error: 'Internal server error',
+              message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+        });
+    });
+    }
