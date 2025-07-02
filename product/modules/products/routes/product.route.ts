@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createProduct, getProductById, updateProduct, deleteProduct } from '../controllers/product.controller';
-import { validateProductId, validateRequiredFields } from '../middlewares/product.middleware';
+import { validateProductId, validateRequiredFields, validateProductSchema, validateRequiredAttributesOnCreateProduct } from '../middlewares/product.middleware';
 import { productCommentRouter } from '../comments';
 import { productTagRouter } from '../tags';
 import { productChatRouter, chatMessageRouter } from '../chats';
@@ -17,9 +17,9 @@ import { productAnalyticsRouter } from '../analytics';
 
 const router = Router();
 
-router.post('/', validateRequiredFields(['name', 'price']), createProduct);
+router.post('/', validateProductSchema, validateRequiredAttributesOnCreateProduct, createProduct);
 router.get('/:id', validateProductId, getProductById);
-router.put('/:id', validateProductId, updateProduct);
+router.put('/:id', validateProductId, validateProductSchema, updateProduct);
 router.delete('/:id', validateProductId, deleteProduct);
 
 // اتصال روتر ویژگی به صورت مستقل
