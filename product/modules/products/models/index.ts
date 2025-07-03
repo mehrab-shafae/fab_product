@@ -12,3 +12,7 @@ export const connectMongo = async (mongoUri: string) => {
             process.exit(1);
       }
 };
+
+// Export models
+export { Product } from './product.model.js';
+export { User } from './user.model.js';

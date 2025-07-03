@@ -3,12 +3,45 @@ info:
   title: Product API
   version: 1.0.0
   description: API documentation for product CRUD and search endpoints
+
+tags:
+  - name: Product
+    description: عملیات مربوط به محصول
+  - name: Attribute
+    description: ویژگی‌های محصول
+  - name: Review
+    description: نظرات کاربران روی محصول
+  - name: Comment
+    description: کامنت‌های کاربران روی محصول
+  - name: Tag
+    description: تگ‌های محصول
+  - name: Image
+    description: تصاویر محصول
+  - name: Variant
+    description: واریانت‌های محصول
+  - name: Inventory
+    description: موجودی محصول
+  - name: PriceHistory
+    description: تاریخچه قیمت محصول
+  - name: Version
+    description: نسخه‌های محصول
+  - name: Relationship
+    description: روابط بین محصولات
+  - name: Wishlist
+    description: لیست علاقه‌مندی‌های کاربر
+  - name: Chat
+    description: چت‌های مربوط به محصول
+  - name: Analytics
+    description: آنالیتیکس محصول
+
 servers:
   - url: http://localhost:7021/api/product/v2
     description: Local server
 paths:
   /:
     post:
+      tags:
+        - Product
       summary: Create a new product
       requestBody:
         required: true
@@ -26,6 +59,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Product
       summary: Search products
       parameters:
         - in: query
@@ -77,6 +112,8 @@ paths:
                   $ref: '#/components/schemas/Product'
   /{id}:
     get:
+      tags:
+        - Product
       summary: Get product by ID
       parameters:
         - in: path
@@ -95,6 +132,8 @@ paths:
         '404':
           description: Product not found
     put:
+      tags:
+        - Product
       summary: Update product by ID
       parameters:
         - in: path
@@ -121,6 +160,8 @@ paths:
         '404':
           description: Product not found
     delete:
+      tags:
+        - Product
       summary: Delete product by ID
       parameters:
         - in: path
@@ -136,6 +177,8 @@ paths:
           description: Product not found
   /attributes:
     post:
+      tags:
+        - Attribute
       summary: Create a new product attribute
       requestBody:
         required: true
@@ -153,6 +196,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Attribute
       summary: Get all product attributes
       responses:
         '200':
@@ -165,6 +210,8 @@ paths:
                   $ref: '#/components/schemas/ProductAttribute'
   /{productId}/attributes:
     post:
+      tags:
+        - Attribute
       summary: Add attribute value to a product
       parameters:
         - in: path
@@ -189,6 +236,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Attribute
       summary: Get all attribute values for a product
       parameters:
         - in: path
@@ -208,6 +257,8 @@ paths:
                   $ref: '#/components/schemas/ProductAttributeValue'
   /{productId}/reviews:
     post:
+      tags:
+        - Review
       summary: Add a review to a product
       parameters:
         - in: path
@@ -232,6 +283,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Review
       summary: Get all reviews for a product
       parameters:
         - in: path
@@ -250,6 +303,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductReview'
     delete:
+      tags:
+        - Review
       summary: Delete a review by ID
       parameters:
         - in: path
@@ -270,6 +325,8 @@ paths:
           description: Review not found
   /{productId}/comments:
     post:
+      tags:
+        - Comment
       summary: Add a comment to a product
       parameters:
         - in: path
@@ -294,6 +351,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Comment
       summary: Get all comments for a product
       parameters:
         - in: path
@@ -324,6 +383,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductComment'
     delete:
+      tags:
+        - Comment
       summary: Delete a comment by ID
       parameters:
         - in: path
@@ -344,6 +405,8 @@ paths:
           description: Comment not found
   /{productId}/tags:
     post:
+      tags:
+        - Tag
       summary: Add a tag to a product
       parameters:
         - in: path
@@ -368,6 +431,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Tag
       summary: Get all tags for a product
       parameters:
         - in: path
@@ -386,6 +451,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductTag'
     delete:
+      tags:
+        - Tag
       summary: Delete a tag by ID
       parameters:
         - in: path
@@ -406,6 +473,8 @@ paths:
           description: Tag not found
   /{productId}/images:
     post:
+      tags:
+        - Image
       summary: Add an image to a product
       parameters:
         - in: path
@@ -430,6 +499,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Image
       summary: Get all images for a product
       parameters:
         - in: path
@@ -448,6 +519,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductImage'
     delete:
+      tags:
+        - Image
       summary: Delete an image by ID
       parameters:
         - in: path
@@ -468,6 +541,8 @@ paths:
           description: Image not found
   /{productId}/variants:
     post:
+      tags:
+        - Variant
       summary: Add a variant to a product
       parameters:
         - in: path
@@ -492,6 +567,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Variant
       summary: Get all variants for a product
       parameters:
         - in: path
@@ -510,6 +587,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductVariant'
     delete:
+      tags:
+        - Variant
       summary: Delete a variant by ID
       parameters:
         - in: path
@@ -530,6 +609,8 @@ paths:
           description: Variant not found
   /{productId}/inventory:
     post:
+      tags:
+        - Inventory
       summary: Upsert inventory for a product
       parameters:
         - in: path
@@ -554,6 +635,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Inventory
       summary: Get inventory for a product
       parameters:
         - in: path
@@ -570,6 +653,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductInventory'
     delete:
+      tags:
+        - Inventory
       summary: Delete inventory by ID
       parameters:
         - in: path
@@ -590,6 +675,8 @@ paths:
           description: Inventory not found
   /{productId}/price-history:
     post:
+      tags:
+        - PriceHistory
       summary: Add a price history record to a product
       parameters:
         - in: path
@@ -614,6 +701,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - PriceHistory
       summary: Get all price history records for a product
       parameters:
         - in: path
@@ -632,6 +721,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductPriceHistory'
     delete:
+      tags:
+        - PriceHistory
       summary: Delete a price history record by ID
       parameters:
         - in: path
@@ -651,6 +742,8 @@ paths:
         '404':
           description: Price history not found
     get:
+      tags:
+        - PriceHistory
       summary: Get price statistics for a product
       parameters:
         - in: path
@@ -675,6 +768,8 @@ paths:
                     type: number
   /{productId}/versions:
     post:
+      tags:
+        - Version
       summary: Add a version to a product
       parameters:
         - in: path
@@ -699,6 +794,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Version
       summary: Get all versions for a product
       parameters:
         - in: path
@@ -717,6 +814,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductVersion'
     delete:
+      tags:
+        - Version
       summary: Delete a version by ID
       parameters:
         - in: path
@@ -737,6 +836,8 @@ paths:
           description: Version not found
   /{productId}/relationships:
     post:
+      tags:
+        - Relationship
       summary: Add a relationship to a product
       parameters:
         - in: path
@@ -761,6 +862,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Relationship
       summary: Get all relationships for a product
       parameters:
         - in: path
@@ -779,6 +882,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/ProductRelationship'
     delete:
+      tags:
+        - Relationship
       summary: Delete a relationship by ID
       parameters:
         - in: path
@@ -799,6 +904,8 @@ paths:
           description: Relationship not found
   /users/{userId}/wishlist:
     post:
+      tags:
+        - Wishlist
       summary: Add a product to user's wishlist
       parameters:
         - in: path
@@ -823,6 +930,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Wishlist
       summary: Get user's wishlist
       parameters:
         - in: path
@@ -841,6 +950,8 @@ paths:
                 items:
                   $ref: '#/components/schemas/Wishlist'
     delete:
+      tags:
+        - Wishlist
       summary: Remove a product from wishlist
       parameters:
         - in: path
@@ -861,6 +972,8 @@ paths:
           description: Wishlist item not found
   /{productId}/chats:
     post:
+      tags:
+        - Chat
       summary: Create a chat for a product
       parameters:
         - in: path
@@ -885,6 +998,8 @@ paths:
         '400':
           description: Invalid input
     get:
+      tags:
+        - Chat
       summary: Get all chats for a user
       parameters:
         - in: path
@@ -910,6 +1025,8 @@ paths:
                   $ref: '#/components/schemas/ProductChat'
   /{productId}/analytics:
     get:
+      tags:
+        - Analytics
       summary: Get analytics for a product
       parameters:
         - in: path
@@ -926,6 +1043,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductAnalytics'
     put:
+      tags:
+        - Analytics
       summary: Update analytics for a product
       parameters:
         - in: path

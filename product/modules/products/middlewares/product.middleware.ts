@@ -7,7 +7,7 @@ import { CategoryAttributeOption } from '../../categories/models/categoryAttribu
 import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
 import { Product } from '../models/product.model.js';
 import { ProductVariant } from '../variants/models/productVariant.model.js';
-import sequelize from '../../../../profile/models/sequelize.js';
+import { User } from '../models/user.model.js';
 import { ProductImage } from '../images/models/productImage.model.js';
 
 export const validateProductId = (req: Request, res: Response, next: NextFunction) => {
@@ -175,10 +175,7 @@ export const validateProductReviewInput = (req: Request, res: Response, next: Ne
                   if (!user_id) {
                         return res.status(400).json({ error: 'user_id is required.' });
                   }
-                  const [user] = await sequelize.query('SELECT * FROM user_profiles WHERE user_id = :user_id AND deleted_at IS NULL LIMIT 1', {
-                        replacements: { user_id },
-                        type: (sequelize as any).QueryTypes.SELECT,
-                  });
+                  const user = await User.findOne({ user_id, deleted_at: null });
                   if (!user) {
                         return res.status(404).json({ error: 'User not found.' });
                   }
