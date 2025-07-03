@@ -111,37 +111,6 @@ async function main() {
 }
 main();
 
-// =====================[ PGUI Worker ]=====================
-/*let pguiProcess = null;
-function startPguiWorker() {
-      if (pguiProcess) return;
-      logger.info('Starting PGUI admin panel worker...');
-      pguiProcess = spawn('node', ['build/pgui/index.js'], {
-            stdio: ['ignore', 'pipe', 'pipe'],
-            env: process.env,
-            cwd: process.cwd(),
-      });
-      const grayBg = '\x1b[100m'; // ANSI gray background
-      const reset = '\x1b[0m';
-      pguiProcess.stdout.on('data', data => {
-            logger.info(`${grayBg}[PGUI] ${data.toString().trim()}${reset}`);
-      });
-      pguiProcess.stderr.on('data', data => {
-            logger.error(`${grayBg}[PGUI] ${data.toString().trim()}${reset}`);
-      });
-      pguiProcess.on('close', code => {
-            logger.info(`PGUI admin panel exited with code ${code}`);
-            pguiProcess = null;
-      });
-}
-function stopPguiWorker() {
-      if (pguiProcess) {
-            logger.info('Stopping PGUI admin panel worker...');
-            pguiProcess.kill('SIGTERM');
-            pguiProcess = null;
-      }
-}*/
-
 process.on('beforeExit', () => {
       //stopPguiWorker();
       free();
