@@ -10,11 +10,21 @@ export const createProduct = async (req: Request, res: Response) => {
             // Save attribute values if provided
             if (req.body.attributes && Array.isArray(req.body.attributes)) {
                   for (const attr of req.body.attributes) {
-                        await ProductAttributeValue.create({
-                              product_id: product._id,
-                              attribute_id: attr.attribute_id,
-                              value: attr.value
-                        });
+                        if (Array.isArray(attr.value)) {
+                              for (const v of attr.value) {
+                                    await ProductAttributeValue.create({
+                                          product_id: product._id,
+                                          attribute_id: attr.attribute_id,
+                                          value: v
+                                    });
+                              }
+                        } else {
+                              await ProductAttributeValue.create({
+                                    product_id: product._id,
+                                    attribute_id: attr.attribute_id,
+                                    value: attr.value
+                              });
+                        }
                   }
             }
             res.status(201).json({ success: true, data: product, message: 'Product created successfully' });

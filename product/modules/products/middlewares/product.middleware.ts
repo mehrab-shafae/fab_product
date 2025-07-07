@@ -75,8 +75,19 @@ export const validateRequiredAttributesOnCreateProduct = (req: Request, res: Res
                         if (attr.type === 'enum') {
                               const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
                               const allowed = options.map(o => o.value);
-                              if (!allowed.includes(val.value)) {
-                                    return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                              if (Array.isArray(val.value)) {
+                                    if (val.value.length === 0) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
+                                    }
+                                    for (const v of val.value) {
+                                          if (!allowed.includes(v)) {
+                                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                          }
+                                    }
+                              } else {
+                                    if (!allowed.includes(val.value)) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                    }
                               }
                         }
                   }
