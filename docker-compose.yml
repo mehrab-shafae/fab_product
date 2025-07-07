@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  product_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: product_service
+    env_file:
+      - .env
+    restart: unless-stopped
+    volumes:
+      - .:/app:cached
+      - /app/node_modules
+    networks:
+      - krakend_product-internal
+      - krakend-private
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    mem_limit: 512m
+    cpu_shares: 512
+    expose:
+      - "7011"
+      - "7021"
+
+networks:
+  krakend_product-internal:
+    external: true
+  krakend-private:
+    external: true 
