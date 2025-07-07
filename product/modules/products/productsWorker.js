@@ -11,7 +11,7 @@ const PORT = 7021;
 
 const app = express();
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/product_db';
 
 async function connectToMongo() {
       await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).catch(err => {
