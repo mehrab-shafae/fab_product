@@ -9,9 +9,9 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-    volumes:
-      - .:/app:cached
-      - /app/node_modules
+    # volumes:
+    #   - .:/app:cached
+    #   - /app/node_modules
     networks:
       - krakend_product-internal
       - krakend-private
@@ -22,12 +22,12 @@ services:
         max-file: "3"
     mem_limit: 512m
     cpu_shares: 512
-    expose:
-      - "7011"
-      - "7021"
+    # expose:
+    #   - "7011"
+    #   - "7021"
 
 networks:
   krakend_product-internal:
     external: true
   krakend-private:
-    external: true 
+    external: true
