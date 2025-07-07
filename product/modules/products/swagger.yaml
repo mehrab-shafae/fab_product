@@ -1114,6 +1114,27 @@ components:
         status:
           type: string
           enum: [active, inactive, draft, archived]
+        attributes:
+          type: array
+          description: List of attribute values for this product, each with attribute_id and value.
+          items:
+            type: object
+            properties:
+              attribute_id:
+                type: string
+                description: The ID of the category attribute
+              value:
+                type: string
+                description: The value for this attribute (string, number, or enum)
+      example:
+        name: "Sample Product"
+        price: 100
+        category_id: "64f1c2..."
+        attributes:
+          - attribute_id: "64f1c2..."
+            value: "Red"
+          - attribute_id: "64f1c3..."
+            value: 42
     ProductAttribute:
       type: object
       properties:

@@ -1,11 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
 import { Product } from '../models/product.model.js';
 import { searchProducts } from '../services/product.service.js';
+import { ProductAttributeValue } from '../attributes/models/productAttributeValue.model.js';
 
 export const createProduct = async (req: Request, res: Response) => {
       try {
             const product = new Product(req.body);
             await product.save();
+            // Save attribute values if provided
+            if (req.body.attributes && Array.isArray(req.body.attributes)) {
+                  for (const attr of req.body.attributes) {
+                        await ProductAttributeValue.create({
+                              product_id: product._id,
+                              attribute_id: attr.attribute_id,
+                              value: attr.value
+                        });
+                  }
+            }
             res.status(201).json({ success: true, data: product, message: 'Product created successfully' });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
@@ -16,7 +27,9 @@ export const getProductById = async (req: Request, res: Response) => {
       try {
             const product = await Product.findById(req.params.id);
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
-            res.json({ success: true, data: product });
+            // Fetch attribute values for this product
+            const attributes = await ProductAttributeValue.find({ product_id: product._id, deleted_at: null }).populate('attribute_id');
+            res.json({ success: true, data: { ...product.toObject(), attributes } });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
