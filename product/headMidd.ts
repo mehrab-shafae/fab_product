@@ -160,47 +160,49 @@ const responseHandler = (_req: Request, res: Response & { success?: (data: any, 
 };
 
 export function headMiddleware(app: Express, express: any) {
-      if (isDevelopment) {
-            // Configure Helmet with CSP that allows inline scripts for admin panel
-            app.use(
-                  helmet({
-                        contentSecurityPolicy: {
-                              directives: {
-                                    defaultSrc: ["'self'"],
-                                    scriptSrc: ["'self'", "'unsafe-inline'"],
-                                    styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
-                                    scriptSrcAttr: ["'unsafe-inline'"],
-                                    imgSrc: ["'self'", 'data:', 'https:'],
-                                    connectSrc: ["'self'"],
-                                    fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
-                                    objectSrc: ["'none'"],
-                                    mediaSrc: ["'self'"],
-                                    frameSrc: ["'none'"],
-                                    workerSrc: ["'self'"],
-                                    manifestSrc: ["'self'"],
-                                    baseUri: ["'self'"],
-                                    formAction: ["'self'"],
-                                    frameAncestors: ["'none'"],
-                                    upgradeInsecureRequests: [],
-                              },
-                        },
-                        crossOriginEmbedderPolicy: false,
-                        crossOriginResourcePolicy: { policy: 'cross-origin' },
-                  })
-            );
-      } else {
-            app.use(helmet());
-      }
+      // TODO(): Dont need in server, handle on proxy layer ziro
+      // if (isDevelopment) {
+      //       // Configure Helmet with CSP that allows inline scripts for admin panel
+      //       app.use(
+      //             helmet({
+      //                   contentSecurityPolicy: {
+      //                         directives: {
+      //                               defaultSrc: ["'self'"],
+      //                               scriptSrc: ["'self'", "'unsafe-inline'"],
+      //                               styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
+      //                               scriptSrcAttr: ["'unsafe-inline'"],
+      //                               imgSrc: ["'self'", 'data:', 'https:'],
+      //                               connectSrc: ["'self'"],
+      //                               fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
+      //                               objectSrc: ["'none'"],
+      //                               mediaSrc: ["'self'"],
+      //                               frameSrc: ["'none'"],
+      //                               workerSrc: ["'self'"],
+      //                               manifestSrc: ["'self'"],
+      //                               baseUri: ["'self'"],
+      //                               formAction: ["'self'"],
+      //                               frameAncestors: ["'none'"],
+      //                               upgradeInsecureRequests: [],
+      //                         },
+      //                   },
+      //                   crossOriginEmbedderPolicy: false,
+      //                   crossOriginResourcePolicy: { policy: 'cross-origin' },
+      //             })
+      //       );
+      // } else {
+      //       app.use(helmet());
+      // }
 
-      app.use(
-            cors({
-                  origin: ['http://localhost:3000'],
-                  credentials: true,
-            })
-      );
-      app.use(express.json({ limit: '1mb' }));
+      // app.use(
+      //       cors({
+      //             origin: ['http://localhost:3000'],
+      //             credentials: true,
+      //       })
+      // );
+      app.use(express.json()); // { limit: '1mb' } Dont need, handle on proxy
       app.use(express.urlencoded({ limit: '1mb', extended: true }));
       if (!isDevelopment) {
+            // TODO(): ??
             app.use(limiter);
             app.use(speedLimiter);
       }
