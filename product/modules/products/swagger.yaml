@@ -37,6 +37,9 @@ tags:
 servers:
   - url: http://localhost:7021/api/product/v2
     description: Local server
+  - url: http://87.248.130.52:8080/api/v1/product
+    description: Test server
+
 paths:
   /:
     post:
