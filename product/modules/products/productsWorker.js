@@ -83,7 +83,7 @@ headMiddleware(app, express);
 app.use('/api/product/v2', productRouter);
 
 // Serve fully inlined Swagger UI HTML at /swagger-public/
-app.get('/swagger-public', async (req, res) => {
+app.get('/api/product/v2/swagger-public', async (req, res) => {
       try {
           if (swaggerPublicHtml) {
               res.send(swaggerPublicHtml);

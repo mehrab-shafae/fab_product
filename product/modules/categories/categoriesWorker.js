@@ -83,7 +83,7 @@ headMiddleware(app, express);
 app.use('/api/product/v2', categoriesRouter);
 
 // Serve fully inlined Swagger UI HTML at /swagger-public/
-app.get('/swagger-public', async (req, res) => {
+app.get('/api/product/v2/swagger-public', async (req, res) => {
       try {
           if (swaggerPublicHtml) {
               res.send(swaggerPublicHtml);
@@ -100,6 +100,7 @@ app.listen(PORT, () => {
       console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/api-docs`);
 
       setTimeout(async () => {
+        
             await generateSwaggerPublicHtml();
         }, 5000);
 });
