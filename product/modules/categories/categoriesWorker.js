@@ -6,10 +6,13 @@ import express from 'express';
 import { headMiddleware } from '../../headMidd.js';
 import { categoriesRouter } from './index.js';
 import mongoose from 'mongoose';
+import {load} from 'cheerio';
+import axios from 'axios';
 
 const PORT = 7011;
 
 const app = express();
+const swaggerEndPoint = "/api/product/v2/api-docs";
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/product_db';
 
@@ -100,9 +103,8 @@ app.listen(PORT, () => {
       console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/api-docs`);
 
       setTimeout(async () => {
-        
-            await generateSwaggerPublicHtml();
-        }, 5000);
+        await generateSwaggerPublicHtml();
+    }, 8000);
 });
 
 function free() {

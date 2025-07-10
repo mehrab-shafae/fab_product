@@ -6,10 +6,13 @@ import express from 'express';
 import { headMiddleware } from '../../headMidd.js';
 import { productRouter } from './index.js';
 import mongoose from 'mongoose';
+import {load} from 'cheerio';
+import axios from 'axios';
 
 const PORT = 7021;
 
 const app = express();
+const swaggerEndPoint = "/api/product/v2/api-docs";
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/product_db';
 
@@ -101,7 +104,7 @@ app.listen(PORT, () => {
 
       setTimeout(async () => {
             await generateSwaggerPublicHtml();
-        }, 5000);
+        }, 8000);
 });
 
 function free() {
