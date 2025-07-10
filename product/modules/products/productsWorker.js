@@ -78,22 +78,22 @@ async function generateSwaggerPublicHtml() {
 
 await connectToMongo();
 
+// Serve fully inlined Swagger UI HTML at /swagger-public/
+app.get('/api/product/v2/swagger-public', async (req, res) => {
+    try {
+        if (swaggerPublicHtml) {
+            res.send(swaggerPublicHtml);
+        } else {
+            res.status(500).send('Swagger UI not available.' + (swaggerPublicError ? ' ' + swaggerPublicError : ''));
+        }
+    } catch (err) {
+        res.status(500).send('Failed to load Swagger UI');
+    }
+});
+
 headMiddleware(app, express);
 
 app.use('/api/product/v2', productRouter);
-
-// Serve fully inlined Swagger UI HTML at /swagger-public/
-app.get('/api/product/v2/swagger-public', async (req, res) => {
-      try {
-          if (swaggerPublicHtml) {
-              res.send(swaggerPublicHtml);
-          } else {
-              res.status(500).send('Swagger UI not available.' + (swaggerPublicError ? ' ' + swaggerPublicError : ''));
-          }
-      } catch (err) {
-          res.status(500).send('Failed to load Swagger UI');
-      }
-  });
 
 app.listen(PORT, () => {
       console.log(`Products worker running on port ${PORT}`);
