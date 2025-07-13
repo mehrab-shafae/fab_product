@@ -241,7 +241,7 @@ paths:
     get:
       tags:
         - Attribute
-      summary: Get all attribute values for a product
+      summary: Get valid attribute values for a product
       parameters:
         - in: path
           name: productId
@@ -251,13 +251,88 @@ paths:
           description: Product ID
       responses:
         '200':
-          description: List of attribute values
+          description: List of valid attribute values
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/ProductAttributeValue'
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductAttributeValue'
+                  count:
+                    type: integer
+                  message:
+                    type: string
+  /{productId}/attributes/all:
+    get:
+      tags:
+        - Attribute
+      summary: Get all attribute values for a product (including invalid ones)
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      responses:
+        '200':
+          description: List of all attribute values with validity status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        product_id:
+                          type: string
+                        attribute_id:
+                          oneOf:
+                            - type: string
+                            - type: object
+                              properties:
+                                _id:
+                                  type: string
+                                name:
+                                  type: string
+                                data_type:
+                                  type: string
+                                deleted_at:
+                                  type: string
+                                  format: date-time
+                        value:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+                        has_valid_attribute:
+                          type: boolean
+                  summary:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      valid:
+                        type: integer
+                      invalid:
+                        type: integer
+                  message:
+                    type: string
   /{productId}/reviews:
     post:
       tags:
