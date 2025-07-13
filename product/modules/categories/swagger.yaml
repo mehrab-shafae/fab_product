@@ -10,6 +10,16 @@ servers:
   - url: http://87.248.130.52:8080/api/v1/product/categories
     description: Test server
 
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 
+
 paths:
   /:
     post:
