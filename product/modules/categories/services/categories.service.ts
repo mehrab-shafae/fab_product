@@ -200,12 +200,12 @@ export class CategoriesService {
             if (data.name && !data.slug) {
                   slug = data.name.trim().toLowerCase().replace(/\s+/g, '-');
             }
-            if (parentId) {
-                  const parent = await Category.findById(parentId);
-                  if (parent) {
-                        slug = `${parent.slug}/${slug}`;
-                  }
-            }
+            // if (parentId) {
+            //       const parent = await Category.findById(parentId);
+            //       if (parent) {
+            //             slug = `${parent.slug}/${slug}`;
+            //       }
+            // }
             // اگر slug تغییر کرد، به redirects اضافه کن
             if (category.slug !== slug) {
                   category.slug_redirects = category.slug_redirects || [];
