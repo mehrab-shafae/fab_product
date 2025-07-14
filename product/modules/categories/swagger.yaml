@@ -13,13 +13,6 @@ servers:
 security:
   - bearerAuth: []
 
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT 
-
 paths:
   /:
     post:
@@ -1163,6 +1156,11 @@ paths:
                       $ref: '#/components/schemas/CategoryAttribute'
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 
   schemas:
     CategoryInput:
       type: object

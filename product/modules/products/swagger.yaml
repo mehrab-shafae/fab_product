@@ -42,12 +42,6 @@ servers:
 
 security:
   - bearerAuth: []
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
 
 paths:
   /:
@@ -1154,6 +1148,11 @@ paths:
               schema:
                 $ref: '#/components/schemas/ProductAnalytics'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     Product:
       type: object
