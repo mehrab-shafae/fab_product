@@ -9,7 +9,7 @@ services:
       - .env
     restart: unless-stopped
     volumes:
-      - .:/app:cached
+      # - .:/app:cached
       - /app/node_modules
     networks:
       - krakend-private
