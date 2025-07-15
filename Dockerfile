@@ -13,5 +13,5 @@ RUN tsc
 
 EXPOSE 7011 7021
 
-ENTRYPOINT ["node", "."]
-CMD []
+ENTRYPOINT ["sh", "-c"]
+CMD ["node . & npm run start:minio & wait"]
