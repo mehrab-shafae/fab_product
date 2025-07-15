@@ -3,6 +3,7 @@ import * as path from 'path';
 import FileUpload from './FileUpload.js';
 import { UploadedFile } from 'express-fileupload';
 import { v4 as uuidv4 } from 'uuid';
+import { Types } from 'mongoose';
 
 const minioClient = new MinioClient({
       endPoint: process.env.MINIO_ENDPOINT!,
@@ -35,7 +36,6 @@ export const minioService = {
             });
             const url = `/minio/${BUCKET}/${objectName}`;
             const fileRecord = await FileUpload.create({
-                  id: uuid,
                   originalName: file.name,
                   size: file.size,
                   mimeType: file.mimetype,
@@ -47,11 +47,13 @@ export const minioService = {
       },
 
       async getFileInfo(id: string) {
-            return FileUpload.findByPk(id);
+            if (!Types.ObjectId.isValid(id)) return null;
+            return FileUpload.findById(id);
       },
 
       async streamFileById(id: string, res: any) {
-            const file = await FileUpload.findByPk(id);
+            if (!Types.ObjectId.isValid(id)) throw new Error('File not found');
+            const file = await FileUpload.findById(id);
             if (!file) throw new Error('File not found');
             const stream = await minioClient.getObject(file.bucket, file.objectName);
             res.setHeader('Content-Type', file.mimeType);
@@ -60,6 +62,12 @@ export const minioService = {
       },
 
       async listFiles(limit = 20, offset = 0) {
-            return FileUpload.findAndCountAll({ limit, offset, order: [['createdAt', 'DESC']] });
+            const files = await FileUpload.find()
+                  .sort({ createdAt: -1 })
+                  .skip(offset)
+                  .limit(limit)
+                  .exec();
+            const count = await FileUpload.countDocuments();
+            return { rows: files, count };
       },
 };

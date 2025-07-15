@@ -44,8 +44,8 @@ export const minioController = {
             try {
                   const limit = Number(req.query.limit) || 20;
                   const offset = Number(req.query.offset) || 0;
-                  const files = await minioService.listFiles(limit, offset);
-                  res.json(files);
+                  const { rows, count } = await minioService.listFiles(limit, offset);
+                  res.json({ rows, count });
             } catch (err) {
                   res.status(500).json({ message: 'Error listing files', error: err });
             }

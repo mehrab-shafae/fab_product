@@ -111,5 +111,5 @@
             "skipLibCheck": true /* Skip type checking all .d.ts files. */
       },
       "include": ["*.js", "*.ts", "**/**/*.js", "**/**/*.ts"],
-      "exclude": ["minio"]
+      "exclude": []
 }
