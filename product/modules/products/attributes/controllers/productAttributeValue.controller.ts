@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues } from '../services/productAttributeValue.service.js';
+import { ProductAttributeValue } from '../models/productAttributeValue.model.js';
 
 export const addProductAttributeValueController = async (req: Request, res: Response) => {
       try {
@@ -41,6 +42,42 @@ export const getAllProductAttributeValuesController = async (req: Request, res: 
                   },
                   message: `Found ${values.length} attribute values (${validCount} valid, ${invalidCount} invalid)`
             });
+      } catch (error: any) {
+            res.status(400).json({ success: false, error: error.message });
+      }
+};
+
+export const replaceProductAttributesController = async (req: Request, res: Response) => {
+      try {
+            const productId = req.params.productId;
+            const attributes = req.body.attributes;
+            if (!Array.isArray(attributes)) {
+                  return res.status(400).json({ success: false, error: 'attributes must be an array' });
+            }
+            // 1. همه attributeهای قبلی را soft-delete کن
+            await ProductAttributeValue.updateMany(
+                  { product_id: productId, deleted_at: null },
+                  { deleted_at: new Date() }
+            );
+            // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
+            for (const attr of attributes) {
+                  if (Array.isArray(attr.value)) {
+                        for (const v of attr.value) {
+                              await ProductAttributeValue.findOneAndUpdate(
+                                    { product_id: productId, attribute_id: attr.attribute_id, value: v },
+                                    { value: v, deleted_at: null },
+                                    { upsert: true, new: true }
+                              );
+                        }
+                  } else {
+                        await ProductAttributeValue.findOneAndUpdate(
+                              { product_id: productId, attribute_id: attr.attribute_id },
+                              { value: attr.value, deleted_at: null },
+                              { upsert: true, new: true }
+                        );
+                  }
+            }
+            res.json({ success: true, message: 'Product attributes replaced successfully' });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }

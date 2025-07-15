@@ -270,6 +270,45 @@ paths:
                     type: integer
                   message:
                     type: string
+
+    put:
+      tags:
+        - Attribute
+      summary: Replace all attribute values for a product (replace mode)
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+          description: Product ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                attributes:
+                  type: array
+                  description: List of attribute values to replace all current attributes for this product.
+                  items:
+                    $ref: '#/components/schemas/ProductAttributeValueInput'
+      responses:
+        '200':
+          description: All attribute values replaced
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        '400':
+          description: Invalid input
+
   /{productId}/attributes/all:
     get:
       tags:

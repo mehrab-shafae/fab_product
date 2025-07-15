@@ -50,16 +50,14 @@ export const updateProduct = async (req: Request, res: Response) => {
             const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
 
-            // --- منطق آپدیت attributeها ---
+            // --- منطق جایگزینی کامل attributeها (replace) ---
             if (req.body.attributes && Array.isArray(req.body.attributes)) {
-                  // لیست attribute_idهای جدید
-                  const newAttrIds = req.body.attributes.map((attr: any) => attr.attribute_id.toString());
-                  // حذف attributeهایی که دیگر در ورودی نیستند (soft-delete)
+                  // 1. همه attributeهای قبلی را soft-delete کن
                   await ProductAttributeValue.updateMany(
-                        { product_id: product._id, attribute_id: { $nin: newAttrIds } },
+                        { product_id: product._id, deleted_at: null },
                         { deleted_at: new Date() }
                   );
-                  // آپدیت یا ایجاد attributeهای جدید
+                  // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
                   for (const attr of req.body.attributes) {
                         if (Array.isArray(attr.value)) {
                               for (const v of attr.value) {
@@ -78,7 +76,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                         }
                   }
             }
-            // --- پایان منطق آپدیت attributeها ---
+            // --- پایان منطق جایگزینی کامل attributeها ---
 
             res.json({ success: true, data: product, message: 'Product updated successfully' });
       } catch (error: any) {
