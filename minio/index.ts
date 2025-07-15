@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import '../cwd.js';
+import '../asyncHandler.js';
 
 import express from 'express';
 import minioRoutes from './minioRoutes.js';
@@ -8,6 +9,8 @@ import YAML from 'yamljs';
 import { readFileSync } from 'fs';
 import {load} from 'cheerio';
 import axios from 'axios';
+import { headMiddleware } from '../product/headMidd.js';
+import mongoose from 'mongoose';
 
 const swaggerDocument = YAML.parse(readFileSync(cwd('minio/swagger.yaml'), 'utf8'));
 const swaggerEndPoint = "/api-docs";
@@ -16,6 +19,16 @@ const app = express();
 
 let swaggerPublicHtml: string | null = null;
 let swaggerPublicError: Error | null | unknown = null;
+
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/minio';
+
+async function connectToMongo() {
+    await mongoose.connect(MONGO_URI).catch(err => {
+          console.error('MongoDB connection error:', err);
+          process.exit(1);
+    });
+    console.log('MongoDB connected for minio');
+}
 
 async function generateSwaggerPublicHtml() {
     try {
@@ -69,7 +82,10 @@ async function generateSwaggerPublicHtml() {
     }
 }
 
-app.use(express.json());
+await connectToMongo();
+
+headMiddleware(app, express);
+
 app.get('/swagger-public', async (_req, res) => {
       try {
           if (swaggerPublicHtml) {

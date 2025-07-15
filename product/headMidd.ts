@@ -1,57 +1,57 @@
 // import cors from 'cors';
 // import helmet from 'helmet';
 import { Express, NextFunction, Response, Request } from 'express';
-import rateLimit from 'express-rate-limit';
-import slowDown from 'express-slow-down';
+// import rateLimit from 'express-rate-limit';
+// import slowDown from 'express-slow-down';
 import { createLogger, format, transports } from 'winston';
 //import i18nMiddleware, { validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { handleDatabaseError } from './headMidd.handle.js';
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+// const isDevelopment = process.env.NODE_ENV === 'development';
 
 const { combine, timestamp, printf, colorize } = format;
 
-const limiter = rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: isDevelopment ? 0 : 250,
-      message: 'Too many requests from this IP, please try again later.',
-});
+// const limiter = rateLimit({
+//       windowMs: 15 * 60 * 1000,
+//       max: isDevelopment ? 0 : 250,
+//       message: 'Too many requests from this IP, please try again later.',
+// });
 
-const speedLimiter = slowDown({
-      windowMs: 15 * 60 * 1000,
-      delayAfter: isDevelopment ? 100 : 50,
-      delayMs: (used, req) => {
-            const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500);
+// const speedLimiter = slowDown({
+//       windowMs: 15 * 60 * 1000,
+//       delayAfter: isDevelopment ? 100 : 50,
+//       delayMs: (used, req) => {
+//             const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500);
 
-            const methodMultiplier =
-                  {
-                        GET: 0.5,
-                        POST: 2.0,
-                        PUT: 1.5,
-                        DELETE: 1.5,
-                        PATCH: 1.5,
-                  }[req.method] || 1.0;
+//             const methodMultiplier =
+//                   {
+//                         GET: 0.5,
+//                         POST: 2.0,
+//                         PUT: 1.5,
+//                         DELETE: 1.5,
+//                         PATCH: 1.5,
+//                   }[req.method] || 1.0;
 
-            const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
+//             const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
 
-            const cacheMultiplier = hasCaching ? 0.3 : 1.0;
+//             const cacheMultiplier = hasCaching ? 0.3 : 1.0;
 
-            const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
+//             const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
 
-            return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200);
-      },
-      keyGenerator: req => {
-            const routePattern = req.originalUrl.split('/')[1];
-            return `${req.ip}:${routePattern}`;
-      },
-      // skip: (req) => {
-      //     // Skip rate limiting for certain paths or conditions
-      //     return req.path.startsWith('/health') ||
-      //            req.path.startsWith('/metrics') ||
-      //            req.path.startsWith('/docs');
-      // }
-});
+//             return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200);
+//       },
+//       keyGenerator: req => {
+//             const routePattern = req.originalUrl.split('/')[1];
+//             return `${req.ip}:${routePattern}`;
+//       },
+//       // skip: (req) => {
+//       //     // Skip rate limiting for certain paths or conditions
+//       //     return req.path.startsWith('/health') ||
+//       //            req.path.startsWith('/metrics') ||
+//       //            req.path.startsWith('/docs');
+//       // }
+// });
 
 const logger = createLogger({
       level: process.env.LOG_LEVEL || 'info',
@@ -201,11 +201,11 @@ export function headMiddleware(app: Express, express: any) {
       // );
       app.use(express.json()); // { limit: '1mb' } Dont need, handle on proxy
       app.use(express.urlencoded({ limit: '1mb', extended: true }));
-      if (!isDevelopment) {
-            // TODO(): ??
-            app.use(limiter);
-            app.use(speedLimiter);
-      }
+      // if (!isDevelopment) {
+      //       // TODO(): ??
+      //       app.use(limiter);
+      //       app.use(speedLimiter);
+      // }
 
       // Add i18n middleware
       /*app.use(i18nMiddleware);
