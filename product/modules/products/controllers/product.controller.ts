@@ -49,6 +49,37 @@ export const updateProduct = async (req: Request, res: Response) => {
       try {
             const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+
+            // --- منطق آپدیت attributeها ---
+            if (req.body.attributes && Array.isArray(req.body.attributes)) {
+                  // لیست attribute_idهای جدید
+                  const newAttrIds = req.body.attributes.map((attr: any) => attr.attribute_id.toString());
+                  // حذف attributeهایی که دیگر در ورودی نیستند (soft-delete)
+                  await ProductAttributeValue.updateMany(
+                        { product_id: product._id, attribute_id: { $nin: newAttrIds } },
+                        { deleted_at: new Date() }
+                  );
+                  // آپدیت یا ایجاد attributeهای جدید
+                  for (const attr of req.body.attributes) {
+                        if (Array.isArray(attr.value)) {
+                              for (const v of attr.value) {
+                                    await ProductAttributeValue.findOneAndUpdate(
+                                          { product_id: product._id, attribute_id: attr.attribute_id, value: v },
+                                          { value: v, deleted_at: null },
+                                          { upsert: true, new: true }
+                                    );
+                              }
+                        } else {
+                              await ProductAttributeValue.findOneAndUpdate(
+                                    { product_id: product._id, attribute_id: attr.attribute_id },
+                                    { value: attr.value, deleted_at: null },
+                                    { upsert: true, new: true }
+                              );
+                        }
+                  }
+            }
+            // --- پایان منطق آپدیت attributeها ---
+
             res.json({ success: true, data: product, message: 'Product updated successfully' });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });

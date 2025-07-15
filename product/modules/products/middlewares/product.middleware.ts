@@ -98,6 +98,53 @@ export const validateRequiredAttributesOnCreateProduct = (req: Request, res: Res
       })();
 };
 
+export const validateRequiredAttributesOnUpdateProduct = (req: Request, res: Response, next: NextFunction) => {
+      (async () => {
+            try {
+                  const { category_id, attributes } = req.body;
+                  // اگر category_id در body نبود، از محصول فعلی بخوان
+                  let catId = category_id;
+                  if (!catId && req.params.id) {
+                        const product = await Product.findById(req.params.id);
+                        if (product) catId = product.category_id;
+                  }
+                  if (!catId) return next();
+                  const requiredAttrs = await getRequiredAttributesRecursive(catId);
+                  if (!requiredAttrs.length) return next();
+                  for (const attr of requiredAttrs) {
+                        const val = attributes?.find((v: any) => v.attribute_id?.toString() === attr._id.toString());
+                        if (!val || val.value === undefined || val.value === null || val.value === '') {
+                              return res.status(400).json({ error: `Attribute '${attr.name}' is required.` });
+                        }
+                        if (attr.type === 'number' && isNaN(Number(val.value))) {
+                              return res.status(400).json({ error: `Attribute '${attr.name}' must be a number.` });
+                        }
+                        if (attr.type === 'enum') {
+                              const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
+                              const allowed = options.map(o => o.value);
+                              if (Array.isArray(val.value)) {
+                                    if (val.value.length === 0) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
+                                    }
+                                    for (const v of val.value) {
+                                          if (!allowed.includes(v)) {
+                                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                          }
+                                    }
+                              } else {
+                                    if (!allowed.includes(val.value)) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                    }
+                              }
+                        }
+                  }
+                  next();
+            } catch (err: any) {
+                  next(err);
+            }
+      })();
+};
+
 export const validateProductAttributeValue = (req: Request, res: Response, next: NextFunction) => {
       (async () => {
             try {

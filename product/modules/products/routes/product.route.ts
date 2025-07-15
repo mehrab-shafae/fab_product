@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController } from '../controllers/product.controller.js';
-import { validateProductId, validateProductSchema, validateRequiredAttributesOnCreateProduct } from '../middlewares/product.middleware.js';
+import { validateProductId, validateProductSchema, validateRequiredAttributesOnCreateProduct, validateRequiredAttributesOnUpdateProduct } from '../middlewares/product.middleware.js';
 import { productCommentRouter } from '../comments/index.js';
 import { productTagRouter } from '../tags/index.js';
 import { productChatRouter, chatMessageRouter } from '../chats/index.js';
@@ -25,7 +25,7 @@ router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 router.post('/', asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnCreateProduct), asyncHandler(createProduct));
 router.get('/:id', asyncHandler(validateProductId), asyncHandler(getProductById));
-router.put('/:id', asyncHandler(validateProductId), asyncHandler(validateProductSchema), asyncHandler(updateProduct));
+router.put('/:id', asyncHandler(validateProductId), asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnUpdateProduct), asyncHandler(updateProduct));
 router.delete('/:id', asyncHandler(validateProductId), asyncHandler(deleteProduct));
 router.get('/', asyncHandler(searchProductsController));
 
