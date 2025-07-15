@@ -26,7 +26,7 @@ async function generateSwaggerPublicHtml() {
 
         // Inline <link rel="stylesheet" href="...">
         const linkPromises: any = [];
-        $('link[rel="stylesheet"][href]').each((i, el) => {
+        $('link[rel="stylesheet"][href]').each((_i, el) => {
             const href: any = $(el).attr('href');
             let assetUrl = href;
             if (!/^https?:/.test(href)) {
@@ -43,8 +43,8 @@ async function generateSwaggerPublicHtml() {
 
         // Inline <script src="...">
         const scriptPromises: any = [];
-        $('script[src]').each((i, el) => {
-            const src = $(el).attr('src');
+        $('script[src]').each((_i, el) => {
+            const src: any = $(el).attr('src');
             let assetUrl = src;
             if (!/^https?:/.test(src!)) {
                 assetUrl = `http://localhost:${PORT}${swaggerEndPoint}/${src.replace(/^\//, '')}`;
@@ -70,7 +70,7 @@ async function generateSwaggerPublicHtml() {
 }
 
 app.use(express.json());
-app.get('/api/product/v2/swagger-public', async (req, res) => {
+app.get('/swagger-public', async (_req, res) => {
       try {
           if (swaggerPublicHtml) {
               res.send(swaggerPublicHtml);
