@@ -15,35 +15,74 @@ const minioClient = new MinioClient({
 
 const BUCKET = process.env.MINIO_BUCKET || 'uploads';
 
+async function checkMinioConnectionAndBucket() {
+    try {
+        console.log('[minioService] Checking MinIO connection and bucket...');
+        // Try listing buckets to check credentials
+        const buckets = await minioClient.listBuckets();
+        console.log('[minioService] Buckets found:', buckets.map(b => b.name));
+        // Check if our bucket exists
+        const exists = await minioClient.bucketExists(BUCKET);
+        if (!exists) {
+            console.warn(`[minioService] Bucket '${BUCKET}' does not exist. Will attempt to create on demand.`);
+        } else {
+            console.log(`[minioService] Bucket '${BUCKET}' exists.`);
+        }
+        return true;
+    } catch (err: any) {
+        console.error('[minioService] MinIO connection or credentials error:', err);
+        throw new Error('Cannot connect to MinIO: ' + (err && err.message ? err.message : err));
+    }
+}
+
 async function ensureBucketExists(bucket: string) {
-      const exists = await minioClient.bucketExists(bucket);
-      if (!exists) {
+    try {
+        const exists = await minioClient.bucketExists(bucket);
+        if (!exists) {
             await minioClient.makeBucket(bucket, 'us-east-1');
-      }
+        }
+    } catch (err: any) {
+        console.error('[minioService.ensureBucketExists] Error:', err);
+        throw new Error('Cannot access or create bucket: ' + (err && err.message ? err.message : err));
+    }
 }
 
 export const minioService = {
+      checkMinioConnectionAndBucket,
       async uploadFile(file: UploadedFile) {
+            console.log('[minioService.uploadFile] called, file:', file.name, 'size:', file.size);
             if (file.size > 10 * 1024 * 1024) {
+                  console.log('[minioService.uploadFile] File too large');
                   throw new Error('File size exceeds 10MB limit.');
             }
-            await ensureBucketExists(BUCKET);
-            const uuid = uuidv4();
-            const ext = path.extname(file.name);
-            const objectName = `${uuid}${ext}`;
-            await minioClient.putObject(BUCKET, objectName, file.data, file.size, {
-                  'Content-Type': file.mimetype,
-            });
-            const url = `/minio/${BUCKET}/${objectName}`;
-            const fileRecord = await FileUpload.create({
-                  originalName: file.name,
-                  size: file.size,
-                  mimeType: file.mimetype,
-                  bucket: BUCKET,
-                  objectName,
-                  url,
-            });
-            return fileRecord;
+            try {
+                  console.log('[minioService.uploadFile] Ensuring bucket exists:', BUCKET);
+                  await ensureBucketExists(BUCKET);
+                  console.log('[minioService.uploadFile] Bucket ready');
+                  const uuid = uuidv4();
+                  const ext = path.extname(file.name);
+                  const objectName = `${uuid}${ext}`;
+                  console.log('[minioService.uploadFile] Uploading to MinIO:', objectName);
+                  await minioClient.putObject(BUCKET, objectName, file.data, file.size, {
+                        'Content-Type': file.mimetype,
+                  });
+                  console.log('[minioService.uploadFile] Uploaded to MinIO:', objectName);
+                  const url = `/minio/${BUCKET}/${objectName}`;
+                  console.log('[minioService.uploadFile] Creating DB record');
+                  const fileRecord = await FileUpload.create({
+                        originalName: file.name,
+                        size: file.size,
+                        mimeType: file.mimetype,
+                        bucket: BUCKET,
+                        objectName,
+                        url,
+                  });
+                  console.log('[minioService.uploadFile] DB record created:', fileRecord._id);
+                  return fileRecord;
+            } catch (err) {
+                  console.error('[minioService.uploadFile] Error:', err);
+                  throw err;
+            }
       },
 
       async getFileInfo(id: string) {
