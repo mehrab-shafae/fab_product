@@ -42,7 +42,7 @@ app.use(morgan('[minio] :id :method :url :status :response-time ms - :res[conten
 function errorHandler(err: any, _req: express.Request, res: express.Response, next: express.NextFunction) {
     console.error('Unhandled error:', err);
     if (res.headersSent) return next(err);
-    res.status(500).json({ message: 'Internal server error', error: err && err.message ? err.message : err });
+    res.status(500).json({ message: '[MinIO] Internal server error', status: 'error' });
 }
 
 let swaggerPublicHtml: string | null = null;
