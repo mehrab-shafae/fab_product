@@ -30,6 +30,7 @@ paths:
               parentId: null
               order: 0
               status: "active"
+              img: "main-image.jpg"
               image_ids: ["img1", "img2"]
               meta_keywords: ["keyword1", "keyword2"]
               meta_title: "Meta Title"
@@ -302,6 +303,7 @@ paths:
               parentId: null
               order: 1
               status: "active"
+              img: "main-image.jpg"
               image_ids: ["img1", "img2"]
               meta_keywords: ["keyword1", "keyword2"]
               meta_title: "Meta Title"
@@ -1166,6 +1168,7 @@ components:
       type: object
       required:
         - name
+        - img
       properties:
         name:
           type: string
@@ -1184,6 +1187,9 @@ components:
           type: string
           enum: [active, inactive, pending, archived]
           example: "active"
+        img:
+          type: string
+          example: "main-image.jpg"
         image_ids:
           type: array
           items:
@@ -1249,6 +1255,9 @@ components:
           type: string
           enum: [active, inactive, pending, archived]
           example: "inactive"
+        img:
+          type: string
+          example: "main-image.jpg"
         image_ids:
           type: array
           items:
@@ -1314,6 +1323,9 @@ components:
           type: integer
         order:
           type: integer
+        img:
+          type: string
+          example: "main-image.jpg"
         children:
           type: array
           items:

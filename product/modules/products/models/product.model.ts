@@ -10,6 +10,8 @@ export interface IProduct extends Document {
       created_at?: Date;
       updated_at?: Date;
       deleted_at?: Date;
+      image_ids?: string[];
+      img?: string;
 }
 
 const ProductSchema = new Schema<IProduct>({
@@ -22,6 +24,8 @@ const ProductSchema = new Schema<IProduct>({
       created_at: { type: Date, default: Date.now },
       updated_at: { type: Date, default: Date.now },
       deleted_at: { type: Date, default: null },
+      image_ids: [{ type: String }],
+      img: { type: String },
 });
 
 ProductSchema.pre('save', function (next) {

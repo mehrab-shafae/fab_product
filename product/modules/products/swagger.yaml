@@ -1220,6 +1220,14 @@ components:
         deleted_at:
           type: string
           format: date-time
+        image_ids:
+          type: array
+          items:
+            type: string
+          description: لیست آیدی عکس‌های محصول
+        img:
+          type: string
+          description: آیدی عکس اصلی محصول
     ProductInput:
       type: object
       required:
@@ -1251,6 +1259,14 @@ components:
               value:
                 type: string
                 description: The value for this attribute (string, number, or enum)
+        image_ids:
+          type: array
+          items:
+            type: string
+          description: لیست آیدی عکس‌های محصول
+        img:
+          type: string
+          description: آیدی عکس اصلی محصول
       example:
         name: "Sample Product"
         price: 100
@@ -1260,6 +1276,10 @@ components:
             value: "Red"
           - attribute_id: "64f1c3..."
             value: 42
+        image_ids:
+          - "img1"
+          - "img2"
+        img: "img1"
     ProductAttribute:
       type: object
       properties:

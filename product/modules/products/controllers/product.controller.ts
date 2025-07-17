@@ -5,7 +5,13 @@ import { ProductAttributeValue } from '../attributes/models/productAttributeValu
 
 export const createProduct = async (req: Request, res: Response) => {
       try {
-            const product = new Product(req.body);
+            // فقط فیلدهای مورد نیاز را از req.body بگیر
+            const productData: any = {
+                  ...req.body,
+                  image_ids: req.body.image_ids,
+                  img: req.body.img,
+            };
+            const product = new Product(productData);
             await product.save();
             // Save attribute values if provided
             if (req.body.attributes && Array.isArray(req.body.attributes)) {
@@ -39,7 +45,8 @@ export const getProductById = async (req: Request, res: Response) => {
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
             // Fetch attribute values for this product
             const attributes = await ProductAttributeValue.find({ product_id: product._id, deleted_at: null }).populate('attribute_id');
-            res.json({ success: true, data: { ...product.toObject(), attributes } });
+            const productObj = product.toObject();
+            res.json({ success: true, data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
@@ -47,7 +54,13 @@ export const getProductById = async (req: Request, res: Response) => {
 
 export const updateProduct = async (req: Request, res: Response) => {
       try {
-            const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true });
+            // فقط فیلدهای مورد نیاز را از req.body بگیر
+            const updateData: any = {
+                  ...req.body,
+                  image_ids: req.body.image_ids,
+                  img: req.body.img,
+            };
+            const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
 
             // --- منطق جایگزینی کامل attributeها (replace) ---

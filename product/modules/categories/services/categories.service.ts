@@ -57,6 +57,8 @@ export class CategoriesService {
             }
             const meta_title = data.meta_title || data.name;
             const meta_description = data.meta_description || '';
+            const img = data.img;
+            if (!img || typeof img !== 'string' || !img.trim()) throw new Error('img is required');
 
             // ساخت دسته‌بندی
             const category = await Category.create({
@@ -65,6 +67,7 @@ export class CategoriesService {
                   level,
                   slug,
                   image_ids,
+                  img,
                   meta_keywords,
                   meta_title,
                   meta_description,
@@ -244,6 +247,9 @@ export class CategoriesService {
             }
             if (data.meta_title) category.meta_title = data.meta_title;
             if (data.meta_description) category.meta_description = data.meta_description;
+            if (data.img && typeof data.img === 'string' && data.img.trim()) {
+                  category.img = data.img;
+            }
             // بروزرسانی سایر فیلدها
             Object.assign(category, data, { parentId, level, slug });
             await category.save();

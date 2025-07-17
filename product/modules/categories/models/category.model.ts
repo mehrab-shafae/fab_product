@@ -19,6 +19,7 @@ export interface ICategory extends Document {
       approved_at?: Date;
       rejected_at?: Date;
       image_ids: string[];
+      img: string; // تصویر تکی
       meta_keywords: string[];
       meta_title: string;
       meta_description: string;
@@ -45,6 +46,7 @@ const CategorySchema = new Schema<ICategory>(
             approved_at: { type: Date },
             rejected_at: { type: Date },
             image_ids: [{ type: String }],
+            img: { type: String, required: true },
             meta_keywords: [{ type: String }],
             meta_title: { type: String },
             meta_description: { type: String },

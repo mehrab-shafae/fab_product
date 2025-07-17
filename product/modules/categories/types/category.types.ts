@@ -10,6 +10,7 @@ export interface CategoryInput {
       status?: CategoryStatus;
       is_featured?: boolean;
       image_ids?: string[];
+      img: string;
       meta_keywords?: string[];
       meta_title?: string;
       meta_description?: string;
@@ -25,6 +26,7 @@ export interface CategoryUpdateInput {
       status?: CategoryStatus;
       is_featured?: boolean;
       image_ids?: string[];
+      img?: string;
       meta_keywords?: string[];
       meta_title?: string;
       meta_description?: string;
