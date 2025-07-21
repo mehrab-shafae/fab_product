@@ -64,4 +64,28 @@ export const minioController = {
                   res.status(500).json({ message: 'Error listing files', status: 'error'  });
             }
       },
+
+      async deleteFile(req: Request, res: Response) {
+            console.log('[minioController.deleteFile] called, id:', req.params.id);
+            try {
+                  const id = req.params.id;
+                  const result = await minioService.deleteFile(id);
+                  res.json({ data: result, status: 'success' });
+            } catch (err: any) {
+                  console.error('[minioController.deleteFile] Error:', err);
+                  res.status(404).json({ message: err.message || 'File not found or error deleting file', status: 'error' });
+            }
+      },
+
+      async deleteFiles(req: Request, res: Response) {
+            console.log('[minioController.deleteFiles] called');
+            try {
+                  const ids = req.body && Array.isArray(req.body.ids) ? req.body.ids : [];
+                  const result = await minioService.deleteFiles(ids);
+                  res.json({ data: result, status: 'success' });
+            } catch (err: any) {
+                  console.error('[minioController.deleteFiles] Error:', err);
+                  res.status(400).json({ message: err.message || 'Error deleting files', status: 'error' });
+            }
+      },
 };

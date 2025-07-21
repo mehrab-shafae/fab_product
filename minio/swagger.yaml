@@ -50,12 +50,43 @@ paths:
       responses:
         '200':
           description: File info
+    delete:
+      summary: Delete a file by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File deleted
+        '404':
+          description: File not found
   /:
     get:
       summary: List all files
       responses:
         '200':
           description: List of files 
+    delete:
+      summary: Delete multiple files
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Files deleted
+        '400':
+          description: Error deleting files
 components:
   securitySchemes:
     bearerAuth:

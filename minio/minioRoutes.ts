@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as minioController from './minioController.js';
 import fileUpload from 'express-fileupload';
+import express from 'express';
 
 const router = Router();
 
@@ -25,14 +26,14 @@ router.post('/upload', fileUpload(), async (req, res, next) => {
     }
 });
 
-router.get('/download/:id', async (req, res, next) => {
-    try {
-        await minioController.minioController.downloadFile(req, res);
-    } catch (err) {
-        console.error('Error in /download/:id:', err);
-        next(err);
-    }
-});
+// router.get('/download/:id', async (req, res, next) => {
+//     try {
+//         await minioController.minioController.downloadFile(req, res);
+//     } catch (err) {
+//         console.error('Error in /download/:id:', err);
+//         next(err);
+//     }
+// });
 
 router.get('/:id', async (req, res, next) => {
     try {
@@ -48,6 +49,24 @@ router.get('/', async (req, res, next) => {
         await minioController.minioController.listFiles(req, res);
     } catch (err) {
         console.error('Error in /:', err);
+        next(err);
+    }
+});
+
+router.delete('/:id', async (req, res, next) => {
+    try {
+        await minioController.minioController.deleteFile(req, res);
+    } catch (err) {
+        console.error('Error in DELETE /:id:', err);
+        next(err);
+    }
+});
+
+router.delete('/', express.json(), async (req, res, next) => {
+    try {
+        await minioController.minioController.deleteFiles(req, res);
+    } catch (err) {
+        console.error('Error in DELETE /:', err);
         next(err);
     }
 });

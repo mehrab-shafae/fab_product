@@ -109,4 +109,30 @@ export const minioService = {
             const count = await FileUpload.countDocuments();
             return { rows: files, count };
       },
+
+      async deleteFile(id: string) {
+            if (!Types.ObjectId.isValid(id)) throw new Error('Invalid file id');
+            const file = await FileUpload.findById(id);
+            if (!file) throw new Error('File not found');
+            // Delete from Minio
+            await minioClient.removeObject(file.bucket, file.objectName);
+            // Delete from DB
+            await FileUpload.deleteOne({ _id: id });
+            return { id };
+      },
+
+      async deleteFiles(ids: string[]) {
+            if (!Array.isArray(ids) || ids.length === 0) throw new Error('No file ids provided');
+            // Find all files
+            const files = await FileUpload.find({ _id: { $in: ids } });
+            if (!files || files.length === 0) throw new Error('No files found');
+            // Delete from Minio (batch)
+            const objects = files.map(f => ({ bucket: f.bucket, objectName: f.objectName, id: f._id }));
+            for (const obj of objects) {
+                  await minioClient.removeObject(obj.bucket, obj.objectName);
+            }
+            // Delete from DB
+            await FileUpload.deleteMany({ _id: { $in: ids } });
+            return { deleted: ids };
+      },
 };
