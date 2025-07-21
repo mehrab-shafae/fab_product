@@ -58,8 +58,6 @@ export class CategoriesService {
             const meta_title = data.meta_title || data.name;
             const meta_description = data.meta_description || '';
             const img = data.img;
-            if (!img || typeof img !== 'string' || !img.trim()) throw new Error('img is required');
-
             // ساخت دسته‌بندی
             const category = await Category.create({
                   ...data,

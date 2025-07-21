@@ -13,4 +13,6 @@ export const productSchema = Joi.object({
           value: Joi.any().required()
         })
       ).optional(),
+      image_ids: Joi.array().items(Joi.string()).optional(),
+      img: Joi.string().optional(),
 });

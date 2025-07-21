@@ -6,9 +6,13 @@ import { ProductAttributeValue } from '../attributes/models/productAttributeValu
 export const createProduct = async (req: Request, res: Response) => {
       try {
             // فقط فیلدهای مورد نیاز را از req.body بگیر
+            let image_ids = req.body.image_ids;
+            if (typeof image_ids === 'string') {
+                  image_ids = [image_ids];
+            }
             const productData: any = {
                   ...req.body,
-                  image_ids: req.body.image_ids,
+                  image_ids,
                   img: req.body.img,
             };
             const product = new Product(productData);
@@ -55,9 +59,13 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
       try {
             // فقط فیلدهای مورد نیاز را از req.body بگیر
+            let image_ids = req.body.image_ids;
+            if (typeof image_ids === 'string') {
+                  image_ids = [image_ids];
+            }
             const updateData: any = {
                   ...req.body,
-                  image_ids: req.body.image_ids,
+                  image_ids,
                   img: req.body.img,
             };
             const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
