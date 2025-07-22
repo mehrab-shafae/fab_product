@@ -11,6 +11,7 @@ const { combine, timestamp, printf, colorize } = format;
 
 let categoriesWorkerProcess = null;
 let productsWorkerProcess = null;
+let sliderWorkerProcess = null;
 
 // =====================[ Logger Enhancement ]=====================
 const logger = createLogger({
@@ -108,6 +109,7 @@ function free() {
 async function main() {
       startCategoriesWorker();
       startProductsWorker();
+      startSliderWorker();
 }
 main();
 
@@ -169,5 +171,27 @@ function startProductsWorker() {
       productsWorkerProcess.on('close', code => {
             logger.info(`${grayBg}[ProductsWorker] Products worker exited with code ${code}${reset}`);
             productsWorkerProcess = null;
+      });
+}
+
+function startSliderWorker() {
+      if (sliderWorkerProcess) return;
+      const grayBg = '\x1b[100m';
+      const reset = '\x1b[0m';
+      logger.info(`${grayBg}[SliderWorker] Starting Slider worker...${reset}`);
+      sliderWorkerProcess = spawn('node', ['build/product/modules/slider/sliderWorker.js'], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: process.env,
+            cwd: process.cwd(),
+      });
+      sliderWorkerProcess.stdout.on('data', data => {
+            logger.info(`${grayBg}[SliderWorker] ${data.toString().trim()}${reset}`);
+      });
+      sliderWorkerProcess.stderr.on('data', data => {
+            logger.error(`${grayBg}[SliderWorker] ${data.toString().trim()}${reset}`);
+      });
+      sliderWorkerProcess.on('close', code => {
+            logger.info(`${grayBg}[SliderWorker] Slider worker exited with code ${code}${reset}`);
+            sliderWorkerProcess = null;
       });
 }

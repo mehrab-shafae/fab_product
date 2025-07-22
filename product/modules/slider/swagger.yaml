@@ -1,0 +1,301 @@
+openapi: 3.0.0
+info:
+  title: Slider API
+  version: 1.0.0
+  description: API documentation for slider module (manage homepage sliders, new, best, all)
+
+servers:
+  - url: http://localhost:7101
+    description: Local server
+  - url: http://87.248.130.52:8080/api/v1/slider
+    description: Test server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /products:
+    post:
+      tags: [Slider]
+      summary: Add a product to slider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SliderInput'
+      responses:
+        '201':
+          description: Product added to slider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Slider'
+        '400':
+          description: Invalid input
+    get:
+      tags: [Slider]
+      summary: List slider products
+      responses:
+        '200':
+          description: List of slider products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SliderPopulated'
+  /categories:
+    post:
+      tags: [Slider]
+      summary: Add a category to slider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SliderInput'
+      responses:
+        '201':
+          description: Category added to slider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Slider'
+        '400':
+          description: Invalid input
+    get:
+      tags: [Slider]
+      summary: List slider categories
+      responses:
+        '200':
+          description: List of slider categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SliderPopulated'
+  /{id}:
+    delete:
+      tags: [Slider]
+      summary: Remove item from slider
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Item deleted
+        '400':
+          description: Invalid id
+  /new/products:
+    get:
+      tags: [Slider]
+      summary: List new products (paging, sort)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: sort
+          schema:
+            type: string
+            default: created_at
+        - in: query
+          name: order
+          schema:
+            type: integer
+            default: -1
+      responses:
+        '200':
+          description: List of new products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+  /new/categories:
+    get:
+      tags: [Slider]
+      summary: List new categories (paging, sort)
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: sort
+          schema:
+            type: string
+            default: createdAt
+        - in: query
+          name: order
+          schema:
+            type: integer
+            default: -1
+      responses:
+        '200':
+          description: List of new categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /best:
+    get:
+      tags: [Slider]
+      summary: List best items (currently empty)
+      responses:
+        '200':
+          description: List of best items (empty for now)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  best:
+                    type: array
+                    items: {}
+  /all:
+    get:
+      tags: [Slider]
+      summary: Get all slider, new, and best data (no paging)
+      responses:
+        '200':
+          description: All slider, new, and best data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slider:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SliderPopulated'
+                      categories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/SliderPopulated'
+                  new:
+                    type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Product'
+                      categories:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Category'
+                  best:
+                    type: array
+                    items: {}
+
+components:
+  schemas:
+    SliderInput:
+      type: object
+      required:
+        - refId
+      properties:
+        refId:
+          type: string
+        order:
+          type: integer
+    Slider:
+      type: object
+      properties:
+        _id:
+          type: string
+        type:
+          type: string
+          enum: [product, category]
+        refId:
+          type: string
+        order:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SliderPopulated:
+      allOf:
+        - $ref: '#/components/schemas/Slider'
+        - type: object
+          properties:
+            refId:
+              oneOf:
+                - $ref: '#/components/schemas/Product'
+                - $ref: '#/components/schemas/Category'
+    Product:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category_id:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        img:
+          type: string
+    Category:
+      type: object
+      properties:
+        _id:
+          type: string
+        name:
+          type: string
+        slug:
+          type: string
+        status:
+          type: string
+        order:
+          type: integer
+        img:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time 
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT 
