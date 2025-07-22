@@ -30,9 +30,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Slider'
+                $ref: '#/components/schemas/SliderResponse'
         '400':
           description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       tags: [Slider]
       summary: List slider products
@@ -42,9 +46,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SliderPopulated'
+                $ref: '#/components/schemas/SliderListResponse'
   /categories:
     post:
       tags: [Slider]
@@ -61,9 +63,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Slider'
+                $ref: '#/components/schemas/SliderResponse'
         '400':
           description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     get:
       tags: [Slider]
       summary: List slider categories
@@ -73,9 +79,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/SliderPopulated'
+                $ref: '#/components/schemas/SliderListResponse'
   /{id}:
     delete:
       tags: [Slider]
@@ -87,10 +91,18 @@ paths:
           schema:
             type: string
       responses:
-        '204':
+        '200':
           description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: Invalid id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /new/products:
     get:
       tags: [Slider]
@@ -122,9 +134,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Product'
+                $ref: '#/components/schemas/ProductListResponse'
   /new/categories:
     get:
       tags: [Slider]
@@ -156,9 +166,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
+                $ref: '#/components/schemas/CategoryListResponse'
   /best:
     get:
       tags: [Slider]
@@ -169,11 +177,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  best:
-                    type: array
-                    items: {}
+                $ref: '#/components/schemas/BestListResponse'
   /all:
     get:
       tags: [Slider]
@@ -184,33 +188,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  slider:
-                    type: object
-                    properties:
-                      products:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/SliderPopulated'
-                      categories:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/SliderPopulated'
-                  new:
-                    type: object
-                    properties:
-                      products:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Product'
-                      categories:
-                        type: array
-                        items:
-                          $ref: '#/components/schemas/Category'
-                  best:
-                    type: array
-                    items: {}
+                $ref: '#/components/schemas/AllSliderResponse'
 
 components:
   schemas:
@@ -294,6 +272,122 @@ components:
         updatedAt:
           type: string
           format: date-time 
+    SliderResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/Slider'
+    SliderListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SliderPopulated'
+    ProductListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+    CategoryListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    BestListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            best:
+              type: array
+              items: {}
+    AllSliderResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            slider:
+              type: object
+              properties:
+                products:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SliderPopulated'
+                categories:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SliderPopulated'
+            new:
+              type: object
+              properties:
+                products:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Product'
+                categories:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Category'
+            best:
+              type: array
+              items: {}
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [error]
+        message:
+          type: string
+        data:
+          nullable: true
   securitySchemes:
     bearerAuth:
       type: http

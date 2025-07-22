@@ -10,9 +10,17 @@ export class SliderController {
     try {
       const { refId, order } = req.body;
       const item = await SliderService.addItem('Product', new Types.ObjectId(refId), order);
-      res.status(201).json(item);
+      res.status(201).json({
+        status: 'success',
+        message: 'محصول با موفقیت به اسلایدر اضافه شد',
+        data: item,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -21,9 +29,17 @@ export class SliderController {
     try {
       const { refId, order } = req.body;
       const item = await SliderService.addItem('Category', new Types.ObjectId(refId), order);
-      res.status(201).json(item);
+      res.status(201).json({
+        status: 'success',
+        message: 'دسته‌بندی با موفقیت به اسلایدر اضافه شد',
+        data: item,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -32,9 +48,17 @@ export class SliderController {
     try {
       const { id } = req.params;
       await SliderService.removeItem(new Types.ObjectId(id));
-      res.status(204).send();
+      res.status(200).json({
+        status: 'success',
+        message: 'آیتم با موفقیت از اسلایدر حذف شد',
+        data: null,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -42,9 +66,17 @@ export class SliderController {
   static async listSliderProducts(_req: Request, res: Response) {
     try {
       const items = await SliderService.list('Product');
-      res.json(items);
+      res.json({
+        status: 'success',
+        message: 'لیست محصولات اسلایدر',
+        data: items,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -52,9 +84,17 @@ export class SliderController {
   static async listSliderCategories(_req: Request, res: Response) {
     try {
       const items = await SliderService.list('Category');
-      res.json(items);
+      res.json({
+        status: 'success',
+        message: 'لیست دسته‌بندی‌های اسلایدر',
+        data: items,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -65,14 +105,21 @@ export class SliderController {
       const skip = (Number(page) - 1) * Number(limit);
       const sortObj: any = {};
       sortObj[String(sort)] = Number(order);
-      // فرض بر این است که فیلد created_at در مدل Product وجود دارد
       const products = await Product.find({})
         .sort(sortObj)
         .skip(skip)
         .limit(Number(limit));
-      res.json(products);
+      res.json({
+        status: 'success',
+        message: 'جدیدترین محصولات',
+        data: products,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
@@ -83,47 +130,62 @@ export class SliderController {
       const skip = (Number(page) - 1) * Number(limit);
       const sortObj: any = {};
       sortObj[String(sort)] = Number(order);
-      // فرض بر این است که فیلد createdAt در مدل Category وجود دارد
       const categories = await Category.find({})
         .sort(sortObj)
         .skip(skip)
         .limit(Number(limit));
-      res.json(categories);
+      res.json({
+        status: 'success',
+        message: 'جدیدترین دسته‌بندی‌ها',
+        data: categories,
+      });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 
   // اسکلت best (فعلاً خالی)
   static async best(_req: Request, res: Response) {
-    // بعداً پیاده‌سازی می‌شود
-    res.json({ best: [] });
+    res.json({
+      status: 'success',
+      message: 'بهترین‌ها',
+      data: { best: [] },
+    });
   }
 
   // دریافت همه داده‌های slider، new و best به صورت آبجکت تو در تو
   static async getAll(_req: Request, res: Response) {
     try {
-      // slider
       const sliderProducts = await SliderService.list('Product');
       const sliderCategories = await SliderService.list('Category');
-      // new
       const newProducts = await Product.find({}).sort({ created_at: -1 }).limit(20);
       const newCategories = await Category.find({}).sort({ createdAt: -1 }).limit(20);
-      // best (فعلاً خالی)
       const best: any[] = [];
       res.json({
-        slider: {
-          products: sliderProducts,
-          categories: sliderCategories,
+        status: 'success',
+        message: 'دریافت همه داده‌های اسلایدر',
+        data: {
+          slider: {
+            products: sliderProducts,
+            categories: sliderCategories,
+          },
+          new: {
+            products: newProducts,
+            categories: newCategories,
+          },
+          best,
         },
-        new: {
-          products: newProducts,
-          categories: newCategories,
-        },
-        best,
       });
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        status: 'error',
+        message: err.message,
+        data: null,
+      });
     }
   }
 }
