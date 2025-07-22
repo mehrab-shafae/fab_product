@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import '../../../cwd.js';
 import '../../../asyncHandler.js';
+import '../products/models/product.model.js';
+import '../categories/models/category.model.js';
 
 import express from 'express';
 import { headMiddleware } from '../../headMidd.js';
@@ -8,6 +10,8 @@ import sliderRouter from './index.js';
 import mongoose from 'mongoose';
 import { load } from 'cheerio';
 import axios from 'axios';
+import swaggerUi from 'swagger-ui-express';
+import YAML from 'yamljs';
 
 const PORT = 7101;
 
@@ -96,9 +100,15 @@ app.get('/swagger-public', async (req, res) => {
 
 headMiddleware(app, express);
 
+const swaggerDocument = YAML.load(cwd('product/modules/slider/swagger.yaml'));
+
+app.use(swaggerEndPoint, swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
 app.use('/', sliderRouter);
 
 app.listen(PORT, () => {
   console.log(`Slider worker running on port ${PORT}`);
-  generateSwaggerPublicHtml();
+  setTimeout(async () => {
+    await generateSwaggerPublicHtml();
+}, 8000);
 }); 

@@ -4,7 +4,7 @@ import { Product, IProduct } from '../../products/models/product.model.js';
 import { Category, ICategory } from '../../categories/models/category.model.js';
 
 export type SliderPopulated = {
-  type: 'product' | 'category';
+  type: 'Product' | 'Category';
   refId: IProduct | ICategory;
   order: number;
   createdAt: Date;
@@ -14,16 +14,17 @@ export type SliderPopulated = {
 
 export class SliderService {
   // افزودن آیتم جدید به slider
-  static async addItem(type: 'product' | 'category', refId: Types.ObjectId, order = 0): Promise<ISlider> {
-    // اعتبارسنجی وجود refId
-    if (type === 'product') {
+  static async addItem(type: 'Product' | 'Category', refId: Types.ObjectId, order = 0): Promise<ISlider> {
+    // تبدیل به حرف بزرگ برای سازگاری با مدل mongoose
+    if (type !== 'Product' && type !== 'Category') {
+      throw new Error('Invalid type');
+    }
+    if (type === 'Product') {
       const exists = await Product.exists({ _id: refId });
       if (!exists) throw new Error('Product not found');
-    } else if (type === 'category') {
+    } else if (type === 'Category') {
       const exists = await Category.exists({ _id: refId });
       if (!exists) throw new Error('Category not found');
-    } else {
-      throw new Error('Invalid type');
     }
     const slider = new Slider({ type, refId, order });
     return slider.save();
@@ -35,7 +36,7 @@ export class SliderService {
   }
 
   // لیست آیتم‌های slider بر اساس نوع
-  static async list(type?: 'product' | 'category'): Promise<SliderPopulated[]> {
+  static async list(type?: 'Product' | 'Category'): Promise<SliderPopulated[]> {
     const filter = type ? { type } : {};
     const docs = await Slider.find(filter)
       .sort({ order: 1, createdAt: -1 })

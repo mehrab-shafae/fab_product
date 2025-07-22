@@ -1,7 +1,7 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
 export interface ISlider extends Document {
-  type: 'product' | 'category';
+  type: 'Product' | 'Category';
   refId: Types.ObjectId;
   order: number;
   createdAt: Date;
@@ -9,7 +9,7 @@ export interface ISlider extends Document {
 }
 
 const SliderSchema = new Schema<ISlider>({
-  type: { type: String, enum: ['product', 'category'], required: true },
+  type: { type: String, enum: ['Product', 'Category'], required: true },
   refId: {
     type: Schema.Types.ObjectId,
     required: true,

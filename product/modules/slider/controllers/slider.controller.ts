@@ -9,7 +9,7 @@ export class SliderController {
   static async addProductToSlider(req: Request, res: Response) {
     try {
       const { refId, order } = req.body;
-      const item = await SliderService.addItem('product', new Types.ObjectId(refId), order);
+      const item = await SliderService.addItem('Product', new Types.ObjectId(refId), order);
       res.status(201).json(item);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -20,7 +20,7 @@ export class SliderController {
   static async addCategoryToSlider(req: Request, res: Response) {
     try {
       const { refId, order } = req.body;
-      const item = await SliderService.addItem('category', new Types.ObjectId(refId), order);
+      const item = await SliderService.addItem('Category', new Types.ObjectId(refId), order);
       res.status(201).json(item);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -39,9 +39,9 @@ export class SliderController {
   }
 
   // لیست محصولات slider
-  static async listSliderProducts(req: Request, res: Response) {
+  static async listSliderProducts(_req: Request, res: Response) {
     try {
-      const items = await SliderService.list('product');
+      const items = await SliderService.list('Product');
       res.json(items);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -49,9 +49,9 @@ export class SliderController {
   }
 
   // لیست دسته‌بندی‌های slider
-  static async listSliderCategories(req: Request, res: Response) {
+  static async listSliderCategories(_req: Request, res: Response) {
     try {
-      const items = await SliderService.list('category');
+      const items = await SliderService.list('Category');
       res.json(items);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -95,17 +95,17 @@ export class SliderController {
   }
 
   // اسکلت best (فعلاً خالی)
-  static async best(req: Request, res: Response) {
+  static async best(_req: Request, res: Response) {
     // بعداً پیاده‌سازی می‌شود
     res.json({ best: [] });
   }
 
   // دریافت همه داده‌های slider، new و best به صورت آبجکت تو در تو
-  static async getAll(req: Request, res: Response) {
+  static async getAll(_req: Request, res: Response) {
     try {
       // slider
-      const sliderProducts = await SliderService.list('product');
-      const sliderCategories = await SliderService.list('category');
+      const sliderProducts = await SliderService.list('Product');
+      const sliderCategories = await SliderService.list('Category');
       // new
       const newProducts = await Product.find({}).sort({ created_at: -1 }).limit(20);
       const newCategories = await Category.find({}).sort({ createdAt: -1 }).limit(20);
