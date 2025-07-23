@@ -8,7 +8,7 @@ router.post('/products', SliderController.addProductToSlider);
 // افزودن دسته‌بندی به slider
 router.post('/categories', SliderController.addCategoryToSlider);
 // حذف آیتم از slider
-router.delete('/:id', SliderController.removeSliderItem);
+router.delete('/slider/:id', SliderController.removeSliderItem);
 // لیست محصولات slider
 router.get('/products', SliderController.listSliderProducts);
 // لیست دسته‌بندی‌های slider
@@ -21,5 +21,11 @@ router.get('/new/categories', SliderController.newCategories);
 router.get('/best', SliderController.best);
 // دریافت همه داده‌های slider، new و best
 router.get('/all', SliderController.getAll);
+
+// --- SimpleSliderInfo CRUD ---
+router.post('/', SliderController.addSimpleSliderInfo);
+router.get('/', SliderController.getSimpleSliderInfo);
+router.put('/:id', SliderController.updateSimpleSliderInfo);
+router.delete('/:id', SliderController.deleteSimpleSliderInfo);
 
 export default router;

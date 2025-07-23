@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import { Slider, ISlider } from '../models/slider.model.js';
 import { Product, IProduct } from '../../products/models/product.model.js';
 import { Category, ICategory } from '../../categories/models/category.model.js';
+import { SimpleSliderInfo, ISimpleSliderInfo } from '../models/simpleSliderInfo.model.js';
 
 export type SliderPopulated = {
   type: 'Product' | 'Category';
@@ -47,5 +48,22 @@ export class SliderService {
       const obj = doc.toObject() as unknown as SliderPopulated;
       return obj;
     });
+  }
+}
+
+// --- SimpleSliderInfo Service ---
+export class SimpleSliderInfoService {
+  static async add(data: { title: string; subtitle: string; link: string; img: string }): Promise<ISimpleSliderInfo> {
+    const item = new SimpleSliderInfo(data);
+    return item.save();
+  }
+  static async list(): Promise<ISimpleSliderInfo[]> {
+    return SimpleSliderInfo.find().sort({ createdAt: -1 });
+  }
+  static async update(id: string, data: { title: string; subtitle: string; link: string; img: string }): Promise<ISimpleSliderInfo | null> {
+    return SimpleSliderInfo.findByIdAndUpdate(id, data, { new: true });
+  }
+  static async remove(id: string): Promise<void> {
+    await SimpleSliderInfo.findByIdAndDelete(id);
   }
 }

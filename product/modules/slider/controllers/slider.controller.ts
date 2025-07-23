@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Types } from 'mongoose';
 import { SliderService } from '../services/slider.service.js';
+import { SimpleSliderInfoService } from '../services/slider.service.js';
 import { Product } from '../../products/models/product.model.js';
 import { Category } from '../../categories/models/category.model.js';
 
@@ -186,6 +187,44 @@ export class SliderController {
         message: err.message,
         data: null,
       });
+    }
+  }
+
+  // --- SimpleSliderInfo CRUD ---
+  static async addSimpleSliderInfo(req: Request, res: Response) {
+    try {
+      const { title, subtitle, link, img } = req.body;
+      const item = await SimpleSliderInfoService.add({ title, subtitle, link, img });
+      res.status(201).json({ status: 'success', message: 'آیتم با موفقیت اضافه شد', data: item });
+    } catch (err: any) {
+      res.status(400).json({ status: 'error', message: err.message, data: null });
+    }
+  }
+  static async getSimpleSliderInfo(_req: Request, res: Response) {
+    try {
+      const items = await SimpleSliderInfoService.list();
+      res.json({ status: 'success', message: 'لیست آیتم‌ها', data: items });
+    } catch (err: any) {
+      res.status(400).json({ status: 'error', message: err.message, data: null });
+    }
+  }
+  static async updateSimpleSliderInfo(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { title, subtitle, link, img } = req.body;
+      const item = await SimpleSliderInfoService.update(id, { title, subtitle, link, img });
+      res.json({ status: 'success', message: 'آیتم با موفقیت ویرایش شد', data: item });
+    } catch (err: any) {
+      res.status(400).json({ status: 'error', message: err.message, data: null });
+    }
+  }
+  static async deleteSimpleSliderInfo(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      await SimpleSliderInfoService.remove(id);
+      res.json({ status: 'success', message: 'آیتم با موفقیت حذف شد', data: null });
+    } catch (err: any) {
+      res.status(400).json({ status: 'error', message: err.message, data: null });
     }
   }
 }

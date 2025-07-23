@@ -80,7 +80,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SliderListResponse'
-  /{id}:
+  /slider/{id}:
     delete:
       tags: [Slider]
       summary: Remove item from slider
@@ -189,6 +189,90 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AllSliderResponse'
+  /:
+    post:
+      tags: [SimpleSliderInfo]
+      summary: Add a simple slider info item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleSliderInfoInput'
+      responses:
+        '201':
+          description: Item added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleSliderInfoResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags: [SimpleSliderInfo]
+      summary: List all simple slider info items
+      responses:
+        '200':
+          description: List of items
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleSliderInfoListResponse'
+  /{id}:
+    put:
+      tags: [SimpleSliderInfo]
+      summary: Update a simple slider info item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleSliderInfoInput'
+      responses:
+        '200':
+          description: Item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleSliderInfoResponse'
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [SimpleSliderInfo]
+      summary: Delete a simple slider info item
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Item deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
 components:
   schemas:
@@ -388,6 +472,63 @@ components:
           type: string
         data:
           nullable: true
+    SimpleSliderInfoInput:
+      type: object
+      required:
+        - title
+        - subtitle
+        - link
+        - img
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        link:
+          type: string
+        img:
+          type: string
+    SimpleSliderInfo:
+      type: object
+      properties:
+        _id:
+          type: string
+        title:
+          type: string
+        subtitle:
+          type: string
+        link:
+          type: string
+        img:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    SimpleSliderInfoResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/SimpleSliderInfo'
+    SimpleSliderInfoListResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [success]
+        message:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SimpleSliderInfo'
   securitySchemes:
     bearerAuth:
       type: http
