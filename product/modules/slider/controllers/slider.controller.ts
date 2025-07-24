@@ -194,8 +194,23 @@ export class SliderController {
   static async addSimpleSliderInfo(req: Request, res: Response) {
     try {
       const { title, subtitle, link, img } = req.body;
+      if (!title) {
+        return res.status(400).json({ status: 'error', message: 'title is required', data: null });
+      }
       const item = await SimpleSliderInfoService.add({ title, subtitle, link, img });
       res.status(201).json({ status: 'success', message: 'آیتم با موفقیت اضافه شد', data: item });
+    } catch (err: any) {
+      res.status(400).json({ status: 'error', message: err.message, data: null });
+    }
+  }
+  static async getSimpleSliderInfoById(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const item = await SimpleSliderInfoService.getById(id);
+      if (!item) {
+        return res.status(404).json({ status: 'error', message: 'آیتم پیدا نشد', data: null });
+      }
+      res.json({ status: 'success', message: 'آیتم یافت شد', data: item });
     } catch (err: any) {
       res.status(400).json({ status: 'error', message: err.message, data: null });
     }

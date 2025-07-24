@@ -53,14 +53,17 @@ export class SliderService {
 
 // --- SimpleSliderInfo Service ---
 export class SimpleSliderInfoService {
-  static async add(data: { title: string; subtitle: string; link: string; img: string }): Promise<ISimpleSliderInfo> {
+  static async add(data: { title: string; subtitle?: string; link?: string; img?: string }): Promise<ISimpleSliderInfo> {
     const item = new SimpleSliderInfo(data);
     return item.save();
   }
   static async list(): Promise<ISimpleSliderInfo[]> {
     return SimpleSliderInfo.find().sort({ createdAt: -1 });
   }
-  static async update(id: string, data: { title: string; subtitle: string; link: string; img: string }): Promise<ISimpleSliderInfo | null> {
+  static async getById(id: string): Promise<ISimpleSliderInfo | null> {
+    return SimpleSliderInfo.findById(id);
+  }
+  static async update(id: string, data: { title?: string; subtitle?: string; link?: string; img?: string }): Promise<ISimpleSliderInfo | null> {
     return SimpleSliderInfo.findByIdAndUpdate(id, data, { new: true });
   }
   static async remove(id: string): Promise<void> {

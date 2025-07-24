@@ -27,5 +27,6 @@ router.post('/', SliderController.addSimpleSliderInfo);
 router.get('/', SliderController.getSimpleSliderInfo);
 router.put('/:id', SliderController.updateSimpleSliderInfo);
 router.delete('/:id', SliderController.deleteSimpleSliderInfo);
+router.get('/:id', SliderController.getSimpleSliderInfoById);
 
 export default router;
