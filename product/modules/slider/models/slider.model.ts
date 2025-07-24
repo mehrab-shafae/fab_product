@@ -18,4 +18,6 @@ const SliderSchema = new Schema<ISlider>({
   order: { type: Number, default: 0 },
 }, { timestamps: true });
 
+SliderSchema.index({ type: 1, refId: 1 }, { unique: true });
+
 export const Slider = model<ISlider>('Slider', SliderSchema);

@@ -27,6 +27,11 @@ export class SliderService {
       const exists = await Category.exists({ _id: refId });
       if (!exists) throw new Error('Category not found');
     }
+    // Check for duplicate (type, refId)
+    const duplicate = await Slider.exists({ type, refId });
+    if (duplicate) {
+      throw new Error('این آیتم قبلاً به اسلایدر اضافه شده است');
+    }
     const slider = new Slider({ type, refId, order });
     return slider.save();
   }
@@ -54,6 +59,11 @@ export class SliderService {
 // --- SimpleSliderInfo Service ---
 export class SimpleSliderInfoService {
   static async add(data: { title: string; subtitle?: string; link?: string; img?: string }): Promise<ISimpleSliderInfo> {
+    // Check for duplicate title
+    const duplicate = await SimpleSliderInfo.exists({ title: data.title });
+    if (duplicate) {
+      throw new Error('آیتمی با این عنوان قبلاً ثبت شده است');
+    }
     const item = new SimpleSliderInfo(data);
     return item.save();
   }

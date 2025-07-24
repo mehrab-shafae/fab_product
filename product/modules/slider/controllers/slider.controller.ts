@@ -11,6 +11,8 @@ export class SliderController {
     try {
       const { refId, order } = req.body;
       const item = await SliderService.addItem('Product', new Types.ObjectId(refId), order);
+      // Populate refId
+      await item.populate('refId');
       res.status(201).json({
         status: 'success',
         message: 'محصول با موفقیت به اسلایدر اضافه شد',
@@ -30,6 +32,8 @@ export class SliderController {
     try {
       const { refId, order } = req.body;
       const item = await SliderService.addItem('Category', new Types.ObjectId(refId), order);
+      // Populate refId
+      await item.populate('refId');
       res.status(201).json({
         status: 'success',
         message: 'دسته‌بندی با موفقیت به اسلایدر اضافه شد',

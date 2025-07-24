@@ -10,7 +10,7 @@ export interface ISimpleSliderInfo extends Document {
 }
 
 const SimpleSliderInfoSchema = new Schema<ISimpleSliderInfo>({
-  title: { type: String, required: true },
+  title: { type: String, required: true, unique: true },
   subtitle: { type: String, required: false },
   link: { type: String, required: false },
   img: { type: String, required: false },
