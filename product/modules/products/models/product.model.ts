@@ -2,6 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProduct extends Document {
       name: string;
+      slug: string; // Added slug field
       description?: string;
       price: number;
       category_id?: mongoose.Types.ObjectId;
@@ -16,6 +17,7 @@ export interface IProduct extends Document {
 
 const ProductSchema = new Schema<IProduct>({
       name: { type: String, required: true },
+      slug: { type: String, required: true, unique: true }, // Added slug field
       description: { type: String },
       price: { type: Number, required: true },
       category_id: { type: Schema.Types.ObjectId, ref: 'Category' },

@@ -3,6 +3,10 @@ import { Product } from '../models/product.model.js';
 import { searchProducts } from '../services/product.service.js';
 import { ProductAttributeValue } from '../attributes/models/productAttributeValue.model.js';
 
+function generateSlug(input: string): string {
+    return input.trim().toLowerCase().replace(/\s+/g, '-');
+}
+
 export const createProduct = async (req: Request, res: Response) => {
       try {
             // فقط فیلدهای مورد نیاز را از req.body بگیر
@@ -10,8 +14,22 @@ export const createProduct = async (req: Request, res: Response) => {
             if (typeof image_ids === 'string') {
                   image_ids = [image_ids];
             }
+            // --- SLUG LOGIC ---
+            let slug = req.body.slug;
+            if (slug && typeof slug === 'string') {
+                slug = generateSlug(slug);
+            } else {
+                slug = generateSlug(req.body.name || '');
+            }
+            // Check uniqueness
+            const exists = await Product.findOne({ slug });
+            if (exists) {
+                return res.status(400).json({ success: false, error: 'Slug already exists' });
+            }
+            // --- END SLUG LOGIC ---
             const productData: any = {
                   ...req.body,
+                  slug, // always use processed slug
                   image_ids,
                   img: req.body.img,
             };
@@ -56,19 +74,52 @@ export const getProductById = async (req: Request, res: Response) => {
       }
 };
 
+export const getProductBySlug = async (req: Request, res: Response) => {
+      try {
+            const product = await Product.findOne({ slug: req.params.slug });
+            if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+            // Fetch attribute values for this product
+            const attributes = await ProductAttributeValue.find({ product_id: product._id, deleted_at: null }).populate('attribute_id');
+            const productObj = product.toObject();
+            res.json({ success: true, data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
+      } catch (error: any) {
+            res.status(400).json({ success: false, error: error.message });
+      }
+};
+
 export const updateProduct = async (req: Request, res: Response) => {
       try {
-            // فقط فیلدهای مورد نیاز را از req.body بگیر
             let image_ids = req.body.image_ids;
             if (typeof image_ids === 'string') {
                   image_ids = [image_ids];
             }
+            // --- SLUG LOGIC ---
+            const productId = req.params.id;
+            const currentProduct = await Product.findById(productId);
+            if (!currentProduct) return res.status(404).json({ success: false, error: 'Product not found' });
+            let slug = req.body.slug;
+            if (slug && typeof slug === 'string') {
+                slug = generateSlug(slug);
+            } else if (req.body.name) {
+                slug = generateSlug(req.body.name);
+            } else {
+                slug = currentProduct.slug;
+            }
+            // Check uniqueness only if slug changed
+            if (slug !== currentProduct.slug) {
+                const exists = await Product.findOne({ slug });
+                if (exists && exists._id && exists._id.toString() !== productId) {
+                    return res.status(400).json({ success: false, error: 'Slug already exists' });
+                }
+            }
+            // --- END SLUG LOGIC ---
             const updateData: any = {
                   ...req.body,
+                  slug, // always use processed slug
                   image_ids,
                   img: req.body.img,
             };
-            const product = await Product.findByIdAndUpdate(req.params.id, updateData, { new: true });
+            const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
             if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
 
             // --- منطق جایگزینی کامل attributeها (replace) ---

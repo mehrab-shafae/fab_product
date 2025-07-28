@@ -116,6 +116,27 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Product'
+  /slug/{slug}:
+    get:
+      tags:
+        - Product
+      summary: Get product by slug
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            type: string
+          description: Product slug
+      responses:
+        '200':
+          description: Product found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
   /{id}:
     get:
       tags:
@@ -1200,6 +1221,8 @@ components:
           type: string
         name:
           type: string
+        slug:
+          type: string
         description:
           type: string
         price:
@@ -1236,6 +1259,8 @@ components:
       properties:
         name:
           type: string
+        slug:
+          type: string
         description:
           type: string
         price:
@@ -1269,6 +1294,7 @@ components:
           description: آیدی عکس اصلی محصول
       example:
         name: "Sample Product"
+        slug: "sample-product"
         price: 100
         category_id: "64f1c2..."
         attributes:
