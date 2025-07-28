@@ -2,7 +2,7 @@ import Joi from 'joi';
 
 export const productSchema = Joi.object({
       name: Joi.string().required(),
-      slug: Joi.string().required(),
+      slug: Joi.string().optional(),
       description: Joi.string().allow(''),
       price: Joi.number().required(),
       category_id: Joi.string().optional(),
