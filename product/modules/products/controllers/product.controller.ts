@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Product } from '../models/product.model.js';
 import { searchProducts } from '../services/product.service.js';
 import { ProductAttributeValue } from '../attributes/models/productAttributeValue.model.js';
+import { Category } from '../../categories/models/category.model.js';
 
 function generateSlug(input: string): string {
     return input.trim().toLowerCase().replace(/\s+/g, '-');
@@ -191,7 +192,16 @@ export const searchProductsController = async (req: Request, res: Response, _nex
                   sortOrder,
             };
             const result = await searchProducts(params);
-            res.json({ success: true, ...result });
+            // --- Add full category info to each product ---
+            const categoryIds = result.items.map((p: any) => p.category_id).filter(Boolean);
+            const uniqueCategoryIds = [...new Set(categoryIds.map((id: any) => id.toString()))];
+            const categories = await Category.find({ _id: { $in: uniqueCategoryIds } }).lean();
+            const categoriesMap = Object.fromEntries(categories.map((cat: any) => [cat._id.toString(), cat]));
+            const productsWithCategory = result.items.map((product: any) => ({
+              ...product,
+              category: categoriesMap[product.category_id?.toString()] || null,
+            }));
+            res.json({ success: true, ...result, items: productsWithCategory });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }

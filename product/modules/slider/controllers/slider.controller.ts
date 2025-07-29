@@ -110,7 +110,8 @@ export class SliderController {
       const skip = (Number(page) - 1) * Number(limit);
       const sortObj: any = {};
       sortObj[String(sort)] = Number(order);
-      const products = await Product.find({})
+      // فقط محصولات فعال و حذف‌نشده
+      const products = await Product.find({ deleted_at: null, status: 'active' })
         .sort(sortObj)
         .skip(skip)
         .limit(Number(limit));
@@ -135,7 +136,8 @@ export class SliderController {
       const skip = (Number(page) - 1) * Number(limit);
       const sortObj: any = {};
       sortObj[String(sort)] = Number(order);
-      const categories = await Category.find({})
+      // فقط دسته‌بندی‌های فعال
+      const categories = await Category.find({ status: 'active' })
         .sort(sortObj)
         .skip(skip)
         .limit(Number(limit));
