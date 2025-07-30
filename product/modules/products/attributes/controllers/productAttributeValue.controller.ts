@@ -15,11 +15,11 @@ export const addProductAttributeValueController = async (req: Request, res: Resp
 export const getProductAttributeValuesController = async (req: Request, res: Response) => {
       try {
             const values = await getProductAttributeValues(req.params.productId);
-            res.json({ 
-                  success: true, 
+            res.json({
+                  success: true,
                   data: values,
                   count: values.length,
-                  message: `Found ${values.length} valid attribute values`
+                  message: `Found ${values.length} valid attribute values`,
             });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
@@ -31,16 +31,16 @@ export const getAllProductAttributeValuesController = async (req: Request, res: 
             const values = await getAllProductAttributeValues(req.params.productId);
             const validCount = values.filter(v => v.has_valid_attribute).length;
             const invalidCount = values.filter(v => !v.has_valid_attribute).length;
-            
-            res.json({ 
-                  success: true, 
+
+            res.json({
+                  success: true,
                   data: values,
                   summary: {
                         total: values.length,
                         valid: validCount,
-                        invalid: invalidCount
+                        invalid: invalidCount,
                   },
-                  message: `Found ${values.length} attribute values (${validCount} valid, ${invalidCount} invalid)`
+                  message: `Found ${values.length} attribute values (${validCount} valid, ${invalidCount} invalid)`,
             });
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
@@ -55,26 +55,15 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
                   return res.status(400).json({ success: false, error: 'attributes must be an array' });
             }
             // 1. همه attributeهای قبلی را soft-delete کن
-            await ProductAttributeValue.updateMany(
-                  { product_id: productId, deleted_at: null },
-                  { deleted_at: new Date() }
-            );
+            await ProductAttributeValue.updateMany({ product_id: productId, deleted_at: null }, { deleted_at: new Date() });
             // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
             for (const attr of attributes) {
                   if (Array.isArray(attr.value)) {
                         for (const v of attr.value) {
-                              await ProductAttributeValue.findOneAndUpdate(
-                                    { product_id: productId, attribute_id: attr.attribute_id, value: v },
-                                    { value: v, deleted_at: null },
-                                    { upsert: true, new: true }
-                              );
+                              await ProductAttributeValue.findOneAndUpdate({ product_id: productId, attribute_id: attr.attribute_id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
                         }
                   } else {
-                        await ProductAttributeValue.findOneAndUpdate(
-                              { product_id: productId, attribute_id: attr.attribute_id },
-                              { value: attr.value, deleted_at: null },
-                              { upsert: true, new: true }
-                        );
+                        await ProductAttributeValue.findOneAndUpdate({ product_id: productId, attribute_id: attr.attribute_id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
                   }
             }
             res.json({ success: true, message: 'Product attributes replaced successfully' });

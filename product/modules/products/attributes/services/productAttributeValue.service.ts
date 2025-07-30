@@ -16,8 +16,7 @@ export const addProductAttributeValue = async (data: Partial<IProductAttributeVa
 };
 
 export const getProductAttributeValues = async (product_id: string) => {
-      const values = await ProductAttributeValue.find({ product_id, deleted_at: null })
-            .populate('attribute_id');
+      const values = await ProductAttributeValue.find({ product_id, deleted_at: null }).populate('attribute_id');
 
       // Filter out values where attribute_id is null or the attribute is deleted
       const validValues = values.filter(value => {
@@ -31,8 +30,7 @@ export const getProductAttributeValues = async (product_id: string) => {
 
 // Alternative function that returns all values with attribute info (including null ones)
 export const getAllProductAttributeValues = async (product_id: string) => {
-      const values = await ProductAttributeValue.find({ product_id, deleted_at: null })
-            .populate('attribute_id');
+      const values = await ProductAttributeValue.find({ product_id, deleted_at: null }).populate('attribute_id');
 
       return values.map(value => {
             let hasValidAttribute = false;
@@ -46,7 +44,7 @@ export const getAllProductAttributeValues = async (product_id: string) => {
                   value: value.value,
                   created_at: value.created_at,
                   updated_at: value.updated_at,
-                  has_valid_attribute: hasValidAttribute
+                  has_valid_attribute: hasValidAttribute,
             };
       });
 };

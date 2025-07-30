@@ -30,9 +30,7 @@ export const createProductVariant = async (data: Partial<IProductVariant>) => {
 };
 
 export const getProductVariants = async (product_id: string) => {
-      return await ProductVariant.find({ product_id, deleted_at: null })
-            .sort({ created_at: -1 })
-            .populate('attributes.attribute_id');
+      return await ProductVariant.find({ product_id, deleted_at: null }).sort({ created_at: -1 }).populate('attributes.attribute_id');
 };
 
 export const deleteProductVariant = async (id: string) => {

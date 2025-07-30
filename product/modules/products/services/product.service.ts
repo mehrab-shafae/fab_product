@@ -48,10 +48,12 @@ export const searchProducts = async (params: any) => {
       const [items, total] = await Promise.all([Product.find(query).sort(sort).skip(skip).limit(Number(limit)), Product.countDocuments(query)]);
 
       // Fetch attribute values for each product
-      const itemsWithAttributes = await Promise.all(items.map(async (product) => {
-            const attributes = await ProductAttributeValue.find({ product_id: product._id, deleted_at: null }).populate('attribute_id');
-            return { ...product.toObject(), attributes };
-      }));
+      const itemsWithAttributes = await Promise.all(
+            items.map(async product => {
+                  const attributes = await ProductAttributeValue.find({ product_id: product._id, deleted_at: null }).populate('attribute_id');
+                  return { ...product.toObject(), attributes };
+            })
+      );
 
       return {
             items: itemsWithAttributes,

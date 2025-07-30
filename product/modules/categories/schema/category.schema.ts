@@ -34,8 +34,8 @@ export const createCategorySchema = yup.object({
                   })
             )
             .optional(),
-    categorySku: yup.number().notRequired().strip(), // فقط خواندنی
-    baseSku: yup.number().notRequired().strip(), // فقط خواندنی
+      categorySku: yup.number().notRequired().strip(), // فقط خواندنی
+      baseSku: yup.number().notRequired().strip(), // فقط خواندنی
 });
 
 export const updateCategorySchema = yup.object({

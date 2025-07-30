@@ -59,9 +59,7 @@ export class CategoriesService {
             const meta_description = data.meta_description || '';
             const img = data.img;
             // ساخت categorySku یکتا و رند (مثلاً 1000، 2000، 3000، ...)
-            const lastCategory = await Category.find({})
-                  .sort({ categorySku: -1 })
-                  .limit(1);
+            const lastCategory = await Category.find({}).sort({ categorySku: -1 }).limit(1);
             let categorySku = 1000;
             if (lastCategory.length > 0) {
                   categorySku = lastCategory[0].categorySku + 1000;

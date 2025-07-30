@@ -14,7 +14,7 @@ export const minioController = {
                   const file = Array.isArray(files.file) ? files.file[0] : files.file;
                   const fileRecord = await minioService.uploadFile(file);
                   console.log('[minioController.upload] File uploaded:', fileRecord._id);
-                  res.status(201).json({data: fileRecord, status: 'success' });
+                  res.status(201).json({ data: fileRecord, status: 'success' });
             } catch (err: any) {
                   console.error('[minioController.upload] Error:', err);
                   if (err.message && err.message.includes('File size exceeds')) {
@@ -33,7 +33,7 @@ export const minioController = {
                         console.log('[minioController.getFile] File not found');
                         return res.status(404).json({ message: 'File not found', status: 'error' });
                   }
-                  res.json({data: file, status: 'success' });
+                  res.json({ data: file, status: 'success' });
             } catch (err) {
                   console.error('[minioController.getFile] Error:', err);
                   res.status(500).json({ message: 'Error fetching file', status: 'error' });
@@ -48,7 +48,7 @@ export const minioController = {
                   console.log('[minioController.downloadFile] Streamed file');
             } catch (err) {
                   console.error('[minioController.downloadFile] Error:', err);
-                  res.status(404).json({ message: 'File not found or error streaming file', status: 'error'  });
+                  res.status(404).json({ message: 'File not found or error streaming file', status: 'error' });
             }
       },
 
@@ -58,10 +58,10 @@ export const minioController = {
                   const limit = Number(req.query.limit) || 20;
                   const offset = Number(req.query.offset) || 0;
                   const { rows, count } = await minioService.listFiles(limit, offset);
-                  res.json({data: { rows, count }, status: 'success' });
+                  res.json({ data: { rows, count }, status: 'success' });
             } catch (err) {
                   console.error('[minioController.listFiles] Error:', err);
-                  res.status(500).json({ message: 'Error listing files', status: 'error'  });
+                  res.status(500).json({ message: 'Error listing files', status: 'error' });
             }
       },
 

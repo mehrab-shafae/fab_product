@@ -5,7 +5,7 @@ import { ProductAttributeValue } from '../attributes/models/productAttributeValu
 import { Category } from '../../categories/models/category.model.js';
 
 function generateSlug(input: string): string {
-    return input.trim().toLowerCase().replace(/\s+/g, '-');
+      return input.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
 export const createProduct = async (req: Request, res: Response) => {
@@ -18,34 +18,32 @@ export const createProduct = async (req: Request, res: Response) => {
             // --- SLUG LOGIC ---
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
-                slug = generateSlug(slug);
+                  slug = generateSlug(slug);
             } else {
-                slug = generateSlug(req.body.name || '');
+                  slug = generateSlug(req.body.name || '');
             }
             // Check uniqueness
             const exists = await Product.findOne({ slug });
             if (exists) {
-                return res.status(400).json({ success: false, error: 'Slug already exists' });
+                  return res.status(400).json({ success: false, error: 'Slug already exists' });
             }
             // --- END SLUG LOGIC ---
 
             // --- SKU LOGIC ---
             let sku = null;
             if (!req.body.category_id) {
-                return res.status(400).json({ success: false, error: 'category_id is required for SKU generation' });
+                  return res.status(400).json({ success: false, error: 'category_id is required for SKU generation' });
             }
             const category = await Category.findById(req.body.category_id);
             if (!category) {
-                return res.status(400).json({ success: false, error: 'Category not found' });
+                  return res.status(400).json({ success: false, error: 'Category not found' });
             }
             // پیدا کردن بزرگ‌ترین sku فعلی برای این دسته
-            const lastProduct = await Product.find({ category_id: category._id })
-                .sort({ sku: -1 })
-                .limit(1);
+            const lastProduct = await Product.find({ category_id: category._id }).sort({ sku: -1 }).limit(1);
             if (lastProduct.length === 0) {
-                sku = (category.baseSku || 1000) + 1;
+                  sku = (category.baseSku || 1000) + 1;
             } else {
-                sku = lastProduct[0].sku + 1;
+                  sku = lastProduct[0].sku + 1;
             }
             // --- END SKU LOGIC ---
 
@@ -66,14 +64,14 @@ export const createProduct = async (req: Request, res: Response) => {
                                     await ProductAttributeValue.create({
                                           product_id: product._id,
                                           attribute_id: attr.attribute_id,
-                                          value: v
+                                          value: v,
                                     });
                               }
                         } else {
                               await ProductAttributeValue.create({
                                     product_id: product._id,
                                     attribute_id: attr.attribute_id,
-                                    value: attr.value
+                                    value: attr.value,
                               });
                         }
                   }
@@ -122,18 +120,18 @@ export const updateProduct = async (req: Request, res: Response) => {
             if (!currentProduct) return res.status(404).json({ success: false, error: 'Product not found' });
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
-                slug = generateSlug(slug);
+                  slug = generateSlug(slug);
             } else if (req.body.name) {
-                slug = generateSlug(req.body.name);
+                  slug = generateSlug(req.body.name);
             } else {
-                slug = currentProduct.slug;
+                  slug = currentProduct.slug;
             }
             // Check uniqueness only if slug changed
             if (slug !== currentProduct.slug) {
-                const exists = await Product.findOne({ slug });
-                if (exists && exists._id && exists._id.toString() !== productId) {
-                    return res.status(400).json({ success: false, error: 'Slug already exists' });
-                }
+                  const exists = await Product.findOne({ slug });
+                  if (exists && exists._id && exists._id.toString() !== productId) {
+                        return res.status(400).json({ success: false, error: 'Slug already exists' });
+                  }
             }
             // --- END SLUG LOGIC ---
             const updateData: any = {
@@ -148,26 +146,15 @@ export const updateProduct = async (req: Request, res: Response) => {
             // --- منطق جایگزینی کامل attributeها (replace) ---
             if (req.body.attributes && Array.isArray(req.body.attributes)) {
                   // 1. همه attributeهای قبلی را soft-delete کن
-                  await ProductAttributeValue.updateMany(
-                        { product_id: product._id, deleted_at: null },
-                        { deleted_at: new Date() }
-                  );
+                  await ProductAttributeValue.updateMany({ product_id: product._id, deleted_at: null }, { deleted_at: new Date() });
                   // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
                   for (const attr of req.body.attributes) {
                         if (Array.isArray(attr.value)) {
                               for (const v of attr.value) {
-                                    await ProductAttributeValue.findOneAndUpdate(
-                                          { product_id: product._id, attribute_id: attr.attribute_id, value: v },
-                                          { value: v, deleted_at: null },
-                                          { upsert: true, new: true }
-                                    );
+                                    await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
                               }
                         } else {
-                              await ProductAttributeValue.findOneAndUpdate(
-                                    { product_id: product._id, attribute_id: attr.attribute_id },
-                                    { value: attr.value, deleted_at: null },
-                                    { upsert: true, new: true }
-                              );
+                              await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
                         }
                   }
             }
@@ -220,8 +207,8 @@ export const searchProductsController = async (req: Request, res: Response, _nex
             const categories = await Category.find({ _id: { $in: uniqueCategoryIds } }).lean();
             const categoriesMap = Object.fromEntries(categories.map((cat: any) => [cat._id.toString(), cat]));
             const productsWithCategory = result.items.map((product: any) => ({
-              ...product,
-              category: categoriesMap[product.category_id?.toString()] || null,
+                  ...product,
+                  category: categoriesMap[product.category_id?.toString()] || null,
             }));
             res.json({ success: true, ...result, items: productsWithCategory });
       } catch (error: any) {

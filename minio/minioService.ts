@@ -16,35 +16,38 @@ const minioClient = new MinioClient({
 const BUCKET = process.env.MINIO_BUCKET || 'uploads';
 
 async function checkMinioConnectionAndBucket() {
-    try {
-        console.log('[minioService] Checking MinIO connection and bucket...');
-        // Try listing buckets to check credentials
-        const buckets = await minioClient.listBuckets();
-        console.log('[minioService] Buckets found:', buckets.map(b => b.name));
-        // Check if our bucket exists
-        const exists = await minioClient.bucketExists(BUCKET);
-        if (!exists) {
-            console.warn(`[minioService] Bucket '${BUCKET}' does not exist. Will attempt to create on demand.`);
-        } else {
-            console.log(`[minioService] Bucket '${BUCKET}' exists.`);
-        }
-        return true;
-    } catch (err: any) {
-        console.error('[minioService] MinIO connection or credentials error:', err);
-        throw new Error('Cannot connect to MinIO: ' + (err && err.message ? err.message : err));
-    }
+      try {
+            console.log('[minioService] Checking MinIO connection and bucket...');
+            // Try listing buckets to check credentials
+            const buckets = await minioClient.listBuckets();
+            console.log(
+                  '[minioService] Buckets found:',
+                  buckets.map(b => b.name)
+            );
+            // Check if our bucket exists
+            const exists = await minioClient.bucketExists(BUCKET);
+            if (!exists) {
+                  console.warn(`[minioService] Bucket '${BUCKET}' does not exist. Will attempt to create on demand.`);
+            } else {
+                  console.log(`[minioService] Bucket '${BUCKET}' exists.`);
+            }
+            return true;
+      } catch (err: any) {
+            console.error('[minioService] MinIO connection or credentials error:', err);
+            throw new Error('Cannot connect to MinIO: ' + (err && err.message ? err.message : err));
+      }
 }
 
 async function ensureBucketExists(bucket: string) {
-    try {
-        const exists = await minioClient.bucketExists(bucket);
-        if (!exists) {
-            await minioClient.makeBucket(bucket, 'us-east-1');
-        }
-    } catch (err: any) {
-        console.error('[minioService.ensureBucketExists] Error:', err);
-        throw new Error('Cannot access or create bucket: ' + (err && err.message ? err.message : err));
-    }
+      try {
+            const exists = await minioClient.bucketExists(bucket);
+            if (!exists) {
+                  await minioClient.makeBucket(bucket, 'us-east-1');
+            }
+      } catch (err: any) {
+            console.error('[minioService.ensureBucketExists] Error:', err);
+            throw new Error('Cannot access or create bucket: ' + (err && err.message ? err.message : err));
+      }
 }
 
 export const minioService = {
@@ -101,11 +104,7 @@ export const minioService = {
       },
 
       async listFiles(limit = 20, offset = 0) {
-            const files = await FileUpload.find()
-                  .sort({ createdAt: -1 })
-                  .skip(offset)
-                  .limit(limit)
-                  .exec();
+            const files = await FileUpload.find().sort({ createdAt: -1 }).skip(offset).limit(limit).exec();
             const count = await FileUpload.countDocuments();
             return { rows: files, count };
       },
