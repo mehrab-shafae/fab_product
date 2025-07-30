@@ -1251,6 +1251,10 @@ components:
         img:
           type: string
           description: آیدی عکس اصلی محصول
+        sku:
+          type: number
+          description: کد یکتای محصول (فقط خواندنی)
+          readOnly: true
     ProductInput:
       type: object
       required:
@@ -1292,6 +1296,10 @@ components:
         img:
           type: string
           description: آیدی عکس اصلی محصول
+        sku:
+          type: number
+          description: کد یکتای محصول (توسط سیستم مقداردهی می‌شود، فقط خواندنی)
+          readOnly: true
       example:
         name: "Sample Product"
         slug: "sample-product"

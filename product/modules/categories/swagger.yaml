@@ -1346,6 +1346,14 @@ components:
         updatedAt:
           type: string
           format: date-time
+        categorySku:
+          type: number
+          description: کد یکتای دسته‌بندی (فقط خواندنی)
+          readOnly: true
+        baseSku:
+          type: number
+          description: نقطه شروع کدگذاری محصولات این دسته (فقط خواندنی)
+          readOnly: true
     CategoryAttributeInput:
       type: object
       properties:

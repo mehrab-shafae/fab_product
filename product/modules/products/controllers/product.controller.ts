@@ -28,11 +28,33 @@ export const createProduct = async (req: Request, res: Response) => {
                 return res.status(400).json({ success: false, error: 'Slug already exists' });
             }
             // --- END SLUG LOGIC ---
+
+            // --- SKU LOGIC ---
+            let sku = null;
+            if (!req.body.category_id) {
+                return res.status(400).json({ success: false, error: 'category_id is required for SKU generation' });
+            }
+            const category = await Category.findById(req.body.category_id);
+            if (!category) {
+                return res.status(400).json({ success: false, error: 'Category not found' });
+            }
+            // پیدا کردن بزرگ‌ترین sku فعلی برای این دسته
+            const lastProduct = await Product.find({ category_id: category._id })
+                .sort({ sku: -1 })
+                .limit(1);
+            if (lastProduct.length === 0) {
+                sku = (category.baseSku || 1000) + 1;
+            } else {
+                sku = lastProduct[0].sku + 1;
+            }
+            // --- END SKU LOGIC ---
+
             const productData: any = {
                   ...req.body,
                   slug, // always use processed slug
                   image_ids,
                   img: req.body.img,
+                  sku, // مقداردهی sku
             };
             const product = new Product(productData);
             await product.save();

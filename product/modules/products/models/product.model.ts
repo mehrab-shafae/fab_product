@@ -13,6 +13,7 @@ export interface IProduct extends Document {
       deleted_at?: Date;
       image_ids?: string[];
       img?: string;
+      sku: number; // کد محصول یکتا و ترتیبی
 }
 
 const ProductSchema = new Schema<IProduct>({
@@ -28,6 +29,7 @@ const ProductSchema = new Schema<IProduct>({
       deleted_at: { type: Date, default: null },
       image_ids: [{ type: String }],
       img: { type: String },
+      sku: { type: Number, required: true, unique: true }, // کد محصول یکتا و ترتیبی
 });
 
 ProductSchema.pre('save', function (next) {

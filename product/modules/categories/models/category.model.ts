@@ -25,6 +25,8 @@ export interface ICategory extends Document {
       meta_description: string;
       createdAt: Date;
       updatedAt: Date;
+      baseSku?: number; // مقدار اولیه کدگذاری محصولات این دسته
+      categorySku: number; // کد یکتای هر دسته‌بندی
 }
 
 const CategorySchema = new Schema<ICategory>(
@@ -50,6 +52,8 @@ const CategorySchema = new Schema<ICategory>(
             meta_keywords: [{ type: String }],
             meta_title: { type: String },
             meta_description: { type: String },
+            baseSku: { type: Number }, // مقدار اولیه کدگذاری محصولات این دسته
+            categorySku: { type: Number, required: true, unique: true }, // کد یکتای هر دسته‌بندی
       },
       { timestamps: true }
 );

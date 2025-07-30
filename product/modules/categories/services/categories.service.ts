@@ -58,6 +58,16 @@ export class CategoriesService {
             const meta_title = data.meta_title || data.name;
             const meta_description = data.meta_description || '';
             const img = data.img;
+            // ساخت categorySku یکتا و رند (مثلاً 1000، 2000، 3000، ...)
+            const lastCategory = await Category.find({})
+                  .sort({ categorySku: -1 })
+                  .limit(1);
+            let categorySku = 1000;
+            if (lastCategory.length > 0) {
+                  categorySku = lastCategory[0].categorySku + 1000;
+            }
+            // مقداردهی baseSku بر اساس categorySku
+            const baseSku = categorySku;
             // ساخت دسته‌بندی
             const category = await Category.create({
                   ...data,
@@ -69,6 +79,8 @@ export class CategoriesService {
                   meta_keywords,
                   meta_title,
                   meta_description,
+                  categorySku,
+                  baseSku,
             });
 
             // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را بساز

@@ -6,7 +6,10 @@ export interface IProductVariant extends Document {
       name: string;
       price: number;
       stock_quantity?: number;
-      attributes?: Record<string, any>;
+      attributes: Array<{
+        attribute_id: mongoose.Types.ObjectId;
+        value: any;
+      }>;
       created_at?: Date;
       updated_at?: Date;
       deleted_at?: Date;
@@ -18,7 +21,10 @@ const ProductVariantSchema = new Schema<IProductVariant>({
       name: { type: String, required: true },
       price: { type: Number, required: true },
       stock_quantity: { type: Number, default: 0 },
-      attributes: { type: Schema.Types.Mixed },
+      attributes: [{
+        attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute', required: true },
+        value: { type: Schema.Types.Mixed, required: true }
+      }],
       created_at: { type: Date, default: Date.now },
       updated_at: { type: Date, default: Date.now },
       deleted_at: { type: Date, default: null },

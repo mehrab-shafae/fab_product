@@ -16,4 +16,5 @@ export const productSchema = Joi.object({
       ).optional(),
       image_ids: Joi.array().items(Joi.string()).optional(),
       img: Joi.string().optional(),
+      sku: Joi.forbidden(), // کاربر نباید مقداردهی کند
 });
