@@ -61,8 +61,13 @@ export class CategoriesService {
             // ساخت categorySku یکتا و رند (مثلاً 1000، 2000، 3000، ...)
             const lastCategory = await Category.find({}).sort({ categorySku: -1 }).limit(1);
             let categorySku = 1000;
-            if (lastCategory.length > 0) {
-                  categorySku = lastCategory[0].categorySku + 1000;
+            if (
+                lastCategory.length > 0 &&
+                typeof lastCategory[0].categorySku === 'number' &&
+                !isNaN(lastCategory[0].categorySku) &&
+                lastCategory[0].categorySku > 0
+            ) {
+                categorySku = lastCategory[0].categorySku + 1000;
             }
             // مقداردهی baseSku بر اساس categorySku
             const baseSku = categorySku;

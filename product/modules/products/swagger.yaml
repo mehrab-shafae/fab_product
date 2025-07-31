@@ -235,6 +235,119 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ProductAttribute'
+  /attributes/search:
+    post:
+      tags:
+        - Attribute
+      summary: Deep search products by attribute values
+      description: جستجوی پیشرفته محصولات بر اساس attribute و مقدارهای آن‌ها. خروجی شامل اطلاعات کامل هر محصول و attribute/valueهای آن است.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      attribute:
+                        type: string
+                        description: نام attribute (مثلاً color)
+                      value:
+                        type: string
+                        description: مقدار attribute (مثلاً red)
+                  example:
+                    - attribute: color
+                      value: red
+                    - attribute: size
+                      value: XL
+      responses:
+        '200':
+          description: لیست محصولات مطابق با فیلترها
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product:
+                          $ref: '#/components/schemas/Product'
+                        attributes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              attribute:
+                                type: string
+                              value:
+                                type: string
+                  count:
+                    type: integer
+        '400':
+          description: Invalid input
+  /attributes/search-only:
+    post:
+      tags:
+        - Attribute
+      summary: Search products by attributes only (without specific values)
+      description: جستجوی محصولات بر اساس نام attributeها بدون در نظر گرفتن مقدار خاص. برای تست و بررسی مشکل refها استفاده می‌شود.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      attribute:
+                        type: string
+                        description: نام attribute (مثلاً color)
+                  example:
+                    - attribute: color
+                    - attribute: size
+      responses:
+        '200':
+          description: لیست محصولات که attributeهای مورد نظر را دارند
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product:
+                          $ref: '#/components/schemas/Product'
+                        attributes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              attribute:
+                                type: string
+                              value:
+                                type: string
+                  count:
+                    type: integer
+        '400':
+          description: Invalid input
   /{productId}/attributes:
     post:
       tags:

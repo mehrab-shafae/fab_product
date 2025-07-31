@@ -6,10 +6,10 @@
   "license": "UNLICENSED",
   "main": "product/index.js",
   "scripts": {
-    "start": "node .",
+    "start": "node build/product/index.js",
     "start:minio": "node build/minio/index.js",
     "build": "tsc",
-    "run": "tsc && node .",
+    "run": "tsc && npm start",
     "pretty": "prettier --write \"**/*.{js,json,html,ts}\""
   },
   "dependencies": {

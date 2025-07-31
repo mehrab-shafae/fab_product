@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues } from '../services/productAttributeValue.service.js';
+import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues, searchProductsByAttributes, searchProductsByAttributesOnly } from '../services/productAttributeValue.service.js';
 import { ProductAttributeValue } from '../models/productAttributeValue.model.js';
 
 export const addProductAttributeValueController = async (req: Request, res: Response) => {
@@ -70,4 +70,30 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
       } catch (error: any) {
             res.status(400).json({ success: false, error: error.message });
       }
+};
+
+export const searchProductByAttributesController = async (req: Request, res: Response) => {
+    try {
+        const filters = req.body.filters;
+        if (!Array.isArray(filters) || filters.length === 0) {
+            return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
+        }
+        const results = await searchProductsByAttributes(filters);
+        res.json({ success: true, data: results, count: results.length });
+    } catch (error: any) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+export const searchProductByAttributesOnlyController = async (req: Request, res: Response) => {
+    try {
+        const filters = req.body.filters;
+        if (!Array.isArray(filters) || filters.length === 0) {
+            return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
+        }
+        const results = await searchProductsByAttributesOnly(filters);
+        res.json({ success: true, data: results, count: results.length });
+    } catch (error: any) {
+        res.status(400).json({ success: false, error: error.message });
+    }
 };

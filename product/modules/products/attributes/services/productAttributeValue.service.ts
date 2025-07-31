@@ -1,6 +1,8 @@
 import { ProductAttributeValue, IProductAttributeValue } from '../models/productAttributeValue.model.js';
 import { CategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 // import { ICategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
+import { Product } from '../../models/product.model.js';
+import { ProductAttribute } from '../models/productAttribute.model.js';
 
 export const addProductAttributeValue = async (data: Partial<IProductAttributeValue>) => {
       // اعتبارسنجی attribute_id
@@ -48,3 +50,119 @@ export const getAllProductAttributeValues = async (product_id: string) => {
             };
       });
 };
+
+export const searchProductsByAttributes = async (filters: Array<{ attribute: string, value: string }>) => {
+    // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
+    const attributeDocs = await ProductAttribute.find({
+        $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
+        deleted_at: null
+    });
+    const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
+
+    // 2. ساخت query برای ProductAttributeValue (case-insensitive value)
+    const attrQueries = filters.map(f => ({
+        attribute_id: attributeMap[f.attribute.toLowerCase()],
+        value: { $regex: `^${f.value}$`, $options: 'i' },
+        deleted_at: null
+    }));
+
+    // 3. پیدا کردن product_id هایی که همه فیلترها را دارند (AND)
+    const pipeline = [
+        { $match: { $or: attrQueries } },
+        { $group: { _id: "$product_id", count: { $sum: 1 } } },
+        { $match: { count: filters.length } }
+    ];
+    const matched = await ProductAttributeValue.aggregate(pipeline);
+    const productIds = matched.map(m => m._id);
+
+    // 4. گرفتن اطلاعات کامل محصولات
+    const products = await Product.find({ _id: { $in: productIds }, deleted_at: null });
+
+    // 5. گرفتن attribute/value های هر محصول
+    const attrValues = await ProductAttributeValue.find({ product_id: { $in: productIds }, deleted_at: null }).populate('attribute_id');
+    const attrByProduct: Record<string, Array<{ attribute: string, value: string }>> = {};
+    for (const av of attrValues) {
+        const pid = String(av.product_id);
+        if (!attrByProduct[pid]) attrByProduct[pid] = [];
+        let attrName: string = (typeof av.attribute_id === 'object' && av.attribute_id !== null && 'name' in av.attribute_id)
+            ? String((av.attribute_id as any).name)
+            : String(av.attribute_id);
+        attrByProduct[pid].push({
+            attribute: attrName,
+            value: av.value
+        });
+    }
+
+    // 6. ساخت خروجی نهایی
+    return products.map(p => {
+        const prod: any = p;
+        return {
+            product: prod,
+            attributes: attrByProduct[String(prod._id)] || []
+        };
+    });
+};
+
+export const searchProductsByAttributesOnly = async (filters: Array<{ attribute: string }>) => {
+    // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
+    const attributeDocs = await ProductAttribute.find({
+        $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
+        deleted_at: null
+    });
+    const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
+
+    // 2. ساخت query برای ProductAttributeValue (فقط بر اساس attribute_id، بدون در نظر گرفتن value)
+    const attrQueries = filters.map(f => ({
+        attribute_id: attributeMap[f.attribute.toLowerCase()],
+        deleted_at: null
+    }));
+
+    // 3. پیدا کردن product_id هایی که همه فیلترها را دارند (AND)
+    const pipeline = [
+        { $match: { $or: attrQueries } },
+        { $group: { _id: "$product_id", count: { $sum: 1 } } },
+        { $match: { count: filters.length } }
+    ];
+    const matched = await ProductAttributeValue.aggregate(pipeline);
+    const productIds = matched.map(m => m._id);
+
+    // 4. گرفتن اطلاعات کامل محصولات
+    const products = await Product.find({ _id: { $in: productIds }, deleted_at: null });
+
+    // 5. گرفتن attribute/value های هر محصول
+    const attrValues = await ProductAttributeValue.find({ product_id: { $in: productIds }, deleted_at: null }).populate('attribute_id');
+    const attrByProduct: Record<string, Array<{ attribute: string, value: string }>> = {};
+    for (const av of attrValues) {
+        const pid = String(av.product_id);
+        if (!attrByProduct[pid]) attrByProduct[pid] = [];
+        let attrName: string = (typeof av.attribute_id === 'object' && av.attribute_id !== null && 'name' in av.attribute_id)
+            ? String((av.attribute_id as any).name)
+            : String(av.attribute_id);
+        attrByProduct[pid].push({
+            attribute: attrName,
+            value: av.value
+        });
+    }
+
+    // 6. ساخت خروجی نهایی
+    return products.map(p => {
+        const prod: any = p;
+        return {
+            product: prod,
+            attributes: attrByProduct[String(prod._id)] || []
+        };
+    });
+};
+
+// export const searchAttrValue = async (value: string, param: string) => {
+//       const docs = await ProductAttributeValue.find({
+//       deleted_at: null,
+//       attribute_id: attributeId,
+//       value: { $regex: valueToSearch, $options: 'i' }
+//       }).populate({
+//       path: 'attribute_id',
+//       match: { deleted_at: null },
+//       select: 'name options data_type'
+//       });
+
+// };

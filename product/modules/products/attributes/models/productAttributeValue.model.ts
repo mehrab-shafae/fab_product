@@ -11,7 +11,7 @@ export interface IProductAttributeValue extends Document {
 
 const ProductAttributeValueSchema = new Schema<IProductAttributeValue>({
       product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-      attribute_id: { type: Schema.Types.ObjectId, ref: 'CategoryAttribute', required: true },
+      attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute', required: true },
       value: { type: String, required: true },
       created_at: { type: Date, default: Date.now },
       updated_at: { type: Date, default: Date.now },
