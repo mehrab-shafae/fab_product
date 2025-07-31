@@ -1401,6 +1401,9 @@ components:
           type: string
         price:
           type: number
+        old_price:
+          type: number
+          description: قیمت قدیمی محصول (اختیاری)
         category_id:
           type: string
         metadata:
@@ -1443,6 +1446,9 @@ components:
           type: string
         price:
           type: number
+        old_price:
+          type: number
+          description: قیمت قدیمی محصول (اختیاری)
         category_id:
           type: string
         metadata:

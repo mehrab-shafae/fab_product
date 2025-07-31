@@ -5,6 +5,7 @@ export const productSchema = Joi.object({
       slug: Joi.string().optional(),
       description: Joi.string().allow(''),
       price: Joi.number().required(),
+      old_price: Joi.number().optional(), // قیمت قدیمی (اختیاری)
       category_id: Joi.string().optional(),
       metadata: Joi.object().optional(),
       status: Joi.string().valid('active', 'inactive', 'draft', 'archived').optional(),

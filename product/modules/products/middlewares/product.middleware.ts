@@ -39,6 +39,10 @@ export const validateProductSchema = (req: Request, res: Response, next: NextFun
                   if (typeof value.price === 'number' && value.price <= 0) {
                         return res.status(400).json({ error: 'Price must be a positive number.' });
                   }
+                  // Check old_price > 0 if provided
+                  if (typeof value.old_price === 'number' && value.old_price <= 0) {
+                        return res.status(400).json({ error: 'Old price must be a positive number.' });
+                  }
                   // Check category_id existence if provided
                   if (value.category_id) {
                         if (!mongoose.Types.ObjectId.isValid(value.category_id)) {

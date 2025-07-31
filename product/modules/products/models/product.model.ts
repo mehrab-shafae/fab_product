@@ -5,6 +5,7 @@ export interface IProduct extends Document {
       slug: string; // Added slug field
       description?: string;
       price: number;
+      old_price?: number; // قیمت قدیمی (اختیاری)
       category_id?: mongoose.Types.ObjectId;
       metadata?: Record<string, any>;
       status?: 'active' | 'inactive' | 'draft' | 'archived';
@@ -21,6 +22,7 @@ const ProductSchema = new Schema<IProduct>({
       slug: { type: String, required: true, unique: true }, // Added slug field
       description: { type: String },
       price: { type: Number, required: true },
+      old_price: { type: Number }, // قیمت قدیمی (اختیاری)
       category_id: { type: Schema.Types.ObjectId, ref: 'Category' },
       metadata: { type: Schema.Types.Mixed },
       status: { type: String, enum: ['active', 'inactive', 'draft', 'archived'], default: 'active' },
