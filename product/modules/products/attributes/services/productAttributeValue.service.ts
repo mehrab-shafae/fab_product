@@ -51,7 +51,12 @@ export const getAllProductAttributeValues = async (product_id: string) => {
       });
 };
 
-export const searchProductsByAttributes = async (filters: Array<{ attribute: string, value: string }>) => {
+export const searchProductsByAttributes = async (
+    filters: Array<{ attribute: string, values: string[] }>,
+    category_ids?: string[],
+    page: number = 1,
+    limit: number = 20
+) => {
     // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
     const attributeDocs = await ProductAttribute.find({
         $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
@@ -59,24 +64,33 @@ export const searchProductsByAttributes = async (filters: Array<{ attribute: str
     });
     const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
 
-    // 2. ساخت query برای ProductAttributeValue (case-insensitive value)
+    // 2. ساخت query برای ProductAttributeValue (هر attribute با OR روی valueها)
     const attrQueries = filters.map(f => ({
         attribute_id: attributeMap[f.attribute.toLowerCase()],
-        value: { $regex: `^${f.value}$`, $options: 'i' },
+        value: { $in: f.values },
         deleted_at: null
     }));
 
-    // 3. پیدا کردن product_id هایی که همه فیلترها را دارند (AND)
+    // 3. پیدا کردن product_id هایی که برای هر attribute حداقل یکی از valueها را دارند (AND بین attributeها)
+    // یعنی هر محصول باید به تعداد attributeهای فیلتر شده، رکورد attributeValue داشته باشد
     const pipeline = [
         { $match: { $or: attrQueries } },
-        { $group: { _id: "$product_id", count: { $sum: 1 } } },
-        { $match: { count: filters.length } }
+        { $group: { _id: "$product_id", attrs: { $addToSet: "$attribute_id" } } },
+        { $match: { "attrs.0": { $exists: true } } }, // حداقل یک attribute داشته باشد
+        { $match: { $expr: { $eq: [ { $size: "$attrs" }, filters.length ] } } } // دقیقا به تعداد attributeهای فیلتر شده
     ];
     const matched = await ProductAttributeValue.aggregate(pipeline);
     const productIds = matched.map(m => m._id);
 
-    // 4. گرفتن اطلاعات کامل محصولات
-    const products = await Product.find({ _id: { $in: productIds }, deleted_at: null });
+    // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
+    const productQuery: any = { _id: { $in: productIds }, deleted_at: null };
+    if (Array.isArray(category_ids) && category_ids.length > 0) {
+        productQuery.category_id = { $in: category_ids };
+    }
+    const total = await Product.countDocuments(productQuery);
+    const products = await Product.find(productQuery)
+        .skip((page - 1) * limit)
+        .limit(limit);
 
     // 5. گرفتن attribute/value های هر محصول
     const attrValues = await ProductAttributeValue.find({ product_id: { $in: productIds }, deleted_at: null }).populate('attribute_id');
@@ -94,16 +108,28 @@ export const searchProductsByAttributes = async (filters: Array<{ attribute: str
     }
 
     // 6. ساخت خروجی نهایی
-    return products.map(p => {
+    const data = products.map(p => {
         const prod: any = p;
         return {
             product: prod,
             attributes: attrByProduct[String(prod._id)] || []
         };
     });
+    return {
+        data,
+        count: data.length,
+        page,
+        limit,
+        total
+    };
 };
 
-export const searchProductsByAttributesOnly = async (filters: Array<{ attribute: string }>) => {
+export const searchProductsByAttributesOnly = async (
+    filters: Array<{ attribute: string, values: string[] }>,
+    category_ids?: string[],
+    page: number = 1,
+    limit: number = 20
+) => {
     // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
     const attributeDocs = await ProductAttribute.find({
         $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
@@ -111,23 +137,31 @@ export const searchProductsByAttributesOnly = async (filters: Array<{ attribute:
     });
     const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
 
-    // 2. ساخت query برای ProductAttributeValue (فقط بر اساس attribute_id، بدون در نظر گرفتن value)
+    // 2. ساخت query برای ProductAttributeValue (هر attribute با OR روی valueها)
     const attrQueries = filters.map(f => ({
         attribute_id: attributeMap[f.attribute.toLowerCase()],
+        value: f.values && f.values.length > 0 ? { $in: f.values } : undefined,
         deleted_at: null
     }));
 
-    // 3. پیدا کردن product_id هایی که همه فیلترها را دارند (AND)
+    // 3. پیدا کردن product_id هایی که برای هر attribute حداقل یکی از valueها را دارند (AND بین attributeها)
     const pipeline = [
         { $match: { $or: attrQueries } },
-        { $group: { _id: "$product_id", count: { $sum: 1 } } },
-        { $match: { count: filters.length } }
+        { $group: { _id: "$product_id", attrs: { $addToSet: "$attribute_id" } } },
+        { $match: { $expr: { $eq: [ { $size: "$attrs" }, filters.length ] } } }
     ];
     const matched = await ProductAttributeValue.aggregate(pipeline);
     const productIds = matched.map(m => m._id);
 
-    // 4. گرفتن اطلاعات کامل محصولات
-    const products = await Product.find({ _id: { $in: productIds }, deleted_at: null });
+    // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
+    const productQuery: any = { _id: { $in: productIds }, deleted_at: null };
+    if (Array.isArray(category_ids) && category_ids.length > 0) {
+        productQuery.category_id = { $in: category_ids };
+    }
+    const total = await Product.countDocuments(productQuery);
+    const products = await Product.find(productQuery)
+        .skip((page - 1) * limit)
+        .limit(limit);
 
     // 5. گرفتن attribute/value های هر محصول
     const attrValues = await ProductAttributeValue.find({ product_id: { $in: productIds }, deleted_at: null }).populate('attribute_id');
@@ -145,13 +179,20 @@ export const searchProductsByAttributesOnly = async (filters: Array<{ attribute:
     }
 
     // 6. ساخت خروجی نهایی
-    return products.map(p => {
+    const data = products.map(p => {
         const prod: any = p;
         return {
             product: prod,
             attributes: attrByProduct[String(prod._id)] || []
         };
     });
+    return {
+        data,
+        count: data.length,
+        page,
+        limit,
+        total
+    };
 };
 
 // export const searchAttrValue = async (value: string, param: string) => {

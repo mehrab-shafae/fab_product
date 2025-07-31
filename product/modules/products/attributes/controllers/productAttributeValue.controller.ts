@@ -72,14 +72,27 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
       }
 };
 
+function parsePositiveInt(val: any, def: number) {
+    const n = parseInt(val, 10);
+    return Number.isFinite(n) && n > 0 ? n : def;
+}
+
 export const searchProductByAttributesController = async (req: Request, res: Response) => {
     try {
         const filters = req.body.filters;
+        const category_ids = req.body.category_ids;
+        const page = parsePositiveInt(req.query.page, 1);
+        const limit = parsePositiveInt(req.query.limit, 20);
         if (!Array.isArray(filters) || filters.length === 0) {
             return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
         }
-        const results = await searchProductsByAttributes(filters);
-        res.json({ success: true, data: results, count: results.length });
+        for (const f of filters) {
+            if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
+                return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
+            }
+        }
+        const results = await searchProductsByAttributes(filters, category_ids, page, limit);
+        res.json({ success: true, ...results });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });
     }
@@ -88,11 +101,19 @@ export const searchProductByAttributesController = async (req: Request, res: Res
 export const searchProductByAttributesOnlyController = async (req: Request, res: Response) => {
     try {
         const filters = req.body.filters;
+        const category_ids = req.body.category_ids;
+        const page = parsePositiveInt(req.query.page, 1);
+        const limit = parsePositiveInt(req.query.limit, 20);
         if (!Array.isArray(filters) || filters.length === 0) {
             return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
         }
-        const results = await searchProductsByAttributesOnly(filters);
-        res.json({ success: true, data: results, count: results.length });
+        for (const f of filters) {
+            if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
+                return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
+            }
+        }
+        const results = await searchProductsByAttributesOnly(filters, category_ids, page, limit);
+        res.json({ success: true, ...results });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });
     }

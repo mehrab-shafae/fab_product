@@ -241,6 +241,19 @@ paths:
         - Attribute
       summary: Deep search products by attribute values
       description: جستجوی پیشرفته محصولات بر اساس attribute و مقدارهای آن‌ها. خروجی شامل اطلاعات کامل هر محصول و attribute/valueهای آن است.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: شماره صفحه (شروع از 1)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: تعداد آیتم در هر صفحه
       requestBody:
         required: true
         content:
@@ -256,14 +269,23 @@ paths:
                       attribute:
                         type: string
                         description: نام attribute (مثلاً color)
-                      value:
-                        type: string
-                        description: مقدار attribute (مثلاً red)
-                  example:
-                    - attribute: color
-                      value: red
-                    - attribute: size
-                      value: XL
+                      values:
+                        type: array
+                        items:
+                          type: string
+                        description: آرایه‌ای از مقادیر attribute (مثلاً ["red", "blue"])
+                category_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: لیست category_idهایی که محصولات باید زیرمجموعه آن‌ها باشند (اختیاری)
+              example:
+                filters:
+                  - attribute: color
+                    values: ["red", "blue"]
+                  - attribute: size
+                    values: ["XL"]
+                category_ids: ["64f1c2...", "64f1c3..."]
       responses:
         '200':
           description: لیست محصولات مطابق با فیلترها
@@ -292,6 +314,12 @@ paths:
                                 type: string
                   count:
                     type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
+                    type: integer
         '400':
           description: Invalid input
   /attributes/search-only:
@@ -300,6 +328,19 @@ paths:
         - Attribute
       summary: Search products by attributes only (without specific values)
       description: جستجوی محصولات بر اساس نام attributeها بدون در نظر گرفتن مقدار خاص. برای تست و بررسی مشکل refها استفاده می‌شود.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: شماره صفحه (شروع از 1)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: تعداد آیتم در هر صفحه
       requestBody:
         required: true
         content:
@@ -315,9 +356,23 @@ paths:
                       attribute:
                         type: string
                         description: نام attribute (مثلاً color)
-                  example:
-                    - attribute: color
-                    - attribute: size
+                      values:
+                        type: array
+                        items:
+                          type: string
+                        description: آرایه‌ای از مقادیر attribute (مثلاً ["red", "blue"]). اگر خالی باشد، فقط وجود attribute مهم است.
+                category_ids:
+                  type: array
+                  items:
+                    type: string
+                  description: لیست category_idهایی که محصولات باید زیرمجموعه آن‌ها باشند (اختیاری)
+              example:
+                filters:
+                  - attribute: color
+                    values: ["red", "blue"]
+                  - attribute: size
+                    values: []
+                category_ids: ["64f1c2...", "64f1c3..."]
       responses:
         '200':
           description: لیست محصولات که attributeهای مورد نظر را دارند
@@ -345,6 +400,12 @@ paths:
                               value:
                                 type: string
                   count:
+                    type: integer
+                  page:
+                    type: integer
+                  limit:
+                    type: integer
+                  total:
                     type: integer
         '400':
           description: Invalid input
