@@ -274,18 +274,18 @@ paths:
                         items:
                           type: string
                         description: آرایه‌ای از مقادیر attribute (مثلاً ["red", "blue"])
-                category_ids:
+                slugs:
                   type: array
                   items:
                     type: string
-                  description: لیست category_idهایی که محصولات باید زیرمجموعه آن‌ها باشند (اختیاری)
+                  description: لیست slugهای یکتای محصولاتی که باید جستجو شوند (اختیاری)
               example:
                 filters:
                   - attribute: color
                     values: ["red", "blue"]
                   - attribute: size
                     values: ["XL"]
-                category_ids: ["64f1c2...", "64f1c3..."]
+                slugs: ["product-slug-1", "product-slug-2"]
       responses:
         '200':
           description: لیست محصولات مطابق با فیلترها
@@ -361,18 +361,18 @@ paths:
                         items:
                           type: string
                         description: آرایه‌ای از مقادیر attribute (مثلاً ["red", "blue"]). اگر خالی باشد، فقط وجود attribute مهم است.
-                category_ids:
+                slugs:
                   type: array
                   items:
                     type: string
-                  description: لیست category_idهایی که محصولات باید زیرمجموعه آن‌ها باشند (اختیاری)
+                  description: لیست slugهای یکتای محصولاتی که باید جستجو شوند (اختیاری)
               example:
                 filters:
                   - attribute: color
                     values: ["red", "blue"]
                   - attribute: size
                     values: []
-                category_ids: ["64f1c2...", "64f1c3..."]
+                slugs: ["product-slug-1", "product-slug-2"]
       responses:
         '200':
           description: لیست محصولات که attributeهای مورد نظر را دارند

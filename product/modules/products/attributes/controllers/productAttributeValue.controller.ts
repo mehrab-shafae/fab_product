@@ -80,7 +80,7 @@ function parsePositiveInt(val: any, def: number) {
 export const searchProductByAttributesController = async (req: Request, res: Response) => {
     try {
         const filters = req.body.filters;
-        const category_ids = req.body.category_ids;
+        const slugs = req.body.slugs;
         const page = parsePositiveInt(req.query.page, 1);
         const limit = parsePositiveInt(req.query.limit, 20);
         if (!Array.isArray(filters) || filters.length === 0) {
@@ -91,7 +91,7 @@ export const searchProductByAttributesController = async (req: Request, res: Res
                 return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
             }
         }
-        const results = await searchProductsByAttributes(filters, category_ids, page, limit);
+        const results = await searchProductsByAttributes(filters, slugs, page, limit);
         res.json({ success: true, ...results });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });
@@ -101,7 +101,7 @@ export const searchProductByAttributesController = async (req: Request, res: Res
 export const searchProductByAttributesOnlyController = async (req: Request, res: Response) => {
     try {
         const filters = req.body.filters;
-        const category_ids = req.body.category_ids;
+        const slugs = req.body.slugs;
         const page = parsePositiveInt(req.query.page, 1);
         const limit = parsePositiveInt(req.query.limit, 20);
         if (!Array.isArray(filters) || filters.length === 0) {
@@ -112,7 +112,7 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
                 return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
             }
         }
-        const results = await searchProductsByAttributesOnly(filters, category_ids, page, limit);
+        const results = await searchProductsByAttributesOnly(filters, slugs, page, limit);
         res.json({ success: true, ...results });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });

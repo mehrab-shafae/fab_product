@@ -53,7 +53,7 @@ export const getAllProductAttributeValues = async (product_id: string) => {
 
 export const searchProductsByAttributes = async (
     filters: Array<{ attribute: string, values: string[] }>,
-    category_ids?: string[],
+    slugs?: string[],
     page: number = 1,
     limit: number = 20
 ) => {
@@ -84,8 +84,8 @@ export const searchProductsByAttributes = async (
 
     // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
     const productQuery: any = { _id: { $in: productIds }, deleted_at: null };
-    if (Array.isArray(category_ids) && category_ids.length > 0) {
-        productQuery.category_id = { $in: category_ids };
+    if (Array.isArray(slugs) && slugs.length > 0) {
+        productQuery.slug = { $in: slugs };
     }
     const total = await Product.countDocuments(productQuery);
     const products = await Product.find(productQuery)
@@ -126,7 +126,7 @@ export const searchProductsByAttributes = async (
 
 export const searchProductsByAttributesOnly = async (
     filters: Array<{ attribute: string, values: string[] }>,
-    category_ids?: string[],
+    slugs?: string[],
     page: number = 1,
     limit: number = 20
 ) => {
@@ -155,8 +155,8 @@ export const searchProductsByAttributesOnly = async (
 
     // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
     const productQuery: any = { _id: { $in: productIds }, deleted_at: null };
-    if (Array.isArray(category_ids) && category_ids.length > 0) {
-        productQuery.category_id = { $in: category_ids };
+    if (Array.isArray(slugs) && slugs.length > 0) {
+        productQuery.slug = { $in: slugs };
     }
     const total = await Product.countDocuments(productQuery);
     const products = await Product.find(productQuery)
