@@ -1081,6 +1081,134 @@ export class CategoriesService {
             }
             return { total: ids.length, success, failed, results };
       }
+
+      // Search categories by attributes
+      async searchCategoriesByAttributes(
+            filters?: Array<{ attribute: string, values: string[] }>,
+            slugs?: string[],
+            page: number = 1,
+            limit: number = 20
+      ) {
+            let categoryIds: string[] = [];
+            
+            // If filters are provided, search by attributes
+            if (filters && Array.isArray(filters) && filters.length > 0) {
+                  // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
+                  const attributeDocs = await CategoryAttribute.find({
+                        $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } }))
+                  });
+                  const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
+
+                  // 2. ساخت query برای CategoryAttributeOption (هر attribute با OR روی valueها)
+                  const attrQueries = filters.map(f => ({
+                        attributeId: attributeMap[f.attribute.toLowerCase()],
+                        value: { $in: f.values }
+                  }));
+
+                  // 3. پیدا کردن category_id هایی که برای هر attribute حداقل یکی از valueها را دارند (AND بین attributeها)
+                  const pipeline = [
+                        { $match: { $or: attrQueries } },
+                        { $group: { _id: "$attributeId", attrs: { $addToSet: "$attributeId" } } },
+                        { $match: { "attrs.0": { $exists: true } } }, // حداقل یک attribute داشته باشد
+                        { $match: { $expr: { $eq: [ { $size: "$attrs" }, filters.length ] } } } // دقیقا به تعداد attributeهای فیلتر شده
+                  ];
+                  const matched = await CategoryAttributeOption.aggregate(pipeline);
+                  
+                  // Get category IDs from the matched attributes
+                  const attributeIds = matched.map((m: any) => m._id);
+                  const categoryAttributes = await CategoryAttribute.find({
+                        _id: { $in: attributeIds }
+                  }).select('categoryId');
+                  categoryIds = categoryAttributes.map(ca => ca.categoryId.toString());
+            }
+
+            // 4. گرفتن اطلاعات کامل دسته‌بندی‌ها با صفحه‌بندی
+            const categoryQuery: any = {};
+            
+            // If we have category IDs from filters, use them
+            if (categoryIds.length > 0) {
+                  categoryQuery._id = { $in: categoryIds };
+            }
+            
+            // If slugs are provided, filter by them
+            if (slugs && Array.isArray(slugs) && slugs.length > 0) {
+                  if (categoryIds.length > 0) {
+                        // If we already have category IDs from filters, intersect with slugs
+                        const slugCategories = await Category.find({ slug: { $in: slugs } }).select('_id');
+                        const slugCategoryIds = slugCategories.map(c => c._id);
+                        categoryQuery._id = { $in: categoryIds.filter(id => slugCategoryIds.includes(id)) };
+                  } else {
+                        // If no filters, just search by slugs
+                        categoryQuery.slug = { $in: slugs };
+                  }
+            }
+            
+            // If neither filters nor slugs are provided, return empty result
+            if (categoryIds.length === 0 && (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
+                  return {
+                        data: [],
+                        count: 0,
+                        page,
+                        limit,
+                        total: 0
+                  };
+            }
+
+            const total = await Category.countDocuments(categoryQuery);
+            const categories = await Category.find(categoryQuery)
+                  .skip((page - 1) * limit)
+                  .limit(limit);
+
+            // 5. گرفتن attribute/option های هر دسته‌بندی
+            const categoryIdsForAttrs = categories.map(c => c._id);
+            const categoryAttributes = await CategoryAttribute.find({ 
+                  categoryId: { $in: categoryIdsForAttrs }
+            });
+            
+            const attributeIds = categoryAttributes.map(ca => ca._id);
+            const attributeOptions = await CategoryAttributeOption.find({ 
+                  attributeId: { $in: attributeIds }
+            });
+            
+            const attrByCategory: Record<string, Array<{ attribute: string, value: string }>> = {};
+            for (const attr of categoryAttributes) {
+                  const cid = String(attr.categoryId);
+                  if (!attrByCategory[cid]) attrByCategory[cid] = [];
+                  
+                  const options = attributeOptions.filter(opt => {
+                        // Ensure opt.attributeId is of type ObjectId before calling equals
+                        // If not, convert to ObjectId
+                        // Also, attr._id should be ObjectId
+                        // This prevents the "unknown is not assignable" error
+                        // @ts-ignore
+                        return (typeof opt.attributeId?.equals === 'function') && opt.attributeId.equals(attr._id);
+                  });
+                  for (const opt of options) {
+                        attrByCategory[cid].push({
+                              attribute: attr.name,
+                              value: opt.value
+                        });
+                  }
+            }
+
+            // 6. ساخت خروجی نهایی
+            const data = categories.map(c => {
+                  const cat: any = c;
+                  return {
+                        category: cat,
+                        attributes: attrByCategory[cat._id.toString()] || []
+                  };
+            });
+
+            return {
+                  data,
+                  count: data.length,
+                  page,
+                  limit,
+                  total
+            };
+      }
+
 }
 
 export const categoriesService = new CategoriesService();

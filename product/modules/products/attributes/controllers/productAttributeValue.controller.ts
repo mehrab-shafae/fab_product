@@ -83,14 +83,28 @@ export const searchProductByAttributesController = async (req: Request, res: Res
         const slugs = req.body.slugs;
         const page = parsePositiveInt(req.query.page, 1);
         const limit = parsePositiveInt(req.query.limit, 20);
-        if (!Array.isArray(filters) || filters.length === 0) {
-            return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
+        
+        // Check if at least one of filters or slugs is provided
+        if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
+            (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'At least one of filters or slugs must be provided' 
+            });
         }
-        for (const f of filters) {
-            if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
-                return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
+        
+        // Validate filters if provided
+        if (filters && Array.isArray(filters) && filters.length > 0) {
+            for (const f of filters) {
+                if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Each filter must have an attribute and a non-empty array of values' 
+                    });
+                }
             }
         }
+        
         const results = await searchProductsByAttributes(filters, slugs, page, limit);
         res.json({ success: true, ...results });
     } catch (error: any) {
@@ -104,14 +118,28 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
         const slugs = req.body.slugs;
         const page = parsePositiveInt(req.query.page, 1);
         const limit = parsePositiveInt(req.query.limit, 20);
-        if (!Array.isArray(filters) || filters.length === 0) {
-            return res.status(400).json({ success: false, error: 'filters must be a non-empty array' });
+        
+        // Check if at least one of filters or slugs is provided
+        if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
+            (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'At least one of filters or slugs must be provided' 
+            });
         }
-        for (const f of filters) {
-            if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
-                return res.status(400).json({ success: false, error: 'Each filter must have an attribute and a non-empty array of values' });
+        
+        // Validate filters if provided
+        if (filters && Array.isArray(filters) && filters.length > 0) {
+            for (const f of filters) {
+                if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Each filter must have an attribute and a non-empty array of values' 
+                    });
+                }
             }
         }
+        
         const results = await searchProductsByAttributesOnly(filters, slugs, page, limit);
         res.json({ success: true, ...results });
     } catch (error: any) {

@@ -47,6 +47,7 @@ router.post('/attributes/:attributeId/options', categoriesController.addAttribut
 router.get('/attributes/:attributeId/options', categoriesController.getAttributeOptions);
 router.put('/attributes/options/:optionId', categoriesController.updateAttributeOption);
 router.delete('/attributes/options/:optionId', categoriesController.deleteAttributeOption);
+router.post('/attributes/search', asyncHandler(categoriesController.searchCategoriesByAttributesController));
 
 // Slug redirects
 router.post('/:id/redirects', checkCategoryExists, asyncHandler(categoriesController.addSlugRedirect));
