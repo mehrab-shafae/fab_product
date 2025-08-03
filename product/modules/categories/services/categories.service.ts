@@ -167,6 +167,26 @@ export class CategoriesService {
                   (category as any).attributes = attributes;
             }
 
+            // دریافت parent slugs تا حداکثر ۱۰ سطح
+            const parentSlugs: string[] = [];
+            let currentCategory = category;
+            let parentCount = 0;
+            const maxParents = 10;
+
+            while (currentCategory && currentCategory.parentId && parentCount < maxParents) {
+                  const parent = await Category.findById(currentCategory.parentId).lean();
+                  if (parent) {
+                        parentSlugs.unshift(parent.slug);
+                        currentCategory = parent;
+                        parentCount++;
+                  } else {
+                        break;
+                  }
+            }
+
+            // اضافه کردن parent slugs به خروجی
+            (category as any).parentSlugs = parentSlugs;
+
             return category as ICategory;
       }
 
