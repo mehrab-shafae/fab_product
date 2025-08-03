@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues, searchProductsByAttributes, searchProductsByAttributesOnly } from '../services/productAttributeValue.service.js';
+import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues, searchProductsByAttributes, searchProductsByAttributesOnly, searchProductsByCategorySlugsAndAttributes } from '../services/productAttributeValue.service.js';
 import { ProductAttributeValue } from '../models/productAttributeValue.model.js';
 
 export const addProductAttributeValueController = async (req: Request, res: Response) => {
@@ -141,6 +141,40 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
         }
         
         const results = await searchProductsByAttributesOnly(filters, slugs, page, limit);
+        res.json({ success: true, ...results });
+    } catch (error: any) {
+        res.status(400).json({ success: false, error: error.message });
+    }
+};
+
+export const searchProductsByCategorySlugsAndAttributesController = async (req: Request, res: Response) => {
+    try {
+        const categorySlugs = req.body.categorySlugs;
+        const filters = req.body.filters;
+        const page = parsePositiveInt(req.query.page, 1);
+        const limit = parsePositiveInt(req.query.limit, 20);
+        
+        // Check if categorySlugs is provided
+        if (!categorySlugs || !Array.isArray(categorySlugs) || categorySlugs.length === 0) {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'categorySlugs must be provided as a non-empty array' 
+            });
+        }
+        
+        // Validate filters if provided
+        if (filters && Array.isArray(filters) && filters.length > 0) {
+            for (const f of filters) {
+                if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'Each filter must have an attribute and a non-empty array of values' 
+                    });
+                }
+            }
+        }
+        
+        const results = await searchProductsByCategorySlugsAndAttributes(categorySlugs, filters, page, limit);
         res.json({ success: true, ...results });
     } catch (error: any) {
         res.status(400).json({ success: false, error: error.message });

@@ -409,6 +409,135 @@ paths:
                     type: integer
         '400':
           description: Invalid input
+  /attributes/search-by-categories:
+    post:
+      tags:
+        - Attribute
+      summary: جستجوی ترکیبی محصولات بر اساس slug های دسته‌بندی و ویژگی‌ها
+      description: ابتدا دسته‌بندی‌های مربوط به slug های ارسالی را پیدا کرده، سپس محصولات مربوط به آن دسته‌بندی‌ها (شامل تمام زیرمجموعه‌ها) را می‌آورد و در نهایت فیلترهای attribute و option را روی محصولات اعمال می‌کند.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: شماره صفحه (شروع از 1)
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+          description: تعداد آیتم در هر صفحه
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - categorySlugs
+              properties:
+                categorySlugs:
+                  type: array
+                  items:
+                    type: string
+                  description: آرایه‌ای از slug های دسته‌بندی‌ها (مثلاً ["electronics", "smartphones"])
+                  example: ["electronics", "smartphones", "laptops"]
+                filters:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      attribute:
+                        type: string
+                        description: نام attribute (مثلاً brand)
+                      values:
+                        type: array
+                        items:
+                          type: string
+                        description: آرایه‌ای از مقادیر attribute (مثلاً ["Apple", "Samsung"])
+                  description: فیلترهای attribute (اختیاری)
+                  example:
+                    - attribute: brand
+                      values: ["Apple", "Samsung", "Sony"]
+                    - attribute: color
+                      values: ["black", "white", "blue"]
+              example:
+                categorySlugs: ["electronics", "smartphones", "laptops"]
+                filters:
+                  - attribute: brand
+                    values: ["Apple", "Samsung", "Sony"]
+                  - attribute: color
+                    values: ["black", "white", "blue"]
+      responses:
+        '200':
+          description: لیست محصولات مطابق با فیلترهای دسته‌بندی و ویژگی‌ها
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        product:
+                          $ref: '#/components/schemas/Product'
+                        attributes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              attribute:
+                                type: string
+                              value:
+                                type: string
+                  count:
+                    type: integer
+                    description: تعداد محصولات در این صفحه
+                  page:
+                    type: integer
+                    description: شماره صفحه فعلی
+                  limit:
+                    type: integer
+                    description: تعداد آیتم در هر صفحه
+                  total:
+                    type: integer
+                    description: تعداد کل محصولات مطابق با فیلترها
+                  categories:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                    description: اطلاعات دسته‌بندی‌های پیدا شده
+                  totalCategories:
+                    type: integer
+                    description: تعداد کل دسته‌بندی‌ها (شامل زیرمجموعه‌ها)
+                  message:
+                    type: string
+                    description: پیام اضافی (در صورت عدم یافتن دسته‌بندی)
+        '400':
+          description: Invalid input - categorySlugs must be provided as a non-empty array
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "categorySlugs must be provided as a non-empty array"
   /{productId}/attributes:
     post:
       tags:
