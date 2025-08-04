@@ -300,3 +300,26 @@ export const validateProductImageInput = (req: Request, res: Response, next: Nex
             }
       })();
 };
+
+export const validateBulkProductIds = (req: Request, res: Response, next: NextFunction) => {
+      const { productIds } = req.body;
+      
+      if (!productIds) {
+            return res.status(400).json({ error: 'productIds is required in request body' });
+      }
+      
+      if (!Array.isArray(productIds)) {
+            return res.status(400).json({ error: 'productIds must be an array' });
+      }
+      
+      if (productIds.length === 0) {
+            return res.status(400).json({ error: 'productIds array cannot be empty' });
+      }
+      
+      const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+      if (validIds.length === 0) {
+            return res.status(400).json({ error: 'No valid product IDs provided' });
+      }
+      
+      next();
+};

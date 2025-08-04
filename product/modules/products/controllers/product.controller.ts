@@ -297,3 +297,43 @@ export const searchProductsController = async (req: Request, res: Response, _nex
             res.status(400).json({ success: false, error: error.message });
       }
 };
+
+export const getProductsByIds = async (req: Request, res: Response) => {
+      try {
+            const { productIds } = req.body;
+            
+            if (!Array.isArray(productIds)) {
+                  return res.status(400).json({ success: false, error: 'productIds must be an array' });
+            }
+
+            if (productIds.length === 0) {
+                  return res.status(400).json({ success: false, error: 'productIds array cannot be empty' });
+            }
+
+            const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+            if (validIds.length === 0) {
+                  return res.status(400).json({ success: false, error: 'No valid product IDs provided' });
+            }
+
+            const products = await Product.find({ _id: { $in: validIds } });
+            
+            const productsWithAttributes = await Promise.all(
+                  products.map(async (product) => {
+                        const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
+                        const productObj = product.toObject();
+                        return { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img };
+                  })
+            );
+
+            const productsMap = new Map(productsWithAttributes.map(product => [product._id?.toString(), product]));
+            
+            const orderedProducts = productIds
+                  .filter(id => mongoose.Types.ObjectId.isValid(id))
+                  .map(id => productsMap.get(id))
+                  .filter(Boolean);
+
+            res.json({ success: true, data: orderedProducts });
+      } catch (error: any) {
+            res.status(400).json({ success: false, error: error.message });
+      }
+};

@@ -116,6 +116,119 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Product'
+  /bulk:
+    post:
+      tags:
+        - Product
+      summary: Get multiple products by IDs
+      description: دریافت همزمان چندین محصول بر اساس آرایه‌ای از شناسه‌ها. محصولات به ترتیب ورودی بازگردانده می‌شوند.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - productIds
+              properties:
+                productIds:
+                  type: array
+                  items:
+                    type: string
+                  description: آرایه‌ای از شناسه‌های محصولات
+                  example: ["64f1c2a3b4c5d6e7f8a9b0c1", "64f1c2a3b4c5d6e7f8a9b0c2"]
+            example:
+              productIds: ["64f1c2a3b4c5d6e7f8a9b0c1", "64f1c2a3b4c5d6e7f8a9b0c2"]
+      responses:
+        '200':
+          description: List of products with attributes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        name:
+                          type: string
+                        slug:
+                          type: string
+                        description:
+                          type: string
+                        price:
+                          type: number
+                        old_price:
+                          type: number
+                        category_id:
+                          type: string
+                        metadata:
+                          type: object
+                        status:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+                        deleted_at:
+                          type: string
+                          format: date-time
+                        image_ids:
+                          type: array
+                          items:
+                            type: string
+                        img:
+                          type: string
+                        sku:
+                          type: number
+                        attributes:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              _id:
+                                type: string
+                              product_id:
+                                type: string
+                              attribute_id:
+                                type: object
+                                properties:
+                                  _id:
+                                    type: string
+                                  name:
+                                    type: string
+                                  data_type:
+                                    type: string
+                              value:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                              updated_at:
+                                type: string
+                                format: date-time
+        '400':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: "productIds must be an array"
   /slug/{slug}:
     get:
       tags:
