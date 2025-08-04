@@ -85,6 +85,17 @@ export const searchProductsByAttributes = async (
         ];
         const matched = await ProductAttributeValue.aggregate(pipeline);
         productIds = matched.map(m => m._id);
+        
+        // اگر هیچ محصولی با فیلترهای attribute پیدا نشد، نتیجه خالی برگردان
+        if (productIds.length === 0) {
+            return {
+                data: [],
+                count: 0,
+                page,
+                limit,
+                total: 0
+            };
+        }
     }
 
     // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
@@ -193,6 +204,17 @@ export const searchProductsByAttributesOnly = async (
         ];
         const matched = await ProductAttributeValue.aggregate(pipeline);
         productIds = matched.map(m => m._id);
+        
+        // اگر هیچ محصولی با فیلترهای attribute پیدا نشد، نتیجه خالی برگردان
+        if (productIds.length === 0) {
+            return {
+                data: [],
+                count: 0,
+                page,
+                limit,
+                total: 0
+            };
+        }
     }
 
     // 4. گرفتن اطلاعات کامل محصولات با صفحه‌بندی
@@ -364,10 +386,22 @@ export const searchProductsByCategorySlugsAndAttributes = async (
         const matched = await ProductAttributeValue.aggregate(pipeline);
         productIds = matched.map(m => m._id);
         
-        // ترکیب با فیلتر دسته‌بندی
-        if (productIds.length > 0) {
-            productQuery._id = { $in: productIds };
+        // اگر هیچ محصولی با فیلترهای attribute پیدا نشد، نتیجه خالی برگردان
+        if (productIds.length === 0) {
+            return {
+                data: [],
+                count: 0,
+                page,
+                limit,
+                total: 0,
+                categories: categories.map(c => ({ _id: c._id, name: c.name, slug: c.slug })),
+                totalCategories: allCategoryIds.size,
+                message: 'No products found matching the specified attributes'
+            };
         }
+        
+        // ترکیب با فیلتر دسته‌بندی
+        productQuery._id = { $in: productIds };
     }
     
     // 5. گرفتن محصولات با صفحه‌بندی
