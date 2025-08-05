@@ -7,7 +7,7 @@ info:
 servers:
   - url: http://localhost:7011/api/product/v2
     description: Local server
-  - url: http://87.248.130.52:8080/api/v1/product/categories
+  - url: http://87.248.138.74:8080/api/v1/product/categories
     description: Test server
 
 security:
