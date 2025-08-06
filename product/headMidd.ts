@@ -1,57 +1,11 @@
-// import cors from 'cors';
-// import helmet from 'helmet';
 import { Express, NextFunction, Response, Request } from 'express';
-// import rateLimit from 'express-rate-limit';
-// import slowDown from 'express-slow-down';
 import { createLogger, format, transports } from 'winston';
-//import i18nMiddleware, { validateLanguageMiddleware, addLanguageInfoMiddleware, translationFallbackMiddleware } from './middlewares/i18nMiddleware.js';
 import { v4 as uuidv4 } from 'uuid';
 import { handleDatabaseError } from './headMidd.handle.js';
 
 // const isDevelopment = process.env.NODE_ENV === 'development';
 
 const { combine, timestamp, printf, colorize } = format;
-
-// const limiter = rateLimit({
-//       windowMs: 15 * 60 * 1000,
-//       max: isDevelopment ? 0 : 250,
-//       message: 'Too many requests from this IP, please try again later.',
-// });
-
-// const speedLimiter = slowDown({
-//       windowMs: 15 * 60 * 1000,
-//       delayAfter: isDevelopment ? 100 : 50,
-//       delayMs: (used, req) => {
-//             const baseDelay = (used - req.slowDown.limit) * (isDevelopment ? 250 : 500);
-
-//             const methodMultiplier =
-//                   {
-//                         GET: 0.5,
-//                         POST: 2.0,
-//                         PUT: 1.5,
-//                         DELETE: 1.5,
-//                         PATCH: 1.5,
-//                   }[req.method] || 1.0;
-
-//             const hasCaching = req.originalUrl.includes('/products/') || req.originalUrl.includes('/categories/') || req.originalUrl.includes('/search') || req.originalUrl.includes('/analytics');
-
-//             const cacheMultiplier = hasCaching ? 0.3 : 1.0;
-
-//             const finalDelay = Math.floor(baseDelay * methodMultiplier * cacheMultiplier);
-
-//             return hasCaching ? finalDelay : Math.max(finalDelay, isDevelopment ? 100 : 200);
-//       },
-//       keyGenerator: req => {
-//             const routePattern = req.originalUrl.split('/')[1];
-//             return `${req.ip}:${routePattern}`;
-//       },
-//       // skip: (req) => {
-//       //     // Skip rate limiting for certain paths or conditions
-//       //     return req.path.startsWith('/health') ||
-//       //            req.path.startsWith('/metrics') ||
-//       //            req.path.startsWith('/docs');
-//       // }
-// });
 
 const logger = createLogger({
       level: process.env.LOG_LEVEL || 'info',
@@ -160,58 +114,8 @@ const responseHandler = (_req: Request, res: Response & { success?: (data: any, 
 };
 
 export function headMiddleware(app: Express, express: any) {
-      // TODO(): Dont need in server, handle on proxy layer ziro
-      // if (isDevelopment) {
-      //       // Configure Helmet with CSP that allows inline scripts for admin panel
-      //       app.use(
-      //             helmet({
-      //                   contentSecurityPolicy: {
-      //                         directives: {
-      //                               defaultSrc: ["'self'"],
-      //                               scriptSrc: ["'self'", "'unsafe-inline'"],
-      //                               styleSrc: ["'self'", "'unsafe-inline'", 'https://cdnjs.cloudflare.com'],
-      //                               scriptSrcAttr: ["'unsafe-inline'"],
-      //                               imgSrc: ["'self'", 'data:', 'https:'],
-      //                               connectSrc: ["'self'"],
-      //                               fontSrc: ["'self'", 'https://cdnjs.cloudflare.com'],
-      //                               objectSrc: ["'none'"],
-      //                               mediaSrc: ["'self'"],
-      //                               frameSrc: ["'none'"],
-      //                               workerSrc: ["'self'"],
-      //                               manifestSrc: ["'self'"],
-      //                               baseUri: ["'self'"],
-      //                               formAction: ["'self'"],
-      //                               frameAncestors: ["'none'"],
-      //                               upgradeInsecureRequests: [],
-      //                         },
-      //                   },
-      //                   crossOriginEmbedderPolicy: false,
-      //                   crossOriginResourcePolicy: { policy: 'cross-origin' },
-      //             })
-      //       );
-      // } else {
-      //       app.use(helmet());
-      // }
-
-      // app.use(
-      //       cors({
-      //             origin: ['http://localhost:3000'],
-      //             credentials: true,
-      //       })
-      // );
-      app.use(express.json()); // { limit: '1mb' } Dont need, handle on proxy
+      app.use(express.json());
       app.use(express.urlencoded({ limit: '1mb', extended: true }));
-      // if (!isDevelopment) {
-      //       // TODO(): ??
-      //       app.use(limiter);
-      //       app.use(speedLimiter);
-      // }
-
-      // Add i18n middleware
-      /*app.use(i18nMiddleware);
-    app.use(validateLanguageMiddleware);
-    app.use(addLanguageInfoMiddleware);
-    app.use(translationFallbackMiddleware);*/
 
       app.use(requestLogger);
       app.use(errorLogger);

@@ -1,25 +1,16 @@
 
 services:
-  product_service:
+  fab_product:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: product_service
-    env_file:
-      - .env
+    container_name: fab_product
     restart: unless-stopped
     volumes:
       # - .:/app:cached
       - /app/node_modules
     networks:
       - krakend-private
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-    mem_limit: 512m
-    cpu_shares: 512
 
 networks:
   krakend-private:

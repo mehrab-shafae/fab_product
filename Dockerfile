@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:lts-bookworm-slim
 
 WORKDIR /app
 
@@ -11,7 +11,4 @@ COPY . .
 
 RUN tsc
 
-# EXPOSE 7011 7021 7004
-
-ENTRYPOINT ["sh", "-c"]
-CMD ["npm start & npm run start:minio & wait"]
+CMD ["npm", "start"]
