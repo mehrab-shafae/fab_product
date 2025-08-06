@@ -9,6 +9,8 @@ RUN npm install \
 
 COPY . .
 
+COPY .env .env
+
 RUN tsc
 
 CMD ["npm", "start"]
