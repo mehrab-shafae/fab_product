@@ -22,7 +22,8 @@ export const searchProducts = async (params: any) => {
       const { page = 1, limit = 10, name, category_id, min_price, max_price, tags, attributes, sortField = 'created_at', sortOrder = 'desc' } = params;
 
       const query: any = { deleted_at: null };
-      if (name) query.name = { $regex: `^${name}`, $options: 'i' };
+      if (name) query.name = { $regex: name, $options: 'i' };
+
       if (category_id) query.category_id = category_id;
       if (min_price !== undefined) query.price = { ...query.price, $gte: Number(min_price) };
       if (max_price !== undefined) query.price = { ...query.price, $lte: Number(max_price) };
