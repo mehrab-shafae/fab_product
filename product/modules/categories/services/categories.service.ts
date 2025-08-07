@@ -22,7 +22,7 @@ export class CategoriesService {
                   slug = data.name.trim().toLowerCase().replace(/\s+/g, '-');
             }
             // اگر parent دارد، slug را ترکیبی بساز
-            if (parentId) {
+            if (parentId && !slug) {
                   const parent = await Category.findById(parentId);
                   if (parent) {
                         slug = `${parent.slug}/${slug}`;
