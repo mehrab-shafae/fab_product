@@ -16,7 +16,7 @@ function generateSlug(input: string): string {
  * @param categoryAttributeId - شناسه CategoryAttribute
  * @returns ProductAttribute یا null در صورت خطا
  */
-async function getOrCreateProductAttribute(categoryAttributeId: string): Promise<{ success: boolean; productAttribute?: any; error?: string }> {
+async function getOrCreateProductAttribute(categoryAttributeId: string): Promise<{ status: string; productAttribute?: any; error?: string }> {
       try {
             // ابتدا CategoryAttribute را پیدا کن
             const categoryAttribute = await CategoryAttribute.findById(categoryAttributeId);
@@ -121,7 +121,7 @@ export const createProduct = async (req: Request, res: Response) => {
 
                     // تبدیل CategoryAttribute به ProductAttribute
                     const result = await getOrCreateProductAttribute(attr.attribute_id);
-                    if (!result.success) {
+                    if (result.status !== 'success') {
                         return res.status(400).json({ status: 'error', error: result.error });
                     }
 
@@ -218,7 +218,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                   for (const attr of req.body.attributes) {
                         // تبدیل CategoryAttribute به ProductAttribute
                         const result = await getOrCreateProductAttribute(attr.attribute_id);
-                        if (!result.success) {
+                        if (result.status !== 'success') {
                               return res.status(400).json({ status: 'error', error: result.error });
                         }
 
@@ -318,14 +318,14 @@ export const getProductsByIds = async (req: Request, res: Response) => {
             const products = await Product.find({ _id: { $in: validIds } });
             
             const productsWithAttributes = await Promise.all(
-                  products.map(async (product) => {
+                  products.map(async (product: any) => {
                         const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
                         const productObj = product.toObject();
                         return { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img };
                   })
             );
 
-            const productsMap = new Map(productsWithAttributes.map(product => [product._id?.toString(), product]));
+            const productsMap = new Map(productsWithAttributes.map((product: any) => [product._id?.toString(), product]));
             
             const orderedProducts = productIds
                   .filter(id => mongoose.Types.ObjectId.isValid(id))
