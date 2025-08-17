@@ -6,6 +6,7 @@ import { ProductAttribute } from '../attributes/models/productAttribute.model.js
 import { Category } from '../../categories/models/category.model.js';
 import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
 import mongoose from 'mongoose';
+import { categoriesService } from '../../categories/index.js';
 
 function generateSlug(input: string): string {
       return input.trim().toLowerCase().replace(/\s+/g, '-');
@@ -163,16 +164,29 @@ export const getProductById = async (req: Request, res: Response) => {
 };
 
 export const getProductBySlug = async (req: Request, res: Response) => {
-      try {
-            const product = await Product.findOne({ slug: req.params.slug });
-            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
-            // Fetch attribute values for this product
-            const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
-            const productObj = product.toObject();
-            res.json({ status: 'success', data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
-      } catch (error: any) {
-            res.status(400).json({ status: 'error', error: error.message });
-      }
+    try {
+        const product = await Product.findOne({ slug: req.params.slug });
+        if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
+        // Fetch attribute values for this product
+        const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
+        const productObj = product.toObject();
+        let category = null;
+        let parentSlugs = [];
+        if (productObj.category_id) {
+            // ابتدا دسته‌بندی را با id واکشی کن تا slug را بگیریم
+            const categoryDoc = await Category.findById(productObj.category_id);
+            if (categoryDoc) {
+                // حالا با slug دسته‌بندی، اطلاعات کامل و parentSlugs را بگیر
+                category = await categoriesService.getBySlug(categoryDoc.slug);
+                parentSlugs = (category as any)?.parentSlugs || [];
+            }
+        }
+        // حذف category_id و جایگزینی با category و parentSlugs
+        const { category_id, ...rest } = productObj;
+        res.json({ status: 'success', data: { ...rest, category, parentSlugs, attributes, image_ids: productObj.image_ids, img: productObj.img } });
+    } catch (error: any) {
+        res.status(400).json({ status: 'error', error: error.message });
+    }
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
