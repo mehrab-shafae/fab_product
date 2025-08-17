@@ -541,7 +541,7 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
             if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
                 (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
                   return res.status(400).json({ 
-                        success: false, 
+                        status: 'error', 
                         error: 'At least one of filters or slugs must be provided' 
                   });
             }
@@ -551,7 +551,7 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
                   for (const f of filters) {
                         if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
                               return res.status(400).json({ 
-                                    success: false, 
+                                    status: 'error', 
                                     error: 'Each filter must have an attribute and a non-empty array of values' 
                               });
                         }
@@ -559,8 +559,8 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
             }
             
             const results = await categoriesService.searchCategoriesByAttributes(filters, slugs, page, limit);
-            res.json({ success: true, ...results });
+            res.json({ status: 'success', ...results });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };

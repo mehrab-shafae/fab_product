@@ -21,7 +21,7 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
             // ابتدا CategoryAttribute را پیدا کن
             const categoryAttribute = await CategoryAttribute.findById(categoryAttributeId);
             if (!categoryAttribute) {
-                  return { success: false, error: `CategoryAttribute with id '${categoryAttributeId}' not found` };
+                  return { status: 'error', error: `CategoryAttribute with id '${categoryAttributeId}' not found` };
             }
 
             // بررسی اینکه آیا ProductAttribute مربوطه وجود دارد یا نه
@@ -39,9 +39,9 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
                   });
             }
 
-            return { success: true, productAttribute };
+            return { status: 'success', productAttribute };
       } catch (error: any) {
-            return { success: false, error: error.message };
+            return { status: 'error', error: error.message };
       }
 }
 
@@ -76,18 +76,18 @@ export const createProduct = async (req: Request, res: Response) => {
             // Check uniqueness
             const exists = await Product.findOne({ slug });
             if (exists) {
-                  return res.status(400).json({ success: false, error: 'Slug already exists' });
+                  return res.status(400).json({ status: 'error', error: 'Slug already exists' });
             }
             // --- END SLUG LOGIC ---
 
             // --- SKU LOGIC ---
             let sku = null;
             if (!req.body.category_id) {
-                  return res.status(400).json({ success: false, error: 'category_id is required for SKU generation' });
+                  return res.status(400).json({ status: 'error', error: 'category_id is required for SKU generation' });
             }
             const category = await Category.findById(req.body.category_id);
             if (!category) {
-                  return res.status(400).json({ success: false, error: 'Category not found' });
+                  return res.status(400).json({ status: 'error', error: 'Category not found' });
             }
             // پیدا کردن بزرگ‌ترین sku فعلی برای این دسته
             const lastProduct = await Product.find({ category_id: category._id }).sort({ sku: -1 }).limit(1);
@@ -116,13 +116,13 @@ export const createProduct = async (req: Request, res: Response) => {
                 for (const attr of req.body.attributes) {
                     // بررسی اعتبار attribute_id
                     if (!attr.attribute_id || !mongoose.Types.ObjectId.isValid(attr.attribute_id)) {
-                        return res.status(400).json({ success: false, error: `Invalid or missing attribute_id for attribute value '${attr.value}'` });
+                        return res.status(400).json({ status: 'error', error: `Invalid or missing attribute_id for attribute value '${attr.value}'` });
                     }
 
                     // تبدیل CategoryAttribute به ProductAttribute
                     const result = await getOrCreateProductAttribute(attr.attribute_id);
                     if (!result.success) {
-                        return res.status(400).json({ success: false, error: result.error });
+                        return res.status(400).json({ status: 'error', error: result.error });
                     }
 
                     // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
@@ -143,35 +143,35 @@ export const createProduct = async (req: Request, res: Response) => {
                     }
                 }
             }
-            res.status(201).json({ success: true, data: product, message: 'Product created successfully' });
+            res.status(201).json({ status: 'success', data: product, message: 'Product created successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
 export const getProductById = async (req: Request, res: Response) => {
       try {
             const product = await Product.findById(req.params.id);
-            if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
             // Fetch attribute values for this product
             const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
             const productObj = product.toObject();
-            res.json({ success: true, data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
+            res.json({ status: 'success', data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
 export const getProductBySlug = async (req: Request, res: Response) => {
       try {
             const product = await Product.findOne({ slug: req.params.slug });
-            if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
             // Fetch attribute values for this product
             const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
             const productObj = product.toObject();
-            res.json({ success: true, data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
+            res.json({ status: 'success', data: { ...productObj, attributes, image_ids: productObj.image_ids, img: productObj.img } });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -184,7 +184,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             // --- SLUG LOGIC ---
             const productId = req.params.id;
             const currentProduct = await Product.findById(productId);
-            if (!currentProduct) return res.status(404).json({ success: false, error: 'Product not found' });
+            if (!currentProduct) return res.status(404).json({ status: 'error', error: 'Product not found' });
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
@@ -197,7 +197,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             if (slug !== currentProduct.slug) {
                   const exists = await Product.findOne({ slug });
                   if (exists && exists._id && exists._id.toString() !== productId) {
-                        return res.status(400).json({ success: false, error: 'Slug already exists' });
+                        return res.status(400).json({ status: 'error', error: 'Slug already exists' });
                   }
             }
             // --- END SLUG LOGIC ---
@@ -208,7 +208,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                   img: req.body.img,
             };
             const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
-            if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
+            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
 
             // --- منطق جایگزینی کامل attributeها (replace) ---
             if (req.body.attributes && Array.isArray(req.body.attributes)) {
@@ -219,7 +219,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                         // تبدیل CategoryAttribute به ProductAttribute
                         const result = await getOrCreateProductAttribute(attr.attribute_id);
                         if (!result.success) {
-                              return res.status(400).json({ success: false, error: result.error });
+                              return res.status(400).json({ status: 'error', error: result.error });
                         }
 
                         // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
@@ -242,19 +242,19 @@ export const updateProduct = async (req: Request, res: Response) => {
             }
             // --- پایان منطق جایگزینی کامل attributeها ---
 
-            res.json({ success: true, data: product, message: 'Product updated successfully' });
+            res.json({ status: 'success', data: product, message: 'Product updated successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
 export const deleteProduct = async (req: Request, res: Response) => {
       try {
             const product = await Product.findByIdAndUpdate(req.params.id, { deleted_at: new Date() }, { new: true });
-            if (!product) return res.status(404).json({ success: false, error: 'Product not found' });
-            res.json({ success: true, data: product, message: 'Product deleted successfully' });
+            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
+            res.json({ status: 'success', data: product, message: 'Product deleted successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -292,9 +292,9 @@ export const searchProductsController = async (req: Request, res: Response, _nex
                   ...product,
                   category: categoriesMap[product.category_id?.toString()] || null,
             }));
-            res.json({ success: true, ...result, items: productsWithCategory });
+            res.json({ status: 'success', ...result, items: productsWithCategory });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -303,16 +303,16 @@ export const getProductsByIds = async (req: Request, res: Response) => {
             const { productIds } = req.body;
             
             if (!Array.isArray(productIds)) {
-                  return res.status(400).json({ success: false, error: 'productIds must be an array' });
+                  return res.status(400).json({ status: 'error', error: 'productIds must be an array' });
             }
 
             if (productIds.length === 0) {
-                  return res.status(400).json({ success: false, error: 'productIds array cannot be empty' });
+                  return res.status(400).json({ status: 'error', error: 'productIds array cannot be empty' });
             }
 
             const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
             if (validIds.length === 0) {
-                  return res.status(400).json({ success: false, error: 'No valid product IDs provided' });
+                  return res.status(400).json({ status: 'error', error: 'No valid product IDs provided' });
             }
 
             const products = await Product.find({ _id: { $in: validIds } });
@@ -332,8 +332,8 @@ export const getProductsByIds = async (req: Request, res: Response) => {
                   .map(id => productsMap.get(id))
                   .filter(Boolean);
 
-            res.json({ success: true, data: orderedProducts });
+            res.json({ status: 'success', data: orderedProducts });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };

@@ -5,9 +5,9 @@ export const addProductRelationshipController = async (req: Request, res: Respon
       try {
             const data = { ...req.body, product_id: req.params.productId };
             const relationship = await addProductRelationship(data);
-            res.status(201).json({ success: true, data: relationship, message: 'Product relationship added successfully' });
+            res.status(201).json({ status: 'success', data: relationship, message: 'Product relationship added successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -15,18 +15,18 @@ export const getProductRelationshipsController = async (req: Request, res: Respo
       try {
             const { relationship_type } = req.query;
             const relationships = await getProductRelationships(req.params.productId, relationship_type as string);
-            res.json({ success: true, data: relationships });
+            res.json({ status: 'success', data: relationships });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
 export const deleteProductRelationshipController = async (req: Request, res: Response) => {
       try {
             const relationship = await deleteProductRelationship(req.params.relationshipId);
-            if (!relationship) return res.status(404).json({ success: false, error: 'Relationship not found' });
-            res.json({ success: true, data: relationship, message: 'Product relationship deleted successfully' });
+            if (!relationship) return res.status(404).json({ status: 'error', error: 'Relationship not found' });
+            res.json({ status: 'success', data: relationship, message: 'Product relationship deleted successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };

@@ -6,9 +6,9 @@ export const addProductAttributeValueController = async (req: Request, res: Resp
       try {
             const data = { ...req.body, product_id: req.params.productId };
             const value = await addProductAttributeValue(data);
-            res.status(201).json({ success: true, data: value, message: 'Product attribute added successfully' });
+            res.status(201).json({ status: 'success', data: value, message: 'Product attribute added successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -16,13 +16,13 @@ export const getProductAttributeValuesController = async (req: Request, res: Res
       try {
             const values = await getProductAttributeValues(req.params.productId);
             res.json({
-                  success: true,
+                  status: 'success',
                   data: values,
                   count: values.length,
                   message: `Found ${values.length} valid attribute values`,
             });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -33,7 +33,7 @@ export const getAllProductAttributeValuesController = async (req: Request, res: 
             const invalidCount = values.filter(v => !v.has_valid_attribute).length;
 
             res.json({
-                  success: true,
+                  status: 'success',
                   data: values,
                   summary: {
                         total: values.length,
@@ -43,7 +43,7 @@ export const getAllProductAttributeValuesController = async (req: Request, res: 
                   message: `Found ${values.length} attribute values (${validCount} valid, ${invalidCount} invalid)`,
             });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -52,7 +52,7 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
             const productId = req.params.productId;
             const attributes = req.body.attributes;
             if (!Array.isArray(attributes)) {
-                  return res.status(400).json({ success: false, error: 'attributes must be an array' });
+                  return res.status(400).json({ status: 'error', error: 'attributes must be an array' });
             }
             // 1. همه attributeهای قبلی را soft-delete کن
             await ProductAttributeValue.updateMany({ product_id: productId, deleted_at: null }, { deleted_at: new Date() });
@@ -66,9 +66,9 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
                         await ProductAttributeValue.findOneAndUpdate({ product_id: productId, attribute_id: attr.attribute_id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
                   }
             }
-            res.json({ success: true, message: 'Product attributes replaced successfully' });
+            res.json({ status: 'success', message: 'Product attributes replaced successfully' });
       } catch (error: any) {
-            res.status(400).json({ success: false, error: error.message });
+            res.status(400).json({ status: 'error', error: error.message });
       }
 };
 
@@ -88,7 +88,7 @@ export const searchProductByAttributesController = async (req: Request, res: Res
         if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
             (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
             return res.status(400).json({ 
-                success: false, 
+                status: 'error', 
                 error: 'At least one of filters or slugs must be provided' 
             });
         }
@@ -98,7 +98,7 @@ export const searchProductByAttributesController = async (req: Request, res: Res
             for (const f of filters) {
                 if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
                     return res.status(400).json({ 
-                        success: false, 
+                        status: 'error', 
                         error: 'Each filter must have an attribute and a non-empty array of values' 
                     });
                 }
@@ -106,9 +106,9 @@ export const searchProductByAttributesController = async (req: Request, res: Res
         }
         
         const results = await searchProductsByAttributes(filters, slugs, page, limit);
-        res.json({ success: true, ...results });
+        res.json({ status: 'success', ...results });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        res.status(400).json({ status: 'error', error: error.message });
     }
 };
 
@@ -123,7 +123,7 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
         if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
             (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
             return res.status(400).json({ 
-                success: false, 
+                status: 'error', 
                 error: 'At least one of filters or slugs must be provided' 
             });
         }
@@ -133,7 +133,7 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
             for (const f of filters) {
                 if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
                     return res.status(400).json({ 
-                        success: false, 
+                        status: 'error', 
                         error: 'Each filter must have an attribute and a non-empty array of values' 
                     });
                 }
@@ -141,9 +141,9 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
         }
         
         const results = await searchProductsByAttributesOnly(filters, slugs, page, limit);
-        res.json({ success: true, ...results });
+        res.json({ status: 'success', ...results });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        res.status(400).json({ status: 'error', error: error.message });
     }
 };
 
@@ -157,7 +157,7 @@ export const searchProductsByCategorySlugsAndAttributesController = async (req: 
         // Check if categorySlugs is provided
         if (!categorySlugs || !Array.isArray(categorySlugs) || categorySlugs.length === 0) {
             return res.status(400).json({ 
-                success: false, 
+                status: 'error', 
                 error: 'categorySlugs must be provided as a non-empty array' 
             });
         }
@@ -167,7 +167,7 @@ export const searchProductsByCategorySlugsAndAttributesController = async (req: 
             for (const f of filters) {
                 if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
                     return res.status(400).json({ 
-                        success: false, 
+                        status: 'error', 
                         error: 'Each filter must have an attribute and a non-empty array of values' 
                     });
                 }
@@ -175,8 +175,8 @@ export const searchProductsByCategorySlugsAndAttributesController = async (req: 
         }
         
         const results = await searchProductsByCategorySlugsAndAttributes(categorySlugs, filters, page, limit);
-        res.json({ success: true, ...results });
+        res.json({ status: 'success', ...results });
     } catch (error: any) {
-        res.status(400).json({ success: false, error: error.message });
+        res.status(400).json({ status: 'error', error: error.message });
     }
 };

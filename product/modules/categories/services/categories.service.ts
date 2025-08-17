@@ -448,14 +448,14 @@ export class CategoriesService {
                   try {
                         const updated = await this.update(cat._id, cat);
                         if (updated) {
-                              results.push({ id: cat._id, success: true });
+                              results.push({ id: cat._id, status: 'success' });
                               success++;
                         } else {
-                              results.push({ id: cat._id, success: false });
+                              results.push({ id: cat._id, status: 'error' });
                               failed++;
                         }
                   } catch (e) {
-                        results.push({ id: cat._id, success: false, error: (e as Error).message });
+                        results.push({ id: cat._id, status: 'error', error: (e as Error).message });
                         failed++;
                   }
             }
@@ -490,7 +490,7 @@ export class CategoriesService {
             for (let i = 0; i < orderedIds.length; i++) {
                   await Category.findByIdAndUpdate(orderedIds[i], { order: i });
             }
-            return { success: true };
+            return { status: 'success' };
       }
 
       // آمار دسته
@@ -1065,14 +1065,14 @@ export class CategoriesService {
                   try {
                         const updated = await CategoryAttribute.findByIdAndUpdate(attr._id, attr, { new: true });
                         if (updated) {
-                              results.push({ id: attr._id, success: true });
+                              results.push({ id: attr._id, status: 'success' });
                               success++;
                         } else {
-                              results.push({ id: attr._id, success: false });
+                              results.push({ id: attr._id, status: 'error' });
                               failed++;
                         }
                   } catch (e) {
-                        results.push({ id: attr._id, success: false, error: (e as Error).message });
+                        results.push({ id: attr._id, status: 'error', error: (e as Error).message });
                         failed++;
                   }
             }
