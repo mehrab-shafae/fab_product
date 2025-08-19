@@ -26,9 +26,9 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
             }
 
             // بررسی اینکه آیا ProductAttribute مربوطه وجود دارد یا نه
-            let productAttribute = await ProductAttribute.findOne({ 
+            let productAttribute = await ProductAttribute.findOne({
                   name: categoryAttribute.name,
-                  deleted_at: null 
+                  deleted_at: null,
             });
 
             // اگر ProductAttribute وجود نداشت، آن را ایجاد کن
@@ -36,7 +36,7 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
                   productAttribute = await ProductAttribute.create({
                         name: categoryAttribute.name,
                         data_type: categoryAttribute.type,
-                        options: categoryAttribute.type === 'enum' ? [] : undefined
+                        options: categoryAttribute.type === 'enum' ? [] : undefined,
                   });
             }
 
@@ -52,17 +52,16 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
  * @returns آرایه‌ای از attributes با اطلاعات کامل
  */
 async function getProductAttributesWithDetails(productId: mongoose.Types.ObjectId) {
-      const attributes = await ProductAttributeValue.find({ 
-            product_id: productId, 
-            deleted_at: null 
+      const attributes = await ProductAttributeValue.find({
+            product_id: productId,
+            deleted_at: null,
       }).populate('attribute_id');
-      
+
       return attributes;
 }
 
 export const createProduct = async (req: Request, res: Response) => {
       try {
-            // فقط فیلدهای مورد نیاز را از req.body بگیر
             let image_ids = req.body.image_ids;
             if (typeof image_ids === 'string') {
                   image_ids = [image_ids];
@@ -82,7 +81,6 @@ export const createProduct = async (req: Request, res: Response) => {
             // --- END SLUG LOGIC ---
 
             // --- SKU LOGIC ---
-            let sku = null;
             if (!req.body.category_id) {
                   return res.status(400).json({ status: 'error', error: 'category_id is required for SKU generation' });
             }
@@ -90,60 +88,72 @@ export const createProduct = async (req: Request, res: Response) => {
             if (!category) {
                   return res.status(400).json({ status: 'error', error: 'Category not found' });
             }
-            // پیدا کردن بزرگ‌ترین sku فعلی برای این دسته
-            const lastProduct = await Product.find({ category_id: category._id }).sort({ sku: -1 }).limit(1);
-            let baseSku = (typeof category.baseSku === 'number' && !isNaN(category.baseSku) && category.baseSku > 0) ? category.baseSku : 1000;
-            if (lastProduct.length === 0) {
-                  sku = baseSku + 1;
-            } else if (typeof lastProduct[0].sku === 'number' && !isNaN(lastProduct[0].sku) && lastProduct[0].sku > 0) {
-                  sku = lastProduct[0].sku + 1;
-            } else {
-                  sku = baseSku + 1;
+            let lastProduct = await Product.find({ category_id: category._id }).sort({ created_at: -1 }).limit(1);
+            let baseSku = typeof category.baseSku === 'number' && !isNaN(category.baseSku) && category.baseSku > 0 ? category.baseSku : 1000;
+            let nextSku = baseSku + 1;
+            if (lastProduct.length > 0) {
+                  // اگر محصول قبلی variants داشت، بزرگترین sku را از variants پیدا کن
+                  let maxSku = baseSku;
+                  const prev = lastProduct[0] as any;
+                  if (Array.isArray(prev.variants) && prev.variants.length > 0) {
+                        for (const v of prev.variants) {
+                              if (v.sku && !isNaN(Number(v.sku)) && Number(v.sku) > maxSku) {
+                                    maxSku = Number(v.sku);
+                              }
+                        }
+                  } else if ('sku' in prev && prev.sku && !isNaN(Number(prev.sku)) && Number(prev.sku) > maxSku) {
+                        maxSku = Number(prev.sku);
+                  }
+                  nextSku = maxSku + 1;
             }
             // --- END SKU LOGIC ---
 
-            const productData: any = {
+            let productData: any = {
                   ...req.body,
-                  slug, // always use processed slug
+                  slug,
                   image_ids,
                   img: req.body.img,
-                  sku, // مقداردهی sku
             };
+
+            // اگر variants وجود داشت
+            if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+                  productData.variants = [];
+                  for (const [i, variant] of req.body.variants.entries()) {
+                        let variantObj: any = { ...variant };
+                        // attributes: { attribute_id, value }
+                        if (variant.attributes && variant.attributes.attribute_id) {
+                              // تبدیل CategoryAttribute به ProductAttribute
+                              const result = await getOrCreateProductAttribute(variant.attributes.attribute_id);
+                              if (result.status !== 'success') {
+                                    return res.status(400).json({ status: 'error', error: result.error });
+                              }
+                              variantObj.attributes.attribute_id = result.productAttribute._id;
+                        }
+                        // sku: اگر کاربر مقدار نداد، خودکار مقداردهی کن
+                        if (!variant.sku) {
+                              variantObj.sku = `${nextSku + i}`;
+                        }
+                        // inventory: مقداردهی پیش‌فرض
+                        if (!variant.inventory) {
+                              variantObj.inventory = { stock: 1, price: 0 };
+                        } else {
+                              if (typeof variant.inventory.stock !== 'number') variantObj.inventory.stock = 1;
+                              if (typeof variant.inventory.price !== 'number') variantObj.inventory.price = 0;
+                        }
+                        // color_palette: حداقل یک مقدار باید داشته باشد اگر وجود دارد
+                        if (variant.color_palette && Object.keys(variant.color_palette).length < 1) {
+                              return res.status(400).json({ status: 'error', error: 'color_palette must have at least one color' });
+                        }
+                        productData.variants.push(variantObj);
+                  }
+            } else {
+                  // رفتار قبلی: محصول ساده بدون variants
+                  // --- SKU LOGIC ---
+                  productData.sku = nextSku;
+            }
+
             const product = new Product(productData);
             await product.save();
-
-            // Save attribute values if provided
-            if (req.body.attributes && Array.isArray(req.body.attributes)) {
-                for (const attr of req.body.attributes) {
-                    // بررسی اعتبار attribute_id
-                    if (!attr.attribute_id || !mongoose.Types.ObjectId.isValid(attr.attribute_id)) {
-                        return res.status(400).json({ status: 'error', error: `Invalid or missing attribute_id for attribute value '${attr.value}'` });
-                    }
-
-                    // تبدیل CategoryAttribute به ProductAttribute
-                    const result = await getOrCreateProductAttribute(attr.attribute_id);
-                    if (result.status !== 'success') {
-                        return res.status(400).json({ status: 'error', error: result.error });
-                    }
-
-                    // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
-                    if (Array.isArray(attr.value)) {
-                        for (const v of attr.value) {
-                            await ProductAttributeValue.create({
-                                product_id: product._id,
-                                attribute_id: result.productAttribute._id,
-                                value: v,
-                            });
-                        }
-                    } else {
-                        await ProductAttributeValue.create({
-                            product_id: product._id,
-                            attribute_id: result.productAttribute._id,
-                            value: attr.value,
-                        });
-                    }
-                }
-            }
             res.status(201).json({ status: 'success', data: product, message: 'Product created successfully' });
       } catch (error: any) {
             res.status(400).json({ status: 'error', error: error.message });
@@ -164,29 +174,29 @@ export const getProductById = async (req: Request, res: Response) => {
 };
 
 export const getProductBySlug = async (req: Request, res: Response) => {
-    try {
-        const product = await Product.findOne({ slug: req.params.slug });
-        if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
-        // Fetch attribute values for this product
-        const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
-        const productObj = product.toObject();
-        let category = null;
-        let parentSlugs = [];
-        if (productObj.category_id) {
-            // ابتدا دسته‌بندی را با id واکشی کن تا slug را بگیریم
-            const categoryDoc = await Category.findById(productObj.category_id);
-            if (categoryDoc) {
-                // حالا با slug دسته‌بندی، اطلاعات کامل و parentSlugs را بگیر
-                category = await categoriesService.getBySlug(categoryDoc.slug);
-                parentSlugs = (category as any)?.parentSlugs || [];
+      try {
+            const product = await Product.findOne({ slug: req.params.slug });
+            if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
+            // Fetch attribute values for this product
+            const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
+            const productObj = product.toObject();
+            let category = null;
+            let parentSlugs = [];
+            if (productObj.category_id) {
+                  // ابتدا دسته‌بندی را با id واکشی کن تا slug را بگیریم
+                  const categoryDoc = await Category.findById(productObj.category_id);
+                  if (categoryDoc) {
+                        // حالا با slug دسته‌بندی، اطلاعات کامل و parentSlugs را بگیر
+                        category = await categoriesService.getBySlug(categoryDoc.slug);
+                        parentSlugs = (category as any)?.parentSlugs || [];
+                  }
             }
-        }
-        // حذف category_id و جایگزینی با category و parentSlugs
-        const { category_id, ...rest } = productObj;
-        res.json({ status: 'success', data: { ...rest, category, parentSlugs, attributes, image_ids: productObj.image_ids, img: productObj.img } });
-    } catch (error: any) {
-        res.status(400).json({ status: 'error', error: error.message });
-    }
+            // حذف category_id و جایگزینی با category و parentSlugs
+            const { category_id, ...rest } = productObj;
+            res.json({ status: 'success', data: { ...rest, category, parentSlugs, attributes, image_ids: productObj.image_ids, img: productObj.img } });
+      } catch (error: any) {
+            res.status(400).json({ status: 'error', error: error.message });
+      }
 };
 
 export const updateProduct = async (req: Request, res: Response) => {
@@ -239,18 +249,10 @@ export const updateProduct = async (req: Request, res: Response) => {
                         // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
                         if (Array.isArray(attr.value)) {
                               for (const v of attr.value) {
-                                    await ProductAttributeValue.findOneAndUpdate(
-                                          { product_id: product._id, attribute_id: result.productAttribute._id, value: v }, 
-                                          { value: v, deleted_at: null }, 
-                                          { upsert: true, new: true }
-                                    );
+                                    await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: result.productAttribute._id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
                               }
                         } else {
-                              await ProductAttributeValue.findOneAndUpdate(
-                                    { product_id: product._id, attribute_id: result.productAttribute._id }, 
-                                    { value: attr.value, deleted_at: null }, 
-                                    { upsert: true, new: true }
-                              );
+                              await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: result.productAttribute._id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
                         }
                   }
             }
@@ -315,7 +317,7 @@ export const searchProductsController = async (req: Request, res: Response, _nex
 export const getProductsByIds = async (req: Request, res: Response) => {
       try {
             const { productIds } = req.body;
-            
+
             if (!Array.isArray(productIds)) {
                   return res.status(400).json({ status: 'error', error: 'productIds must be an array' });
             }
@@ -330,7 +332,7 @@ export const getProductsByIds = async (req: Request, res: Response) => {
             }
 
             const products = await Product.find({ _id: { $in: validIds } });
-            
+
             const productsWithAttributes = await Promise.all(
                   products.map(async (product: any) => {
                         const attributes = await getProductAttributesWithDetails(product._id as mongoose.Types.ObjectId);
@@ -340,7 +342,7 @@ export const getProductsByIds = async (req: Request, res: Response) => {
             );
 
             const productsMap = new Map(productsWithAttributes.map((product: any) => [product._id?.toString(), product]));
-            
+
             const orderedProducts = productIds
                   .filter(id => mongoose.Types.ObjectId.isValid(id))
                   .map(id => productsMap.get(id))

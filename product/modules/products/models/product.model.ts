@@ -1,11 +1,26 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+export interface IProductVariant {
+      attributes?: {
+            attribute_id: mongoose.Types.ObjectId;
+            value: string;
+      };
+      inventory?: {
+            stock?: number; // default: 1
+            price?: number; // default: 0
+      };
+      image_ids?: string[];
+      img?: string;
+      color_palette?: Record<string, string>;
+      sku?: string;
+}
+
 export interface IProduct extends Document {
       name: string;
-      slug: string; // Added slug field
+      slug: string;
       description?: string;
-      price: number;
-      old_price?: number; // قیمت قدیمی (اختیاری)
+      brand?: string;
+      brand_model?: string;
       category_id?: mongoose.Types.ObjectId;
       metadata?: Record<string, any>;
       status?: 'active' | 'inactive' | 'draft' | 'archived';
@@ -14,15 +29,33 @@ export interface IProduct extends Document {
       deleted_at?: Date;
       image_ids?: string[];
       img?: string;
-      sku: number; // کد محصول یکتا و ترتیبی
+      variants?: IProductVariant[];
 }
+
+const ProductVariantSchema = new Schema<IProductVariant>(
+      {
+            attributes: {
+                  attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute' },
+                  value: { type: String },
+            },
+            inventory: {
+                  stock: { type: Number, default: 1 },
+                  price: { type: Number, default: 0 },
+            },
+            image_ids: [{ type: String }],
+            img: { type: String },
+            color_palette: { type: Schema.Types.Mixed },
+            sku: { type: String, unique: true, sparse: true },
+      },
+      { _id: false }
+);
 
 const ProductSchema = new Schema<IProduct>({
       name: { type: String, required: true },
-      slug: { type: String, required: true, unique: true }, // Added slug field
+      slug: { type: String, required: true, unique: true },
       description: { type: String },
-      price: { type: Number, required: true },
-      old_price: { type: Number }, // قیمت قدیمی (اختیاری)
+      brand: { type: String },
+      brand_model: { type: String },
       category_id: { type: Schema.Types.ObjectId, ref: 'Category' },
       metadata: { type: Schema.Types.Mixed },
       status: { type: String, enum: ['active', 'inactive', 'draft', 'archived'], default: 'active' },
@@ -31,7 +64,7 @@ const ProductSchema = new Schema<IProduct>({
       deleted_at: { type: Date, default: null },
       image_ids: [{ type: String }],
       img: { type: String },
-      sku: { type: Number, required: true, unique: true }, // کد محصول یکتا و ترتیبی
+      variants: [ProductVariantSchema],
 });
 
 ProductSchema.pre('save', function (next) {

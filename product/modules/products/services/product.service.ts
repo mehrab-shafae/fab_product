@@ -11,7 +11,19 @@ export const getProductById = async (id: string) => {
 };
 
 export const updateProduct = async (id: string, data: Partial<IProduct>) => {
-      return await Product.findByIdAndUpdate(id, data, { new: true });
+      // اگر variants وجود داشت، بروزرسانی variants
+      if (Array.isArray(data.variants) && data.variants.length > 0) {
+            // فقط variants را بروزرسانی کن
+            return await Product.findByIdAndUpdate(id, {
+                  $set: {
+                        ...data,
+                        variants: data.variants
+                  }
+            }, { new: true });
+      } else {
+            // رفتار قبلی: بروزرسانی سایر فیلدها
+            return await Product.findByIdAndUpdate(id, data, { new: true });
+      }
 };
 
 export const deleteProduct = async (id: string) => {

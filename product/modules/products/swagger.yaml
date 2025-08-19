@@ -1641,11 +1641,10 @@ components:
           type: string
         description:
           type: string
-        price:
-          type: number
-        old_price:
-          type: number
-          description: قیمت قدیمی محصول (اختیاری)
+        brand:
+          type: string
+        brand_model:
+          type: string
         category_id:
           type: string
         metadata:
@@ -1670,15 +1669,51 @@ components:
         img:
           type: string
           description: آیدی عکس اصلی محصول
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              attributes:
+                type: object
+                properties:
+                  attribute_id:
+                    type: string
+                  value:
+                    type: string
+              inventory:
+                type: object
+                properties:
+                  stock:
+                    type: number
+                    default: 1
+                  price:
+                    type: number
+                    default: 0
+              image_ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+              img:
+                type: string
+              color_palette:
+                type: object
+                minProperties: 1
+                maxProperties: 200
+                additionalProperties:
+                  type: string
+              sku:
+                type: string
+            required: []
         sku:
-          type: number
+          type: string
           description: کد یکتای محصول (فقط خواندنی)
           readOnly: true
     ProductInput:
       type: object
       required:
         - name
-        - price
       properties:
         name:
           type: string
@@ -1686,11 +1721,10 @@ components:
           type: string
         description:
           type: string
-        price:
-          type: number
-        old_price:
-          type: number
-          description: قیمت قدیمی محصول (اختیاری)
+        brand:
+          type: string
+        brand_model:
+          type: string
         category_id:
           type: string
         metadata:
@@ -1698,44 +1732,73 @@ components:
         status:
           type: string
           enum: [active, inactive, draft, archived]
-        attributes:
-          type: array
-          description: List of attribute values for this product, each with attribute_id and value.
-          items:
-            type: object
-            properties:
-              attribute_id:
-                type: string
-                description: The ID of the category attribute
-              value:
-                type: string
-                description: The value for this attribute (string, number, or enum)
         image_ids:
           type: array
           items:
             type: string
-          description: لیست آیدی عکس‌های محصول
         img:
           type: string
-          description: آیدی عکس اصلی محصول
-        sku:
-          type: number
-          description: کد یکتای محصول (توسط سیستم مقداردهی می‌شود، فقط خواندنی)
-          readOnly: true
+        variants:
+          type: array
+          items:
+            type: object
+            properties:
+              attributes:
+                type: object
+                properties:
+                  attribute_id:
+                    type: string
+                  value:
+                    type: string
+              inventory:
+                type: object
+                properties:
+                  stock:
+                    type: number
+                    default: 1
+                  price:
+                    type: number
+                    default: 0
+              image_ids:
+                type: array
+                items:
+                  type: string
+                maxItems: 100
+              img:
+                type: string
+              color_palette:
+                type: object
+                minProperties: 1
+                maxProperties: 200
+                additionalProperties:
+                  type: string
+              sku:
+                type: string
+            required: []
       example:
-        name: "Sample Product"
+        name: "Nike T-Shirt"
         slug: "sample-product"
-        price: 100
-        category_id: "64f1c2..."
-        attributes:
-          - attribute_id: "64f1c2..."
-            value: "Red"
-          - attribute_id: "64f1c3..."
-            value: 42
-        image_ids:
-          - "img1"
-          - "img2"
-        img: "img1"
+        brand: "Nike"
+        brand_model: "Nike T"
+        category_id: "ObjectId"
+        variants:
+          - attributes:
+              attribute_id: "ObjectId"
+              value: "Red"
+            inventory:
+              stock: 10
+              price: 299000
+            image_ids: ["idString2"]
+            img: "idString1"
+            color_palette: {"red":"#ff0000","blue":"#aa0000"}
+            sku: "1"
+          - attributes:
+              attribute_id: "ObjectId"
+              value: "Blue"
+            inventory:
+              stock: 5
+              price: 299000
+            color_palette: {"red":"#ff0000"}
     ProductAttribute:
       type: object
       properties:

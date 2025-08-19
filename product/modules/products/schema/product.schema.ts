@@ -4,20 +4,29 @@ export const productSchema = Joi.object({
       name: Joi.string().required(),
       slug: Joi.string().optional(),
       description: Joi.string().allow(''),
-      price: Joi.number().required(),
-      old_price: Joi.number().optional(), // قیمت قدیمی (اختیاری)
+      brand: Joi.string().optional(),
+      brand_model: Joi.string().optional(),
       category_id: Joi.string().optional(),
       metadata: Joi.object().optional(),
       status: Joi.string().valid('active', 'inactive', 'draft', 'archived').optional(),
-      attributes: Joi.array()
+      image_ids: Joi.array().items(Joi.string()).optional(),
+      img: Joi.string().optional(),
+      variants: Joi.array()
             .items(
                   Joi.object({
-                        attribute_id: Joi.string().required(),
-                        value: Joi.any().required(),
+                        attributes: Joi.object({
+                              attribute_id: Joi.string().required(),
+                              value: Joi.any().required(),
+                        }).optional(),
+                        inventory: Joi.object({
+                              stock: Joi.number().min(0).default(1),
+                              price: Joi.number().min(0).default(0),
+                        }).optional(),
+                        image_ids: Joi.array().items(Joi.string()).max(100).optional(),
+                        img: Joi.string().optional(),
+                        color_palette: Joi.object().min(1).max(200).pattern(Joi.string(), Joi.string()).optional(),
+                        sku: Joi.string().optional(),
                   })
             )
             .optional(),
-      image_ids: Joi.array().items(Joi.string()).optional(),
-      img: Joi.string().optional(),
-      sku: Joi.forbidden(), // کاربر نباید مقداردهی کند
 });
