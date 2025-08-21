@@ -43,8 +43,10 @@ paths:
                   options:
                     - value: "Red"
                       order: 1
+                      description: "Shade of the color"
                     - value: "Blue"
                       order: 2
+                      description: "Shade of the color"
       responses:
         '201':
           description: Category created
@@ -316,8 +318,10 @@ paths:
                   options:
                     - value: "Red"
                       order: 1
+                      description: "Shade of the color"
                     - value: "Blue"
                       order: 2
+                      description: "Shade of the color"
       responses:
         '200':
           description: Category updated
