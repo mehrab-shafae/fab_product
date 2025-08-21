@@ -1,17 +1,16 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IProductVariant {
-      attributes?: {
+      attributes?: Array<{
             attribute_id: mongoose.Types.ObjectId;
             value: string;
-      };
+            description?: string;
+      }>;
       inventory?: {
             stock?: number; // default: 1
             price?: number; // default: 0
       };
       image_ids?: string[];
-      img?: string;
-      color_palette?: Record<string, string>;
       sku?: string;
 }
 
@@ -34,17 +33,18 @@ export interface IProduct extends Document {
 
 const ProductVariantSchema = new Schema<IProductVariant>(
       {
-            attributes: {
-                  attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute' },
-                  value: { type: String },
-            },
+            attributes: [
+                  {
+                        attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute', required: true },
+                        value: { type: String, required: true },
+                        description: { type: String },
+                  }
+            ],
             inventory: {
                   stock: { type: Number, default: 1 },
                   price: { type: Number, default: 0 },
             },
             image_ids: [{ type: String }],
-            img: { type: String },
-            color_palette: { type: Schema.Types.Mixed },
             sku: { type: String, unique: true, sparse: true },
       },
       { _id: false }

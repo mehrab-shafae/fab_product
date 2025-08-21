@@ -1675,12 +1675,17 @@ components:
             type: object
             properties:
               attributes:
-                type: object
-                properties:
-                  attribute_id:
-                    type: string
-                  value:
-                    type: string
+                type: array
+                items:
+                  type: object
+                  properties:
+                    attribute_id:
+                      type: string
+                    value:
+                      type: string
+                    description:
+                      type: string
+                      description: توضیح اختیاری برای مقدار این ویژگی
               inventory:
                 type: object
                 properties:
@@ -1695,14 +1700,6 @@ components:
                 items:
                   type: string
                 maxItems: 100
-              img:
-                type: string
-              color_palette:
-                type: object
-                minProperties: 1
-                maxProperties: 200
-                additionalProperties:
-                  type: string
               sku:
                 type: string
             required: []
@@ -1744,12 +1741,17 @@ components:
             type: object
             properties:
               attributes:
-                type: object
-                properties:
-                  attribute_id:
-                    type: string
-                  value:
-                    type: string
+                type: array
+                items:
+                  type: object
+                  properties:
+                    attribute_id:
+                      type: string
+                    value:
+                      type: string
+                    description:
+                      type: string
+                      description: توضیح اختیاری برای مقدار این ویژگی
               inventory:
                 type: object
                 properties:
@@ -1764,41 +1766,43 @@ components:
                 items:
                   type: string
                 maxItems: 100
-              img:
-                type: string
-              color_palette:
-                type: object
-                minProperties: 1
-                maxProperties: 200
-                additionalProperties:
-                  type: string
               sku:
                 type: string
             required: []
       example:
-        name: "Nike T-Shirt"
-        slug: "sample-product"
+        name: "تی‌شرت مردانه نایک"
+        slug: "nike-tshirt-redblue"
+        description: "یک تی‌شرت با کیفیت مناسب برای ورزش و استفاده روزمره."
         brand: "Nike"
-        brand_model: "Nike T"
-        category_id: "ObjectId"
+        brand_model: "T2024"
+        category_id: "65f1c2a3b4c5d6e7f8a9b0c1"
+        img: "mainImageId"
+        image_ids: ["mainImageId", "galleryImageId1", "galleryImageId2"]
         variants:
           - attributes:
-              attribute_id: "ObjectId"
-              value: "Red"
+              - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d1" # رنگ
+                value: "قرمز"
+                description: "رنگ اصلی محصول"
+              - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d2" # سایز
+                value: "XL"
+                description: "سایز بزرگ برای افراد قد بلند"
             inventory:
               stock: 10
               price: 299000
-            image_ids: ["idString2"]
-            img: "idString1"
-            color_palette: {"red":"#ff0000","blue":"#aa0000"}
-            sku: "1"
+            image_ids: ["variantRedXLImage1", "variantRedXLImage2"]
+            sku: "1001"
           - attributes:
-              attribute_id: "ObjectId"
-              value: "Blue"
+              - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d1"
+                value: "آبی"
+                description: "رنگ دوم محصول"
+              - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d2"
+                value: "L"
+                description: "سایز متوسط"
             inventory:
               stock: 5
-              price: 299000
-            color_palette: {"red":"#ff0000"}
+              price: 289000
+            image_ids: ["variantBlueLImage1"]
+            sku: "1002"
     ProductAttribute:
       type: object
       properties:

@@ -120,14 +120,21 @@ export const createProduct = async (req: Request, res: Response) => {
                   productData.variants = [];
                   for (const [i, variant] of req.body.variants.entries()) {
                         let variantObj: any = { ...variant };
-                        // attributes: { attribute_id, value }
-                        if (variant.attributes && variant.attributes.attribute_id) {
-                              // تبدیل CategoryAttribute به ProductAttribute
-                              const result = await getOrCreateProductAttribute(variant.attributes.attribute_id);
-                              if (result.status !== 'success') {
-                                    return res.status(400).json({ status: 'error', error: result.error });
+                        // attributes: array of { attribute_id, value, description }
+                        if (Array.isArray(variant.attributes)) {
+                              variantObj.attributes = [];
+                              for (const attr of variant.attributes) {
+                                    // تبدیل CategoryAttribute به ProductAttribute
+                                    const result = await getOrCreateProductAttribute(attr.attribute_id);
+                                    if (result.status !== 'success') {
+                                          return res.status(400).json({ status: 'error', error: result.error });
+                                    }
+                                    variantObj.attributes.push({
+                                          attribute_id: result.productAttribute._id,
+                                          value: attr.value,
+                                          description: attr.description,
+                                    });
                               }
-                              variantObj.attributes.attribute_id = result.productAttribute._id;
                         }
                         // sku: اگر کاربر مقدار نداد، خودکار مقداردهی کن
                         if (!variant.sku) {
@@ -140,10 +147,9 @@ export const createProduct = async (req: Request, res: Response) => {
                               if (typeof variant.inventory.stock !== 'number') variantObj.inventory.stock = 1;
                               if (typeof variant.inventory.price !== 'number') variantObj.inventory.price = 0;
                         }
-                        // color_palette: حداقل یک مقدار باید داشته باشد اگر وجود دارد
-                        if (variant.color_palette && Object.keys(variant.color_palette).length < 1) {
-                              return res.status(400).json({ status: 'error', error: 'color_palette must have at least one color' });
-                        }
+                        // Remove img and color_palette from variant if present
+                        // delete variantObj.img;
+                        // delete variantObj.color_palette;
                         productData.variants.push(variantObj);
                   }
             } else {
@@ -231,6 +237,33 @@ export const updateProduct = async (req: Request, res: Response) => {
                   image_ids,
                   img: req.body.img,
             };
+            // If variants exist, process them for new structure
+            if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
+                  updateData.variants = [];
+                  for (const [_i, variant] of req.body.variants.entries()) {
+                        let variantObj: any = { ...variant };
+                        // attributes: array of { attribute_id, value, description }
+                        if (Array.isArray(variant.attributes)) {
+                              variantObj.attributes = [];
+                              for (const attr of variant.attributes) {
+                                    // تبدیل CategoryAttribute به ProductAttribute
+                                    const result = await getOrCreateProductAttribute(attr.attribute_id);
+                                    if (result.status !== 'success') {
+                                          return res.status(400).json({ status: 'error', error: result.error });
+                                    }
+                                    variantObj.attributes.push({
+                                          attribute_id: result.productAttribute._id,
+                                          value: attr.value,
+                                          description: attr.description,
+                                    });
+                              }
+                        }
+                        // Remove img and color_palette from variant if present
+                        // delete variantObj.img;
+                        // delete variantObj.color_palette;
+                        updateData.variants.push(variantObj);
+                  }
+            }
             const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
             if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
 

@@ -71,8 +71,11 @@ export const validateRequiredAttributesOnCreateProduct = (req: Request, res: Res
             // اگر variants وجود داشت، برای هر variant بررسی کن
             if (Array.isArray(variants) && variants.length > 0) {
                 for (let [idx, variant] of variants.entries()) {
+                    if (!Array.isArray(variant.attributes)) {
+                        return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
+                    }
                     for (const attr of requiredAttrs) {
-                        const val = variant.attributes && variant.attributes.attribute_id?.toString() === attr._id.toString() ? variant.attributes : undefined;
+                        const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
                         if (!val || val.value === undefined || val.value === null || val.value === '') {
                             return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
                         }
@@ -152,8 +155,11 @@ export const validateRequiredAttributesOnUpdateProduct = (req: Request, res: Res
             // اگر variants وجود داشت، برای هر variant بررسی کن
             if (Array.isArray(variants) && variants.length > 0) {
                 for (let [idx, variant] of variants.entries()) {
+                    if (!Array.isArray(variant.attributes)) {
+                        return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
+                    }
                     for (const attr of requiredAttrs) {
-                        const val = variant.attributes && variant.attributes.attribute_id?.toString() === attr._id.toString() ? variant.attributes : undefined;
+                        const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
                         if (!val || val.value === undefined || val.value === null || val.value === '') {
                             return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
                         }
