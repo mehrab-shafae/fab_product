@@ -275,7 +275,7 @@ export const searchProductsByAttributesOnly = async (filters?: Array<{ attribute
 
 export const searchProductsByCategorySlugsAndAttributes = async (
     categorySlugs?: string[],
-    filters?: Array<{ attribute: string; values: string[]; description?: string }>,
+    filters?: Array<{ attribute: string; values: string[] }>,
     page: number = 1,
     limit: number = 20,
     minPrice?: number,
@@ -311,7 +311,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (
     const hasAttributeFilters = !!(filters && Array.isArray(filters) && filters.length > 0);
     const hasPriceFilter = typeof minPrice === 'number' || typeof maxPrice === 'number';
 
-    let normalizedFilters: Array<{ attrId: string; valuesLower: string[]; descLower?: string }> = [];
+    let normalizedFilters: Array<{ attrId: string; valuesLower: string[] }> = [];
     if (hasAttributeFilters) {
         const attributeDocs = await ProductAttribute.find({
             $or: filters!.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
@@ -321,8 +321,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (
         normalizedFilters = filters!.map(f => {
             const attrId = nameToId[f.attribute.toLowerCase()] || f.attribute; // support direct id
             const valuesLower = (f.values || []).map(v => String(v).toLowerCase());
-            const descLower = f.description !== undefined ? String(f.description).toLowerCase() : undefined;
-            return { attrId, valuesLower, descLower };
+            return { attrId, valuesLower };
         });
     }
 
@@ -357,10 +356,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (
                         in: {
                             $and: [
                                 { $eq: [{ $toString: '$$a.attribute_id' }, nf.attrId] },
-                                { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] },
-                                ...(nf.descLower !== undefined
-                                    ? [{ $eq: [{ $toLower: { $ifNull: ['$$a.description', ''] } }, nf.descLower] }]
-                                    : [])
+                                { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] }
                             ]
                         }
                     }

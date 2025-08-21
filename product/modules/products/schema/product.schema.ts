@@ -19,7 +19,6 @@ export const productSchema = Joi.object({
                                     Joi.object({
                                           attribute_id: Joi.string().required(),
                                           value: Joi.any().required(),
-                                          description: Joi.string().optional(),
                                     })
                               )
                               .optional(),

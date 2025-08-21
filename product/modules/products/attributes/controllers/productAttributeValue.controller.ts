@@ -145,12 +145,10 @@ export const searchProductByAttributesOnlyController = async (req: Request, res:
       }
 };
 
-// فیلترها می‌توانند شامل description هم باشند (اختیاری)
-// خروجی: هر محصول با matchingVariants (و هر واریانت با attributes شامل description)
 export const searchProductsByCategorySlugsAndAttributesController = async (req: Request, res: Response) => {
     try {
         const categorySlugs = req.body.categorySlugs;
-        // filters: [{ attribute, values, description? }]
+        // filters: [{ attribute, values }]
         const filters = req.body.filters;
         const page = parsePositiveInt(req.query.page, 1);
         const limit = parsePositiveInt(req.query.limit, 20);

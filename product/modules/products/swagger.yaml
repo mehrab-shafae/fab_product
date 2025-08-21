@@ -568,9 +568,6 @@ paths:
                         items:
                           type: string
                         description: آرایه‌ای از مقادیر attribute (مثلاً ["Apple", "Samsung"])
-                      description:
-                        type: string
-                        description: توضیح اختیاری برای مقدار attribute (برای جستجو بر اساس توضیح attribute در واریانت)
                   description: >
                     فیلترهای attribute (اختیاری). اگر ارسال نشود، جستجو فقط بر اساس price یا دسته‌بندی انجام می‌شود.
                 minPrice:
@@ -598,7 +595,6 @@ paths:
                     values: ["black", "white"]
                   - attribute: size
                     values: ["XL"]
-                    description: "سایز بزرگ برای افراد قد بلند"
                 minPrice: 100000
                 maxPrice: 500000
                 sortBy: minPrice|maxPrice
@@ -1714,9 +1710,6 @@ components:
                       type: string
                     value:
                       type: string
-                    description:
-                      type: string
-                      description: توضیح اختیاری برای مقدار این ویژگی
               inventory:
                 type: object
                 properties:
@@ -1780,9 +1773,6 @@ components:
                       type: string
                     value:
                       type: string
-                    description:
-                      type: string
-                      description: توضیح اختیاری برای مقدار این ویژگی
               inventory:
                 type: object
                 properties:
@@ -1813,10 +1803,8 @@ components:
           - attributes:
               - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d1" # رنگ
                 value: "قرمز"
-                description: "رنگ اصلی محصول"
               - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d2" # سایز
                 value: "XL"
-                description: "سایز بزرگ برای افراد قد بلند"
             inventory:
               stock: 10
               price: 299000
@@ -1825,10 +1813,8 @@ components:
           - attributes:
               - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d1"
                 value: "آبی"
-                description: "رنگ دوم محصول"
               - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d2"
                 value: "L"
-                description: "سایز متوسط"
             inventory:
               stock: 5
               price: 289000

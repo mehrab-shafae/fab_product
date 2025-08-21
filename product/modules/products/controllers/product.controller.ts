@@ -120,7 +120,7 @@ export const createProduct = async (req: Request, res: Response) => {
                   productData.variants = [];
                   for (const [i, variant] of req.body.variants.entries()) {
                         let variantObj: any = { ...variant };
-                        // attributes: array of { attribute_id, value, description }
+                        // attributes: array of { attribute_id, value }
                         if (Array.isArray(variant.attributes)) {
                               variantObj.attributes = [];
                               for (const attr of variant.attributes) {
@@ -132,7 +132,6 @@ export const createProduct = async (req: Request, res: Response) => {
                                     variantObj.attributes.push({
                                           attribute_id: result.productAttribute._id,
                                           value: attr.value,
-                                          description: attr.description,
                                     });
                               }
                         }
@@ -242,7 +241,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                   updateData.variants = [];
                   for (const [_i, variant] of req.body.variants.entries()) {
                         let variantObj: any = { ...variant };
-                        // attributes: array of { attribute_id, value, description }
+                        // attributes: array of { attribute_id, value }
                         if (Array.isArray(variant.attributes)) {
                               variantObj.attributes = [];
                               for (const attr of variant.attributes) {
@@ -254,7 +253,6 @@ export const updateProduct = async (req: Request, res: Response) => {
                                     variantObj.attributes.push({
                                           attribute_id: result.productAttribute._id,
                                           value: attr.value,
-                                          description: attr.description,
                                     });
                               }
                         }
