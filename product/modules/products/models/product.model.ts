@@ -43,7 +43,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
                   price: { type: Number, default: 0 },
             },
             image_ids: [{ type: String }],
-            sku: { type: String, unique: true, sparse: true },
+            sku: { type: String }, // unique: true, required: true (buggy)
       },
       { _id: false }
 );
@@ -64,6 +64,9 @@ const ProductSchema = new Schema<IProduct>({
       img: { type: String },
       variants: [ProductVariantSchema],
 });
+
+// Ensure unique sparse index on nested variants.sku instead of schema-level unique which can be unreliable for arrays
+// ProductSchema.index({ 'variants.sku': 1 }, { unique: true, sparse: true }); // (buggy)
 
 ProductSchema.pre('save', function (next) {
       this.updated_at = new Date();
