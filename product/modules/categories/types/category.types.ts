@@ -51,4 +51,5 @@ export interface AttributeMetadataInput {
 export interface AttributeOptionInput {
       value: string;
       order?: number;
+      description?: string;
 }

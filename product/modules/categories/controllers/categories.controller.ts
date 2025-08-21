@@ -212,7 +212,7 @@ export const deleteAttribute = async (req: Request, res: Response) => {
 };
 export const addAttributeOption = async (req: Request, res: Response) => {
       try {
-            const opt = await categoriesService.addAttributeOption(req.params.attributeId, req.body.value, req.body.order);
+            const opt = await categoriesService.addAttributeOption(req.params.attributeId, req.body.value, req.body.order, req.body.description);
             res.status(201).json({ status: 'success', data: opt });
       } catch (error) {
             res.status(400).json({ status: 'error', message: (error as Error).message });
@@ -228,7 +228,7 @@ export const getAttributeOptions = async (req: Request, res: Response) => {
 };
 export const updateAttributeOption = async (req: Request, res: Response) => {
       try {
-            const opt = await categoriesService.updateAttributeOption(req.params.optionId, req.body.value, req.body.order);
+            const opt = await categoriesService.updateAttributeOption(req.params.optionId, req.body.value, req.body.order, req.body.description);
             res.json({ status: 'success', data: opt });
       } catch (error) {
             res.status(400).json({ status: 'error', message: (error as Error).message });

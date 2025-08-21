@@ -98,6 +98,7 @@ export class CategoriesService {
                                           attributeId: attribute._id,
                                           value: opt.value,
                                           order: opt.order || 0,
+                                          description: (opt as any).description,
                                     });
                               }
                         }
@@ -329,6 +330,9 @@ export class CategoriesService {
                                                       if (option) {
                                                             option.value = opt.value;
                                                             option.order = opt.order || 0;
+                                                            if (Object.prototype.hasOwnProperty.call(opt as any, 'description')) {
+                                                                  (option as any).description = (opt as any).description as any;
+                                                            }
                                                             await option.save();
                                                       }
                                                 } else {
@@ -336,6 +340,7 @@ export class CategoriesService {
                                                             attributeId: attribute._id,
                                                             value: opt.value,
                                                             order: opt.order || 0,
+                                                            description: (opt as any).description,
                                                       });
                                                 }
                                           }
@@ -355,6 +360,7 @@ export class CategoriesService {
                                                 attributeId: attribute._id,
                                                 value: opt.value,
                                                 order: opt.order || 0,
+                                                description: (opt as any).description,
                                           });
                                     }
                               }
@@ -819,11 +825,15 @@ export class CategoriesService {
             );
             return attributesWithOptions;
       }
-      async addAttributeOption(attributeId: string, value: string, order: number = 0): Promise<ICategoryAttributeOption> {
-            return CategoryAttributeOption.create({ attributeId, value, order });
+      async addAttributeOption(attributeId: string, value: string, order: number = 0, description?: string): Promise<ICategoryAttributeOption> {
+            const payload: any = { attributeId, value, order };
+            if (description !== undefined) payload.description = description;
+            return CategoryAttributeOption.create(payload);
       }
-      async updateAttributeOption(optionId: string, value: string, order: number): Promise<ICategoryAttributeOption | null> {
-            return CategoryAttributeOption.findByIdAndUpdate(optionId, { value, order }, { new: true });
+      async updateAttributeOption(optionId: string, value: string, order: number, description?: string): Promise<ICategoryAttributeOption | null> {
+            const update: any = { value, order };
+            if (description !== undefined) update.description = description;
+            return CategoryAttributeOption.findByIdAndUpdate(optionId, update, { new: true });
       }
       async deleteAttributeOption(optionId: string): Promise<boolean> {
             const res = await CategoryAttributeOption.findByIdAndDelete(optionId);

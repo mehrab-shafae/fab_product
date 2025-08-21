@@ -28,6 +28,7 @@ export const createCategorySchema = yup.object({
                                     yup.object({
                                           value: yup.string().required(),
                                           order: yup.number().optional(),
+                                          description: yup.string().optional(),
                                     })
                               )
                               .optional(),
@@ -65,6 +66,7 @@ export const updateCategorySchema = yup.object({
                                     yup.object({
                                           value: yup.string().required(),
                                           order: yup.number().optional(),
+                                          description: yup.string().optional(),
                                     })
                               )
                               .optional(),

@@ -4,6 +4,7 @@ export interface ICategoryAttributeOption extends Document {
       attributeId: Types.ObjectId;
       value: string;
       order: number;
+      description?: string;
 }
 
 const CategoryAttributeOptionSchema = new Schema<ICategoryAttributeOption>(
@@ -11,6 +12,7 @@ const CategoryAttributeOptionSchema = new Schema<ICategoryAttributeOption>(
             attributeId: { type: Schema.Types.ObjectId, ref: 'CategoryAttribute', required: true },
             value: { type: String, required: true },
             order: { type: Number, default: 0 },
+            description: { type: String },
       },
       { timestamps: true }
 );

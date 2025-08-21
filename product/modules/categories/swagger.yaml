@@ -1345,6 +1345,9 @@ components:
                     order:
                       type: integer
                       example: 1
+                    description:
+                      type: string
+                      example: "Shade of the color"
     CategoryUpdateInput:
       type: object
       properties:
@@ -1413,6 +1416,9 @@ components:
                     order:
                       type: integer
                       example: 1
+                    description:
+                      type: string
+                      example: "Shade of the color"
     Category:
       type: object
       properties:
@@ -1502,6 +1508,8 @@ components:
           type: string
         order:
           type: integer
+        description:
+          type: string
     CategoryAttributeOption:
       type: object
       properties:
@@ -1513,6 +1521,8 @@ components:
           type: string
         order:
           type: integer
+        description:
+          type: string
         inherited:
           type: boolean
           description: If true, this option is inherited from a parent attribute.
