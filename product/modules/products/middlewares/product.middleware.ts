@@ -62,165 +62,165 @@ export const validateProductSchema = (req: Request, res: Response, next: NextFun
 };
 
 export const validateRequiredAttributesOnCreateProduct = (req: Request, res: Response, next: NextFunction) => {
-    (async () => {
-        try {
-            const { category_id, attributes, variants } = req.body;
-            if (!category_id) return next();
-            const requiredAttrs = await getRequiredAttributesRecursive(category_id);
-            if (!requiredAttrs.length) return next();
-            // اگر variants وجود داشت، برای هر variant بررسی کن
-            if (Array.isArray(variants) && variants.length > 0) {
-                for (let [idx, variant] of variants.entries()) {
-                    if (!Array.isArray(variant.attributes)) {
-                        return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
-                    }
-                    for (const attr of requiredAttrs) {
-                        const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
+      (async () => {
+            try {
+                  const { category_id, attributes, variants } = req.body;
+                  if (!category_id) return next();
+                  const requiredAttrs = await getRequiredAttributesRecursive(category_id);
+                  if (!requiredAttrs.length) return next();
+                  // اگر variants وجود داشت، برای هر variant بررسی کن
+                  if (Array.isArray(variants) && variants.length > 0) {
+                        for (let [idx, variant] of variants.entries()) {
+                              if (!Array.isArray(variant.attributes)) {
+                                    return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
+                              }
+                              for (const attr of requiredAttrs) {
+                                    const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
+                                    if (!val || val.value === undefined || val.value === null || val.value === '') {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
+                                    }
+                                    if (attr.type === 'number' && isNaN(Number(val.value))) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be a number.` });
+                                    }
+                                    if (attr.type === 'enum') {
+                                          const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
+                                          const allowed = options.map(o => o.value);
+                                          if (Array.isArray(val.value)) {
+                                                if (val.value.length === 0) {
+                                                      return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must have at least one value.` });
+                                                }
+                                                for (const v of val.value) {
+                                                      if (!allowed.includes(v)) {
+                                                            return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                                                      }
+                                                }
+                                          } else {
+                                                if (!allowed.includes(val.value)) {
+                                                      return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                                                }
+                                          }
+                                    }
+                              }
+                        }
+                        return next();
+                  }
+                  // اگر variants نبود، رفتار قبلی (attributes در سطح محصول)
+                  for (const attr of requiredAttrs) {
+                        const val = attributes?.find((v: any) => v.attribute_id?.toString() === attr._id.toString());
                         if (!val || val.value === undefined || val.value === null || val.value === '') {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
+                              return res.status(400).json({ error: `Attribute '${attr.name}' is required.` });
                         }
                         if (attr.type === 'number' && isNaN(Number(val.value))) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be a number.` });
+                              return res.status(400).json({ error: `Attribute '${attr.name}' must be a number.` });
                         }
                         if (attr.type === 'enum') {
-                            const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
-                            const allowed = options.map(o => o.value);
-                            if (Array.isArray(val.value)) {
-                                if (val.value.length === 0) {
-                                    return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must have at least one value.` });
-                                }
-                                for (const v of val.value) {
-                                    if (!allowed.includes(v)) {
-                                        return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                              const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
+                              const allowed = options.map(o => o.value);
+                              if (Array.isArray(val.value)) {
+                                    if (val.value.length === 0) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
                                     }
-                                }
-                            } else {
-                                if (!allowed.includes(val.value)) {
-                                    return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
-                                }
-                            }
+                                    for (const v of val.value) {
+                                          if (!allowed.includes(v)) {
+                                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                          }
+                                    }
+                              } else {
+                                    if (!allowed.includes(val.value)) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                    }
+                              }
                         }
-                    }
-                }
-                return next();
+                  }
+                  next();
+            } catch (err: any) {
+                  next(err);
             }
-            // اگر variants نبود، رفتار قبلی (attributes در سطح محصول)
-            for (const attr of requiredAttrs) {
-                const val = attributes?.find((v: any) => v.attribute_id?.toString() === attr._id.toString());
-                if (!val || val.value === undefined || val.value === null || val.value === '') {
-                    return res.status(400).json({ error: `Attribute '${attr.name}' is required.` });
-                }
-                if (attr.type === 'number' && isNaN(Number(val.value))) {
-                    return res.status(400).json({ error: `Attribute '${attr.name}' must be a number.` });
-                }
-                if (attr.type === 'enum') {
-                    const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
-                    const allowed = options.map(o => o.value);
-                    if (Array.isArray(val.value)) {
-                        if (val.value.length === 0) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
-                        }
-                        for (const v of val.value) {
-                            if (!allowed.includes(v)) {
-                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
-                            }
-                        }
-                    } else {
-                        if (!allowed.includes(val.value)) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
-                        }
-                    }
-                }
-            }
-            next();
-        } catch (err: any) {
-            next(err);
-        }
-    })();
+      })();
 };
 
 export const validateRequiredAttributesOnUpdateProduct = (req: Request, res: Response, next: NextFunction) => {
-    (async () => {
-        try {
-            const { category_id, attributes, variants } = req.body;
-            // اگر category_id در body نبود، از محصول فعلی بخوان
-            let catId = category_id;
-            if (!catId && req.params.id) {
-                const product = await Product.findById(req.params.id);
-                if (product) catId = product.category_id;
-            }
-            if (!catId) return next();
-            const requiredAttrs = await getRequiredAttributesRecursive(catId);
-            if (!requiredAttrs.length) return next();
-            // اگر variants وجود داشت، برای هر variant بررسی کن
-            if (Array.isArray(variants) && variants.length > 0) {
-                for (let [idx, variant] of variants.entries()) {
-                    if (!Array.isArray(variant.attributes)) {
-                        return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
-                    }
-                    for (const attr of requiredAttrs) {
-                        const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
+      (async () => {
+            try {
+                  const { category_id, attributes, variants } = req.body;
+                  // اگر category_id در body نبود، از محصول فعلی بخوان
+                  let catId = category_id;
+                  if (!catId && req.params.id) {
+                        const product = await Product.findById(req.params.id);
+                        if (product) catId = product.category_id;
+                  }
+                  if (!catId) return next();
+                  const requiredAttrs = await getRequiredAttributesRecursive(catId);
+                  if (!requiredAttrs.length) return next();
+                  // اگر variants وجود داشت، برای هر variant بررسی کن
+                  if (Array.isArray(variants) && variants.length > 0) {
+                        for (let [idx, variant] of variants.entries()) {
+                              if (!Array.isArray(variant.attributes)) {
+                                    return res.status(400).json({ error: `Attributes array is required in variant #${idx + 1}.` });
+                              }
+                              for (const attr of requiredAttrs) {
+                                    const val = variant.attributes.find((a: any) => a.attribute_id?.toString() === attr._id.toString());
+                                    if (!val || val.value === undefined || val.value === null || val.value === '') {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
+                                    }
+                                    if (attr.type === 'number' && isNaN(Number(val.value))) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be a number.` });
+                                    }
+                                    if (attr.type === 'enum') {
+                                          const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
+                                          const allowed = options.map(o => o.value);
+                                          if (Array.isArray(val.value)) {
+                                                if (val.value.length === 0) {
+                                                      return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must have at least one value.` });
+                                                }
+                                                for (const v of val.value) {
+                                                      if (!allowed.includes(v)) {
+                                                            return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                                                      }
+                                                }
+                                          } else {
+                                                if (!allowed.includes(val.value)) {
+                                                      return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                                                }
+                                          }
+                                    }
+                              }
+                        }
+                        return next();
+                  }
+                  // اگر variants نبود، رفتار قبلی (attributes در سطح محصول)
+                  for (const attr of requiredAttrs) {
+                        const val = attributes?.find((v: any) => v.attribute_id?.toString() === attr._id.toString());
                         if (!val || val.value === undefined || val.value === null || val.value === '') {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' is required in variant #${idx + 1}.` });
+                              return res.status(400).json({ error: `Attribute '${attr.name}' is required.` });
                         }
                         if (attr.type === 'number' && isNaN(Number(val.value))) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be a number.` });
+                              return res.status(400).json({ error: `Attribute '${attr.name}' must be a number.` });
                         }
                         if (attr.type === 'enum') {
-                            const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
-                            const allowed = options.map(o => o.value);
-                            if (Array.isArray(val.value)) {
-                                if (val.value.length === 0) {
-                                    return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must have at least one value.` });
-                                }
-                                for (const v of val.value) {
-                                    if (!allowed.includes(v)) {
-                                        return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
+                              const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
+                              const allowed = options.map(o => o.value);
+                              if (Array.isArray(val.value)) {
+                                    if (val.value.length === 0) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
                                     }
-                                }
-                            } else {
-                                if (!allowed.includes(val.value)) {
-                                    return res.status(400).json({ error: `Attribute '${attr.name}' in variant #${idx + 1} must be one of: ${allowed.join(', ')}` });
-                                }
-                            }
+                                    for (const v of val.value) {
+                                          if (!allowed.includes(v)) {
+                                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                          }
+                                    }
+                              } else {
+                                    if (!allowed.includes(val.value)) {
+                                          return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
+                                    }
+                              }
                         }
-                    }
-                }
-                return next();
+                  }
+                  next();
+            } catch (err: any) {
+                  next(err);
             }
-            // اگر variants نبود، رفتار قبلی (attributes در سطح محصول)
-            for (const attr of requiredAttrs) {
-                const val = attributes?.find((v: any) => v.attribute_id?.toString() === attr._id.toString());
-                if (!val || val.value === undefined || val.value === null || val.value === '') {
-                    return res.status(400).json({ error: `Attribute '${attr.name}' is required.` });
-                }
-                if (attr.type === 'number' && isNaN(Number(val.value))) {
-                    return res.status(400).json({ error: `Attribute '${attr.name}' must be a number.` });
-                }
-                if (attr.type === 'enum') {
-                    const options = await CategoryAttributeOption.find({ attributeId: attr._id }).lean();
-                    const allowed = options.map(o => o.value);
-                    if (Array.isArray(val.value)) {
-                        if (val.value.length === 0) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' must have at least one value.` });
-                        }
-                        for (const v of val.value) {
-                            if (!allowed.includes(v)) {
-                                return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
-                            }
-                        }
-                    } else {
-                        if (!allowed.includes(val.value)) {
-                            return res.status(400).json({ error: `Attribute '${attr.name}' must be one of: ${allowed.join(', ')}` });
-                        }
-                    }
-                }
-            }
-            next();
-        } catch (err: any) {
-            next(err);
-        }
-    })();
+      })();
 };
 
 export const validateProductAttributeValue = (req: Request, res: Response, next: NextFunction) => {
@@ -377,23 +377,23 @@ export const validateProductImageInput = (req: Request, res: Response, next: Nex
 
 export const validateBulkProductIds = (req: Request, res: Response, next: NextFunction) => {
       const { productIds } = req.body;
-      
+
       if (!productIds) {
             return res.status(400).json({ error: 'productIds is required in request body' });
       }
-      
+
       if (!Array.isArray(productIds)) {
             return res.status(400).json({ error: 'productIds must be an array' });
       }
-      
+
       if (productIds.length === 0) {
             return res.status(400).json({ error: 'productIds array cannot be empty' });
       }
-      
+
       const validIds = productIds.filter(id => mongoose.Types.ObjectId.isValid(id));
       if (validIds.length === 0) {
             return res.status(400).json({ error: 'No valid product IDs provided' });
       }
-      
+
       next();
 };

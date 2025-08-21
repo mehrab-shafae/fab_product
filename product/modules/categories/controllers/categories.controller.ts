@@ -536,28 +536,27 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
             const slugs = req.body.slugs;
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 20;
-            
+
             // Check if at least one of filters or slugs is provided
-            if ((!filters || !Array.isArray(filters) || filters.length === 0) && 
-                (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
-                  return res.status(400).json({ 
-                        status: 'error', 
-                        error: 'At least one of filters or slugs must be provided' 
+            if ((!filters || !Array.isArray(filters) || filters.length === 0) && (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
+                  return res.status(400).json({
+                        status: 'error',
+                        error: 'At least one of filters or slugs must be provided',
                   });
             }
-            
+
             // Validate filters if provided
             if (filters && Array.isArray(filters) && filters.length > 0) {
                   for (const f of filters) {
                         if (!f.attribute || !Array.isArray(f.values) || f.values.length === 0) {
-                              return res.status(400).json({ 
-                                    status: 'error', 
-                                    error: 'Each filter must have an attribute and a non-empty array of values' 
+                              return res.status(400).json({
+                                    status: 'error',
+                                    error: 'Each filter must have an attribute and a non-empty array of values',
                               });
                         }
                   }
             }
-            
+
             const results = await categoriesService.searchCategoriesByAttributes(filters, slugs, page, limit);
             res.json({ status: 'success', ...results });
       } catch (error: any) {

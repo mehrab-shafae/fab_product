@@ -14,12 +14,16 @@ export const updateProduct = async (id: string, data: Partial<IProduct>) => {
       // اگر variants وجود داشت، بروزرسانی variants
       if (Array.isArray(data.variants) && data.variants.length > 0) {
             // فقط variants را بروزرسانی کن
-            return await Product.findByIdAndUpdate(id, {
-                  $set: {
-                        ...data,
-                        variants: data.variants
-                  }
-            }, { new: true });
+            return await Product.findByIdAndUpdate(
+                  id,
+                  {
+                        $set: {
+                              ...data,
+                              variants: data.variants,
+                        },
+                  },
+                  { new: true }
+            );
       } else {
             // رفتار قبلی: بروزرسانی سایر فیلدها
             return await Product.findByIdAndUpdate(id, data, { new: true });

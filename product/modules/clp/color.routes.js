@@ -4,15 +4,7 @@ const router = express.Router();
 const yup = require('yup');
 const validate = require('./middlewares/validate');
 
-const {
-  createColor,
-  getAllColors,
-  getColorById,
-  getColorBySlug,
-  updateColor,
-  deleteColor,
-  searchColors,
-} = require('./color.controller');
+const { createColor, getAllColors, getColorById, getColorBySlug, updateColor, deleteColor, searchColors } = require('./color.controller');
 
 /**
  * @openapi
@@ -227,8 +219,7 @@ const {
 
 const hexRegex = /^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/;
 const createColorSchema = yup.object({ title: yup.string().max(250).required(), hex: yup.string().matches(hexRegex, 'Invalid hex').required() });
-const updateColorSchema = yup.object({ title: yup.string().max(250).optional(), hex: yup.string().matches(hexRegex, 'Invalid hex').optional() })
-  .test('at-least-one', 'Provide at least one field to update', (v) => v && (typeof v.title === 'string' || typeof v.hex === 'string'));
+const updateColorSchema = yup.object({ title: yup.string().max(250).optional(), hex: yup.string().matches(hexRegex, 'Invalid hex').optional() }).test('at-least-one', 'Provide at least one field to update', v => v && (typeof v.title === 'string' || typeof v.hex === 'string'));
 const idParamSchema = yup.object({ id: yup.string().required() });
 const searchQuerySchema = yup.object({ q: yup.string().trim().required() });
 

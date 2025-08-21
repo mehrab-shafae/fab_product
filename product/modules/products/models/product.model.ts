@@ -38,7 +38,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
                         attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute', required: true },
                         value: { type: String, required: true },
                         description: { type: String },
-                  }
+                  },
             ],
             inventory: {
                   stock: { type: Number, default: 1 },

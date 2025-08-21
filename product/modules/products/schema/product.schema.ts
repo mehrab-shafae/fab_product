@@ -14,13 +14,15 @@ export const productSchema = Joi.object({
       variants: Joi.array()
             .items(
                   Joi.object({
-                        attributes: Joi.array().items(
-                              Joi.object({
-                                    attribute_id: Joi.string().required(),
-                                    value: Joi.any().required(),
-                                    description: Joi.string().optional(),
-                              })
-                        ).optional(),
+                        attributes: Joi.array()
+                              .items(
+                                    Joi.object({
+                                          attribute_id: Joi.string().required(),
+                                          value: Joi.any().required(),
+                                          description: Joi.string().optional(),
+                                    })
+                              )
+                              .optional(),
                         inventory: Joi.object({
                               stock: Joi.number().min(0).default(1),
                               price: Joi.number().min(0).default(0),

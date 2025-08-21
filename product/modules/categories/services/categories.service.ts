@@ -61,13 +61,8 @@ export class CategoriesService {
             // ساخت categorySku یکتا و رند (مثلاً 1000، 2000، 3000، ...)
             const lastCategory = await Category.find({}).sort({ categorySku: -1 }).limit(1);
             let categorySku = 1000;
-            if (
-                lastCategory.length > 0 &&
-                typeof lastCategory[0].categorySku === 'number' &&
-                !isNaN(lastCategory[0].categorySku) &&
-                lastCategory[0].categorySku > 0
-            ) {
-                categorySku = lastCategory[0].categorySku + 1000;
+            if (lastCategory.length > 0 && typeof lastCategory[0].categorySku === 'number' && !isNaN(lastCategory[0].categorySku) && lastCategory[0].categorySku > 0) {
+                  categorySku = lastCategory[0].categorySku + 1000;
             }
             // مقداردهی baseSku بر اساس categorySku
             const baseSku = categorySku;
@@ -1103,53 +1098,48 @@ export class CategoriesService {
       }
 
       // Search categories by attributes
-      async searchCategoriesByAttributes(
-            filters?: Array<{ attribute: string, values: string[] }>,
-            slugs?: string[],
-            page: number = 1,
-            limit: number = 20
-      ) {
+      async searchCategoriesByAttributes(filters?: Array<{ attribute: string; values: string[] }>, slugs?: string[], page: number = 1, limit: number = 20) {
             let categoryIds: string[] = [];
-            
+
             // If filters are provided, search by attributes
             if (filters && Array.isArray(filters) && filters.length > 0) {
                   // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
                   const attributeDocs = await CategoryAttribute.find({
-                        $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } }))
+                        $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
                   });
                   const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
 
                   // 2. ساخت query برای CategoryAttributeOption (هر attribute با OR روی valueها)
                   const attrQueries = filters.map(f => ({
                         attributeId: attributeMap[f.attribute.toLowerCase()],
-                        value: { $in: f.values }
+                        value: { $in: f.values },
                   }));
 
                   // 3. پیدا کردن category_id هایی که برای هر attribute حداقل یکی از valueها را دارند (AND بین attributeها)
                   const pipeline = [
                         { $match: { $or: attrQueries } },
-                        { $group: { _id: "$attributeId", attrs: { $addToSet: "$attributeId" } } },
-                        { $match: { "attrs.0": { $exists: true } } }, // حداقل یک attribute داشته باشد
-                        { $match: { $expr: { $eq: [ { $size: "$attrs" }, filters.length ] } } } // دقیقا به تعداد attributeهای فیلتر شده
+                        { $group: { _id: '$attributeId', attrs: { $addToSet: '$attributeId' } } },
+                        { $match: { 'attrs.0': { $exists: true } } }, // حداقل یک attribute داشته باشد
+                        { $match: { $expr: { $eq: [{ $size: '$attrs' }, filters.length] } } }, // دقیقا به تعداد attributeهای فیلتر شده
                   ];
                   const matched = await CategoryAttributeOption.aggregate(pipeline);
-                  
+
                   // Get category IDs from the matched attributes
                   const attributeIds = matched.map((m: any) => m._id);
                   const categoryAttributes = await CategoryAttribute.find({
-                        _id: { $in: attributeIds }
+                        _id: { $in: attributeIds },
                   }).select('categoryId');
                   categoryIds = categoryAttributes.map(ca => ca.categoryId.toString());
             }
 
             // 4. گرفتن اطلاعات کامل دسته‌بندی‌ها با صفحه‌بندی
             const categoryQuery: any = {};
-            
+
             // If we have category IDs from filters, use them
             if (categoryIds.length > 0) {
                   categoryQuery._id = { $in: categoryIds };
             }
-            
+
             // If slugs are provided, filter by them
             if (slugs && Array.isArray(slugs) && slugs.length > 0) {
                   if (categoryIds.length > 0) {
@@ -1162,7 +1152,7 @@ export class CategoriesService {
                         categoryQuery.slug = { $in: slugs };
                   }
             }
-            
+
             // If neither filters nor slugs are provided, return empty result
             if (categoryIds.length === 0 && (!slugs || !Array.isArray(slugs) || slugs.length === 0)) {
                   return {
@@ -1170,7 +1160,7 @@ export class CategoriesService {
                         count: 0,
                         page,
                         limit,
-                        total: 0
+                        total: 0,
                   };
             }
 
@@ -1181,32 +1171,32 @@ export class CategoriesService {
 
             // 5. گرفتن attribute/option های هر دسته‌بندی
             const categoryIdsForAttrs = categories.map(c => c._id);
-            const categoryAttributes = await CategoryAttribute.find({ 
-                  categoryId: { $in: categoryIdsForAttrs }
+            const categoryAttributes = await CategoryAttribute.find({
+                  categoryId: { $in: categoryIdsForAttrs },
             });
-            
+
             const attributeIds = categoryAttributes.map(ca => ca._id);
-            const attributeOptions = await CategoryAttributeOption.find({ 
-                  attributeId: { $in: attributeIds }
+            const attributeOptions = await CategoryAttributeOption.find({
+                  attributeId: { $in: attributeIds },
             });
-            
-            const attrByCategory: Record<string, Array<{ attribute: string, value: string }>> = {};
+
+            const attrByCategory: Record<string, Array<{ attribute: string; value: string }>> = {};
             for (const attr of categoryAttributes) {
                   const cid = String(attr.categoryId);
                   if (!attrByCategory[cid]) attrByCategory[cid] = [];
-                  
+
                   const options = attributeOptions.filter(opt => {
                         // Ensure opt.attributeId is of type ObjectId before calling equals
                         // If not, convert to ObjectId
                         // Also, attr._id should be ObjectId
                         // This prevents the "unknown is not assignable" error
                         // @ts-ignore
-                        return (typeof opt.attributeId?.equals === 'function') && opt.attributeId.equals(attr._id);
+                        return typeof opt.attributeId?.equals === 'function' && opt.attributeId.equals(attr._id);
                   });
                   for (const opt of options) {
                         attrByCategory[cid].push({
                               attribute: attr.name,
-                              value: opt.value
+                              value: opt.value,
                         });
                   }
             }
@@ -1216,7 +1206,7 @@ export class CategoriesService {
                   const cat: any = c;
                   return {
                         category: cat,
-                        attributes: attrByCategory[cat._id.toString()] || []
+                        attributes: attrByCategory[cat._id.toString()] || [],
                   };
             });
 
@@ -1225,10 +1215,9 @@ export class CategoriesService {
                   count: data.length,
                   page,
                   limit,
-                  total
+                  total,
             };
       }
-
 }
 
 export const categoriesService = new CategoriesService();

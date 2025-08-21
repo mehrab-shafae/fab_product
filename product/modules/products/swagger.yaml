@@ -527,7 +527,8 @@ paths:
       tags:
         - Attribute
       summary: جستجوی ترکیبی محصولات بر اساس slug های دسته‌بندی و ویژگی‌ها
-      description: ابتدا دسته‌بندی‌های مربوط به slug های ارسالی را پیدا کرده، سپس محصولات مربوط به آن دسته‌بندی‌ها (شامل تمام زیرمجموعه‌ها) را می‌آورد و در نهایت فیلترهای attribute و option را روی محصولات اعمال می‌کند.
+      description: >
+        ابتدا دسته‌بندی‌های مربوط به slug های ارسالی را پیدا کرده، سپس محصولات مربوط به آن دسته‌بندی‌ها (شامل تمام زیرمجموعه‌ها) را می‌آورد و در نهایت فیلترهای attribute و option را روی محصولات اعمال می‌کند. هر کدام از categorySlugs، filters (attribute)، minPrice و maxPrice می‌تواند به تنهایی یا با هم ارسال شود و جستجو بر اساس هر ترکیب ممکن انجام می‌شود.
       parameters:
         - in: query
           name: page
@@ -547,15 +548,13 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - categorySlugs
               properties:
                 categorySlugs:
                   type: array
                   items:
                     type: string
-                  description: آرایه‌ای از slug های دسته‌بندی‌ها (مثلاً ["electronics", "smartphones"])
-                  example: ["electronics", "smartphones", "laptops"]
+                  description: >
+                    آرایه‌ای از slug های دسته‌بندی‌ها (مثلاً ["electronics", "smartphones"]). اگر ارسال نشود، جستجو روی همه محصولات انجام می‌شود.
                 filters:
                   type: array
                   items:
@@ -569,19 +568,41 @@ paths:
                         items:
                           type: string
                         description: آرایه‌ای از مقادیر attribute (مثلاً ["Apple", "Samsung"])
-                  description: فیلترهای attribute (اختیاری)
-                  example:
-                    - attribute: brand
-                      values: ["Apple", "Samsung", "Sony"]
-                    - attribute: color
-                      values: ["black", "white", "blue"]
+                      description:
+                        type: string
+                        description: توضیح اختیاری برای مقدار attribute (برای جستجو بر اساس توضیح attribute در واریانت)
+                  description: >
+                    فیلترهای attribute (اختیاری). اگر ارسال نشود، جستجو فقط بر اساس price یا دسته‌بندی انجام می‌شود.
+                minPrice:
+                  type: number
+                  description: >
+                    حداقل قیمت واریانت (اختیاری). اگر ارسال نشود، جستجو فقط بر اساس attribute یا دسته‌بندی انجام می‌شود.
+                maxPrice:
+                  type: number
+                  description: >
+                    حداکثر قیمت واریانت (اختیاری). اگر ارسال نشود، جستجو فقط بر اساس attribute یا دسته‌بندی انجام می‌شود.
+                sortBy:
+                  type: string
+                  enum: [minPrice, maxPrice]
+                  description: فیلد مرتب‌سازی بر اساس قیمت واریانت‌های منطبق
+                sortOrder:
+                  type: string
+                  enum: [asc, desc]
+                  description: ترتیب مرتب‌سازی (صعودی/نزولی)
               example:
-                categorySlugs: ["electronics", "smartphones", "laptops"]
+                categorySlugs: ["electronics", "smartphones"]
                 filters:
                   - attribute: brand
-                    values: ["Apple", "Samsung", "Sony"]
+                    values: ["Apple", "Samsung"]
                   - attribute: color
-                    values: ["black", "white", "blue"]
+                    values: ["black", "white"]
+                  - attribute: size
+                    values: ["XL"]
+                    description: "سایز بزرگ برای افراد قد بلند"
+                minPrice: 100000
+                maxPrice: 500000
+                sortBy: minPrice|maxPrice
+                sortOrder: asc|desc
       responses:
         '200':
           description: لیست محصولات مطابق با فیلترهای دسته‌بندی و ویژگی‌ها
@@ -595,19 +616,7 @@ paths:
                   data:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        product:
-                          $ref: '#/components/schemas/Product'
-                        attributes:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              attribute:
-                                type: string
-                              value:
-                                type: string
+                      $ref: '#/components/schemas/Product'
                   count:
                     type: integer
                     description: تعداد محصولات در این صفحه
@@ -638,6 +647,28 @@ paths:
                   message:
                     type: string
                     description: پیام اضافی (در صورت عدم یافتن دسته‌بندی)
+              example:
+                success: true
+                data:
+                  - _id: "65f1c2a3b4c5d6e7f8a9b0c1"
+                    name: "تی‌شرت مردانه نایک"
+                    slug: "nike-tshirt-redblue"
+                    description: "یک تی‌شرت با کیفیت مناسب برای ورزش و استفاده روزمره."
+                    brand: "Nike"
+                    brand_model: "T2024"
+                    category_id: "65f1c2a3b4c5d6e7f8a9b0c1"
+                    img: "mainImageId"
+                    image_ids: ["mainImageId", "galleryImageId1", "galleryImageId2"]
+                count: 1
+                page: 1
+                limit: 20
+                total: 1
+                categories:
+                  - _id: "c1"
+                    name: "لباس"
+                    slug: "clothing"
+                totalCategories: 1
+                message: null
         '400':
           description: Invalid input - categorySlugs must be provided as a non-empty array
           content:
