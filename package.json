@@ -27,7 +27,8 @@
     "uuid": "^11.1.0",
     "winston": "^3.11.0",
     "yamljs": "^0.3.0",
-    "yup": "^1.6.1"
+    "yup": "^1.6.1",
+    "body-parser": "^1.20.2"
   },
   "devDependencies": {
     "@types/morgan": "^1.9.10",

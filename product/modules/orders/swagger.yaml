@@ -1,0 +1,371 @@
+openapi: 3.0.0
+info:
+  title: Orders API
+  version: 1.0.0
+  description: API documentation for Orders endpoints
+
+tags:
+  - name: Orders
+    description: عملیات مربوط به سفارش محصول
+
+servers:
+  - url: http://localhost:7033/api
+    description: Local server
+  - url: http://87.248.138.74:8080/api/v1/orders
+    description: Test server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /orders:
+    post:
+      tags:
+        - Orders
+      summary: ایجاد سفارش جدید
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderInput'
+      responses:
+        '201':
+          description: سفارش با موفقیت ایجاد شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: داده‌های ورودی نامعتبر است
+        '500':
+          description: خطای داخلی سرور
+    get:
+      tags:
+        - Orders
+      summary: دریافت تمام سفارشات
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, paid, canceled, shipped, delivered, refunded]
+      responses:
+        '200':
+          description: لیست سفارشات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /orders/users/{userId}:
+    get:
+      tags:
+        - Orders
+      summary: دریافت سفارشات کاربر
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: لیست سفارشات کاربر
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      limit:
+                        type: integer
+                      total:
+                        type: integer
+                      pages:
+                        type: integer
+
+  /orders/{id}:
+    get:
+      tags:
+        - Orders
+      summary: دریافت سفارش بر اساس شناسه
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: سفارش یافت شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '404':
+          description: سفارش یافت نشد
+    put:
+      tags:
+        - Orders
+      summary: به‌روزرسانی سفارش
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrderInput'
+      responses:
+        '200':
+          description: سفارش به‌روزرسانی شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '404':
+          description: سفارش یافت نشد
+    delete:
+      tags:
+        - Orders
+      summary: حذف سفارش
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: سفارش حذف شد
+        '404':
+          description: سفارش یافت نشد
+
+  /orders/{id}/status:
+    patch:
+      tags:
+        - Orders
+      summary: به‌روزرسانی وضعیت سفارش
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum: [pending, paid, canceled, shipped, delivered, refunded]
+      responses:
+        '200':
+          description: وضعیت سفارش به‌روزرسانی شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                  data:
+                    $ref: '#/components/schemas/Order'
+
+  /orders/stats:
+    get:
+      tags:
+        - Orders
+      summary: دریافت آمار سفارشات
+      responses:
+        '200':
+          description: آمار سفارشات
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      totalRevenue:
+                        type: number
+                      pending:
+                        type: integer
+                      paid:
+                        type: integer
+                      shipped:
+                        type: integer
+                      delivered:
+                        type: integer
+                      canceled:
+                        type: integer
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    OrderItem:
+      type: object
+      properties:
+        product:
+          type: string
+        quantity:
+          type: integer
+        price:
+          type: number
+    Order:
+      type: object
+      properties:
+        _id:
+          type: string
+        user:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        status:
+          type: string
+          enum: [pending, paid, canceled, shipped, delivered, refunded]
+        totalPrice:
+          type: number
+        discountCode:
+          type: string
+        discountAmount:
+          type: number
+        payablePrice:
+          type: number
+        paymentMethod:
+          type: string
+        shippingAddress:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateOrderInput:
+      type: object
+      required:
+        - items
+        - totalPrice
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            required:
+              - product
+              - quantity
+              - price
+            properties:
+              product:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+        status:
+          type: string
+          enum: [pending, paid, canceled, shipped, delivered, refunded]
+          default: pending
+        totalPrice:
+          type: number
+        discountCode:
+          type: string
+        discountAmount:
+          type: number
+        payablePrice:
+          type: number
+        paymentMethod:
+          type: string
+        shippingAddress:
+          type: string 
