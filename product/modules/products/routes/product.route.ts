@@ -8,7 +8,7 @@ import { productChatRouter, chatMessageRouter } from '../chats/index.js';
 // import { productVariantRouter } from '../variants/index.js';
 // import { productInventoryRouter } from '../inventory/index.js';
 // import { productPriceHistoryRouter } from '../priceHistory/index.js';
-import { productAttributeRouter, productAttributeValueRouter } from '../attributes/index.js';
+import { productAttributeRouter } from '../attributes/index.js'; // productAttributeValueRouter
 // import { productReviewRouter } from '../reviews/index.js';
 import { wishlistRouter } from '../wishlist/index.js';
 import { productVersionRouter } from '../versions/index.js';
@@ -32,7 +32,7 @@ router.delete('/:id', asyncHandler(validateProductId), asyncHandler(deleteProduc
 router.get('/', asyncHandler(searchProductsController));
 
 router.use('/attributes', productAttributeRouter);
-router.use('/:productId/attributes', productAttributeValueRouter);
+// router.use('/:productId/attributes', productAttributeValueRouter);
 // router.use('/:productId/reviews', productReviewRouter);
 // router.use('/:productId/comments', productCommentRouter);
 router.use('/:productId/tags', productTagRouter);

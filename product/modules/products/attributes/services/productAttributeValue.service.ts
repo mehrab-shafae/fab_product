@@ -2,7 +2,6 @@ import { ProductAttributeValue, IProductAttributeValue } from '../models/product
 import { CategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 // import { ICategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 import { Product } from '../../models/product.model.js';
-import { ProductAttribute } from '../models/productAttribute.model.js';
 import { Category } from '../../../categories/models/category.model.js';
 
 export const addProductAttributeValue = async (data: Partial<IProductAttributeValue>) => {
@@ -10,6 +9,7 @@ export const addProductAttributeValue = async (data: Partial<IProductAttributeVa
       if (!data.attribute_id) {
             throw new Error('attribute_id is required');
       }
+      // attribute_id باید شناسه CategoryAttribute باشد
       const categoryAttribute = await CategoryAttribute.findById(data.attribute_id);
       if (!categoryAttribute) {
             throw new Error('Invalid attribute_id: No such CategoryAttribute');
@@ -58,14 +58,13 @@ export const searchProductsByAttributes = async (filters?: Array<{ attribute: st
       // If filters are provided, search by attributes
       if (filters && Array.isArray(filters) && filters.length > 0) {
             // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
-            const attributeDocs = await ProductAttribute.find({
-                  $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
-                  deleted_at: null,
+            const attributeDocs = await CategoryAttribute.find({
+                  $or: (filters as Array<{ attribute: string; values: string[] }>).map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
             });
-            const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
+            const attributeMap = Object.fromEntries(attributeDocs.map((attr: any) => [String(attr.name).toLowerCase(), attr._id]));
 
             // 2. ساخت query برای ProductAttributeValue (هر attribute با OR روی valueها)
-            const attrQueries = filters.map(f => ({
+            const attrQueries = (filters as Array<{ attribute: string; values: string[] }>).map(f => ({
                   attribute_id: attributeMap[f.attribute.toLowerCase()],
                   value: { $in: f.values },
                   deleted_at: null,
@@ -171,14 +170,13 @@ export const searchProductsByAttributesOnly = async (filters?: Array<{ attribute
       // If filters are provided, search by attributes
       if (filters && Array.isArray(filters) && filters.length > 0) {
             // 1. پیدا کردن attribute_id ها بر اساس نام attribute (case-insensitive)
-            const attributeDocs = await ProductAttribute.find({
-                  $or: filters.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
-                  deleted_at: null,
+            const attributeDocs = await CategoryAttribute.find({
+                  $or: (filters as Array<{ attribute: string; values: string[] }>).map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
             });
-            const attributeMap = Object.fromEntries(attributeDocs.map(attr => [attr.name.toLowerCase(), attr._id]));
+            const attributeMap = Object.fromEntries(attributeDocs.map((attr: any) => [String(attr.name).toLowerCase(), attr._id]));
 
             // 2. ساخت query برای ProductAttributeValue (هر attribute با OR روی valueها)
-            const attrQueries = filters.map(f => ({
+            const attrQueries = (filters as Array<{ attribute: string; values: string[] }>).map(f => ({
                   attribute_id: attributeMap[f.attribute.toLowerCase()],
                   value: f.values && f.values.length > 0 ? { $in: f.values } : undefined,
                   deleted_at: null,
@@ -313,11 +311,10 @@ export const searchProductsByCategorySlugsAndAttributes = async (
 
     let normalizedFilters: Array<{ attrId: string; valuesLower: string[] }> = [];
     if (hasAttributeFilters) {
-        const attributeDocs = await ProductAttribute.find({
-            $or: filters!.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
-            deleted_at: null
+        const attributeDocs = await CategoryAttribute.find({
+            $or: filters!.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } }))
         });
-        const nameToId: Record<string, string> = Object.fromEntries(attributeDocs.map((a: any) => [a.name.toLowerCase(), a._id.toString()]));
+        const nameToId: Record<string, string> = Object.fromEntries(attributeDocs.map((a: any) => [String(a.name).toLowerCase(), a._id.toString()]));
         normalizedFilters = filters!.map(f => {
             const attrId = nameToId[f.attribute.toLowerCase()] || f.attribute; // support direct id
             const valuesLower = (f.values || []).map(v => String(v).toLowerCase());

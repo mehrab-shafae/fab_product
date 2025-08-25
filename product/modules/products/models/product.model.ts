@@ -34,7 +34,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
       {
             attributes: [
                   {
-                        attribute_id: { type: Schema.Types.ObjectId, ref: 'ProductAttribute', required: true },
+                        attribute_id: { type: Schema.Types.ObjectId, ref: 'CategoryAttribute', required: true }, // TODO()
                         value: { type: String, required: true },
                   },
             ],

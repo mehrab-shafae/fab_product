@@ -3,12 +3,12 @@ import mongoose from 'mongoose';
 import { productSchema } from '../schema/product.schema.js';
 import { Category } from '../../categories/models/category.model.js';
 import { getRequiredAttributesRecursive } from '../attributes/helpers/requiredAttributes.js';
-import { CategoryAttributeOption } from '../../categories/models/categoryAttributeOption.model.js';
-import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
 import { Product } from '../models/product.model.js';
 import { ProductVariant } from '../variants/models/productVariant.model.js';
 import { User } from '../models/user.model.js';
 import { ProductImage } from '../images/models/productImage.model.js';
+import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
+import { CategoryAttributeOption } from '../../categories/models/categoryAttributeOption.model.js';
 
 export const validateProductId = (req: Request, res: Response, next: NextFunction) => {
       const { id } = req.params;
@@ -396,4 +396,73 @@ export const validateBulkProductIds = (req: Request, res: Response, next: NextFu
       }
 
       next();
+};
+
+export const validateReplaceProductAttributes = (req: Request, res: Response, next: NextFunction) => {
+      (async () => {
+            try {
+                  const { productId } = req.params;
+                  const { attributes } = req.body;
+                  if (!productId) {
+                        return res.status(400).json({ error: 'productId is required.' });
+                  }
+                  if (!Array.isArray(attributes)) {
+                        return res.status(400).json({ error: 'attributes must be an array.' });
+                  }
+                  const product = await Product.findById(productId);
+                  if (!product) {
+                        return res.status(404).json({ error: 'Product not found.' });
+                  }
+                  if (!product.category_id) {
+                        return res.status(400).json({ error: 'Product has no category assigned.' });
+                  }
+                  for (let i = 0; i < attributes.length; i++) {
+                        const attr = attributes[i];
+                        if (!attr || !attr.attribute_id) {
+                              return res.status(400).json({ error: `Attribute at index ${i} is missing attribute_id.` });
+                        }
+                        if (!mongoose.Types.ObjectId.isValid(attr.attribute_id)) {
+                              return res.status(400).json({ error: `attribute_id at index ${i} is not a valid ObjectId.` });
+                        }
+                        const catAttr = await CategoryAttribute.findById(attr.attribute_id);
+                        if (!catAttr) {
+                              return res.status(404).json({ error: `Attribute at index ${i} not found.` });
+                        }
+                        if (product.category_id.toString() !== catAttr.categoryId.toString()) {
+                              return res.status(400).json({ error: `Attribute at index ${i} does not belong to product category.` });
+                        }
+                        const value = attr.value;
+                        if (catAttr.type === 'number') {
+                              if (Array.isArray(value)) {
+                                    if (value.some((v: any) => isNaN(Number(v)))) {
+                                          return res.status(400).json({ error: `All values for numeric attribute at index ${i} must be numbers.` });
+                                    }
+                              } else if (isNaN(Number(value))) {
+                                    return res.status(400).json({ error: `Value for numeric attribute at index ${i} must be a number.` });
+                              }
+                        }
+                        if (catAttr.type === 'enum') {
+                              const options = await CategoryAttributeOption.find({ attributeId: catAttr._id }).lean();
+                              const allowed = options.map(o => o.value);
+                              if (Array.isArray(value)) {
+                                    if (value.length === 0) {
+                                          return res.status(400).json({ error: `Enum attribute at index ${i} must have at least one value.` });
+                                    }
+                                    for (const v of value) {
+                                          if (!allowed.includes(v)) {
+                                                return res.status(400).json({ error: `Enum attribute at index ${i} must be one of: ${allowed.join(', ')}` });
+                                          }
+                                    }
+                              } else {
+                                    if (!allowed.includes(value)) {
+                                          return res.status(400).json({ error: `Enum attribute at index ${i} must be one of: ${allowed.join(', ')}` });
+                                    }
+                              }
+                        }
+                  }
+                  next();
+            } catch (err: any) {
+                  next(err);
+            }
+      })();
 };

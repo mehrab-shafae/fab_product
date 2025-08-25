@@ -2,9 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Product } from '../models/product.model.js';
 import { searchProducts } from '../services/product.service.js';
 import { ProductAttributeValue } from '../attributes/models/productAttributeValue.model.js';
-import { ProductAttribute } from '../attributes/models/productAttribute.model.js';
 import { Category } from '../../categories/models/category.model.js';
-import { CategoryAttribute } from '../../categories/models/categoryAttribute.model.js';
 import mongoose from 'mongoose';
 import { categoriesService } from '../../categories/index.js';
 
@@ -39,7 +37,7 @@ async function generateUniqueSku(usedInRequest: Set<string>): Promise<string> {
  * @param categoryAttributeId - شناسه CategoryAttribute
  * @returns ProductAttribute یا null در صورت خطا
  */
-async function getOrCreateProductAttribute(categoryAttributeId: string): Promise<{ status: string; productAttribute?: any; error?: string }> {
+/*async function getOrCreateProductAttribute(categoryAttributeId: string): Promise<{ status: string; productAttribute?: any; error?: string }> {
       try {
             // ابتدا CategoryAttribute را پیدا کن
             const categoryAttribute = await CategoryAttribute.findById(categoryAttributeId);
@@ -66,7 +64,7 @@ async function getOrCreateProductAttribute(categoryAttributeId: string): Promise
       } catch (error: any) {
             return { status: 'error', error: error.message };
       }
-}
+}*/
 
 /**
  * تابع کمکی برای دریافت attributes محصول با اطلاعات کامل
@@ -147,12 +145,12 @@ export const createProduct = async (req: Request, res: Response) => {
                               variantObj.attributes = [];
                               for (const attr of variant.attributes) {
                                     // تبدیل CategoryAttribute به ProductAttribute
-                                    const result = await getOrCreateProductAttribute(attr.attribute_id);
+                                    /*const result = await getOrCreateProductAttribute(attr.attribute_id);
                                     if (result.status !== 'success') {
                                           return res.status(400).json({ status: 'error', error: result.error });
-                                    }
+                                    }*/
                                     variantObj.attributes.push({
-                                          attribute_id: result.productAttribute._id,
+                                          attribute_id: attr.attribute_id,
                                           value: attr.value,
                                     });
                               }
@@ -277,12 +275,12 @@ export const updateProduct = async (req: Request, res: Response) => {
                               variantObj.attributes = [];
                               for (const attr of variant.attributes) {
                                     // تبدیل CategoryAttribute به ProductAttribute
-                                    const result = await getOrCreateProductAttribute(attr.attribute_id);
+                                    /*const result = await getOrCreateProductAttribute(attr.attribute_id);
                                     if (result.status !== 'success') {
                                           return res.status(400).json({ status: 'error', error: result.error });
-                                    }
+                                    }*/
                                     variantObj.attributes.push({
-                                          attribute_id: result.productAttribute._id,
+                                          attribute_id: attr.attribute_id,
                                           value: attr.value,
                                     });
                               }
@@ -303,18 +301,18 @@ export const updateProduct = async (req: Request, res: Response) => {
                   // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
                   for (const attr of req.body.attributes) {
                         // تبدیل CategoryAttribute به ProductAttribute
-                        const result = await getOrCreateProductAttribute(attr.attribute_id);
+                        /*const result = await getOrCreateProductAttribute(attr.attribute_id);
                         if (result.status !== 'success') {
                               return res.status(400).json({ status: 'error', error: result.error });
-                        }
+                        }*/
 
                         // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
                         if (Array.isArray(attr.value)) {
                               for (const v of attr.value) {
-                                    await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: result.productAttribute._id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
+                                    await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
                               }
                         } else {
-                              await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: result.productAttribute._id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
+                              await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
                         }
                   }
             }

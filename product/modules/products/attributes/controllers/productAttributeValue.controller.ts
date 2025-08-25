@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { addProductAttributeValue, getProductAttributeValues, getAllProductAttributeValues, searchProductsByAttributes, searchProductsByAttributesOnly, searchProductsByCategorySlugsAndAttributes } from '../services/productAttributeValue.service.js';
+import { CategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 import { ProductAttributeValue } from '../models/productAttributeValue.model.js';
 
 export const addProductAttributeValueController = async (req: Request, res: Response) => {
@@ -58,6 +59,11 @@ export const replaceProductAttributesController = async (req: Request, res: Resp
             await ProductAttributeValue.updateMany({ product_id: productId, deleted_at: null }, { deleted_at: new Date() });
             // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
             for (const attr of attributes) {
+                  // attr.attribute_id باید CategoryAttribute باشد؛ مستقیم ذخیره می‌کنیم
+                  const catAttr = await CategoryAttribute.findById(attr.attribute_id);
+                  if (!catAttr) {
+                        return res.status(400).json({ status: 'error', error: `Invalid attribute_id: ${attr.attribute_id}` });
+                  }
                   if (Array.isArray(attr.value)) {
                         for (const v of attr.value) {
                               await ProductAttributeValue.findOneAndUpdate({ product_id: productId, attribute_id: attr.attribute_id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
@@ -111,6 +117,9 @@ export const searchProductByAttributesController = async (req: Request, res: Res
       }
 };
 
+/**
+ * @deprecated
+ */
 export const searchProductByAttributesOnlyController = async (req: Request, res: Response) => {
       try {
             const filters = req.body.filters;
