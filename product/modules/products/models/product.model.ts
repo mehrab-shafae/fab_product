@@ -43,7 +43,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
                   price: { type: Number, default: 0 },
             },
             image_ids: [{ type: String }],
-            sku: { type: String }, // unique: true, required: true (buggy)
+            sku: { type: String }, // unique: true, required: true (TODO())
       },
       { _id: false }
 );

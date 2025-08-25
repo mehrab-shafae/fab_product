@@ -12,6 +12,28 @@ function generateSlug(input: string): string {
       return input.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
+/*function generateRandomSkuBase(): string {
+      const lettersCount = Math.random() < 0.5 ? 1 : 2;
+      const letters = Array.from({ length: lettersCount })
+            .map(() => String.fromCharCode(65 + Math.floor(Math.random() * 26)))
+            .join('');
+      const number = Math.floor(100 + Math.random() * (99999 - 100 + 1));
+      return `${letters}${number}`;
+}
+
+async function generateUniqueSku(usedInRequest: Set<string>): Promise<string> {
+      for (let i = 0; i < 20; i++) {
+            const candidate = generateRandomSkuBase();
+            if (usedInRequest.has(candidate)) continue;
+            const exists = await Product.exists({ 'variants.sku': candidate });
+            if (!exists) {
+                  usedInRequest.add(candidate);
+                  return candidate;
+            }
+      }
+      throw new Error('Failed to generate a unique SKU after multiple attempts');
+}*/
+
 /**
  * تابع کمکی برای تبدیل CategoryAttribute به ProductAttribute
  * @param categoryAttributeId - شناسه CategoryAttribute
@@ -139,6 +161,13 @@ export const createProduct = async (req: Request, res: Response) => {
                         if (!variant.sku) {
                               variantObj.sku = `${nextSku + i}`;
                         }
+                        // console.log('variantObj.sku:', variantObj.sku)
+
+                        // const usedSkus = new Set<string>();
+
+                        // if (!variant.sku) {
+                        //       variantObj.sku = await generateUniqueSku(usedSkus);
+                        // }
                         // inventory: مقداردهی پیش‌فرض
                         if (!variant.inventory) {
                               variantObj.inventory = { stock: 1, price: 0 };
@@ -154,9 +183,11 @@ export const createProduct = async (req: Request, res: Response) => {
             } else {
                   // رفتار قبلی: محصول ساده بدون variants
                   // --- SKU LOGIC ---
-                  productData.sku = nextSku;
+                  // productData.sku = nextSku;
+                  throw new Error("variants not an array");
             }
 
+            // console.log('productData:', productData)
             const product = new Product(productData);
             await product.save();
             res.status(201).json({ status: 'success', data: product, message: 'Product created successfully' });
