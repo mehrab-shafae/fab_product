@@ -13,6 +13,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void | a
             } as any;
 
             orderData.user = req.headers['user-id'] || 'ali';
+            if (!orderData.shippingAddress || String(orderData.shippingAddress).trim() === '') {
+                  return res.status(400).json({ status: 'error', message: 'آدرس الزامی است' });
+            }
 
             // اگر کد تخفیف وجود دارد، ابتدا آن را اعمال کن و مبلغ تخفیف را محاسبه کن
             if (orderData.discountCode) {

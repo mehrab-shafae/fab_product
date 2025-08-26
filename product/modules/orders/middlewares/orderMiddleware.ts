@@ -8,16 +8,6 @@ import { Request, Response, NextFunction } from 'express';
 export const validateCreateOrder = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
             await createOrderSchema.validate(req.body);
-            const { items, totalPrice, discountAmount = 0 } = req.body;
-            if (items && Array.isArray(items)) {
-                  const calculatedTotal = items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0);
-                  if (Math.abs(calculatedTotal - totalPrice) > 0.01) {
-                        res.status(400).json({ status: 'error', message: `مجموع قیمت محاسبه شده (${calculatedTotal}) با مجموع قیمت ارسالی (${totalPrice}) مطابقت ندارد.` });
-                        return;
-                  }
-                  const payablePrice = Math.max(0, calculatedTotal - discountAmount);
-                  req.body.payablePrice = payablePrice;
-            }
             next();
       } catch (error) {
             res.status(400).json({ status: 'error', message: (error as Error).message });
@@ -65,7 +55,7 @@ export const checkOrderExists = async (req: Request, res: Response, next: NextFu
 // چک وجود محصولات در سفارش
 export const checkProductsExist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
       try {
-            const { items } = req.body;
+            const { items } = req.body as any;
             if (!items || !Array.isArray(items)) {
                   res.status(400).json({ status: 'error', message: 'محصولات سفارش الزامی هستند.' });
                   return;
@@ -74,31 +64,62 @@ export const checkProductsExist = async (req: Request, res: Response, next: Next
             // Import Product model dynamically to avoid circular dependency
             const { Product } = await import('../../products/models/product.model.js');
 
-            for (const item of items) {
-                  if (!mongoose.Types.ObjectId.isValid(item.product)) {
-                        res.status(400).json({ status: 'error', message: `شناسه محصول ${item.product} معتبر نیست.` });
-                        return;
-                  }
+            // Resolve SKUs to product + variant; compute price and totals server-side
+            const skus = items.map((it: any) => String(it.sku));
+            const products = await Product.find(
+                  { 'variants.sku': { $in: skus } },
+                  { name: 1, img: 1, variants: 1, status: 1 }
+            ).lean();
 
-                  const product = await Product.findById(item.product);
-                  if (!product) {
-                        res.status(404).json({ status: 'error', message: `محصول با شناسه ${item.product} یافت نشد.` });
-                        return;
-                  }
-
-                  // Check if product is active
-                  if (product.status !== 'active') {
-                        res.status(400).json({ status: 'error', message: `محصول ${product.name} غیرفعال است و قابل سفارش نیست.` });
-                        return;
-                  }
-
-                  // Check if requested quantity is available (basic check)
-                  if (item.quantity <= 0) {
-                        res.status(400).json({ status: 'error', message: `تعداد محصول ${product.name} باید بیشتر از صفر باشد.` });
-                        return;
+            const skuToVariantInfo = new Map<string, { productId: string; price: number; stock: number; name: string }>();
+            for (const p of products as any[]) {
+                  if (!p || p.status !== 'active' || !Array.isArray(p.variants)) continue;
+                  for (const v of p.variants) {
+                        if (v && typeof v.sku === 'string' && v.sku) {
+                              skuToVariantInfo.set(
+                                    v.sku,
+                                    {
+                                          productId: String(p._id),
+                                          price: Number(v?.inventory?.price || 0),
+                                          stock: Number(v?.inventory?.stock ?? 0),
+                                          name: p.name,
+                                    }
+                              );
+                        }
                   }
             }
 
+            // Validate all requested SKUs exist and build normalized order items
+            const normalizedItems: any[] = [];
+            for (const item of items) {
+                  const info = skuToVariantInfo.get(String(item.sku));
+                  if (!info) {
+                        res.status(404).json({ status: 'error', message: `SKU ${item.sku} یافت نشد یا محصول غیرفعال است.` });
+                        return;
+                  }
+                  const quantity = Number(item.quantity || 0);
+                  if (!(quantity > 0)) {
+                        res.status(400).json({ status: 'error', message: `تعداد برای SKU ${item.sku} باید بیشتر از صفر باشد.` });
+                        return;
+                  }
+
+                  // Stock availability check
+                  if (info.stock < quantity) {
+                        res.status(400).json({ status: 'error', message: `موجودی SKU ${item.sku} کافی نیست. موجودی: ${info.stock}` });
+                        return;
+                  }
+
+                  normalizedItems.push({ product: info.productId, quantity, price: info.price });
+            }
+
+            // Compute totals server-side
+            const calculatedTotal = normalizedItems.reduce((sum, it) => sum + it.price * it.quantity, 0);
+            req.body.items = normalizedItems;
+            req.body.totalPrice = calculatedTotal;
+            const discountAmount = Number(req.body.discountAmount || 0);
+            req.body.payablePrice = Math.max(0, calculatedTotal - discountAmount);
+
+            // Optionally validate discount applicability later in controller/service
             next();
       } catch (error) {
             res.status(500).json({ status: 'error', message: 'خطا در بررسی محصولات.' });
