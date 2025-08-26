@@ -17,11 +17,22 @@ const swaggerEndPoint = '/api/product/v2/api-docs';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/product_db';
 
 async function connectToMongo() {
-      await mongoose.connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true }).catch(err => {
-            console.error('MongoDB connection error:', err);
-            process.exit(1);
-      });
+      await mongoose
+            .connect(MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true, autoIndex: true })
+            .catch(err => {
+                  console.error('MongoDB connection error:', err);
+                  process.exit(1);
+            });
       console.log('MongoDB connected for products worker');
+
+      // Ensure Product indexes are synchronized so schema-defined indexes are applied
+      try {
+            const { Product } = await import('./models/product.model.js');
+            await Product.syncIndexes();
+            console.log('Product indexes synchronized');
+      } catch (indexErr) {
+            console.error('Failed to sync Product indexes:', indexErr);
+      }
 }
 
 let swaggerPublicHtml = null;

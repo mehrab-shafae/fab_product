@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { createProductVariant, getProductVariants, deleteProductVariant } from '../services/productVariant.service.js';
 
+/**
+ * @deprecated
+ */
 export const createProductVariantController = async (req: Request, res: Response) => {
       try {
             const data = { ...req.body, product_id: req.params.productId };
@@ -11,6 +14,9 @@ export const createProductVariantController = async (req: Request, res: Response
       }
 };
 
+/**
+ * @deprecated
+ */
 export const getProductVariantsController = async (req: Request, res: Response) => {
       try {
             const variants = await getProductVariants(req.params.productId);
@@ -20,6 +26,9 @@ export const getProductVariantsController = async (req: Request, res: Response) 
       }
 };
 
+/**
+ * @deprecated
+ */
 export const deleteProductVariantController = async (req: Request, res: Response) => {
       try {
             const variant = await deleteProductVariant(req.params.variantId);

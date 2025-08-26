@@ -65,8 +65,18 @@ const ProductSchema = new Schema<IProduct>({
       variants: [ProductVariantSchema],
 });
 
-// Ensure unique sparse index on nested variants.sku instead of schema-level unique which can be unreliable for arrays
-// ProductSchema.index({ 'variants.sku': 1 }, { unique: true, sparse: true }); // (buggy)
+// Ensure a global unique index on each element of the multikey field variants.sku
+// Use a partial filter to ignore missing or empty values so only real SKUs are constrained
+ProductSchema.index(
+      { 'variants.sku': 1 },
+      {
+            unique: true,
+            partialFilterExpression: {
+                  // Avoid $ne in partial indexes (can translate to $not). Use $gt: '' to exclude empty strings
+                  'variants.sku': { $exists: true, $type: 'string', $gt: '' },
+            },
+      }
+);
 
 ProductSchema.pre('save', function (next) {
       this.updated_at = new Date();

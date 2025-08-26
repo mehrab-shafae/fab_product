@@ -1,5 +1,9 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
+
+/**
+ * @deprecated
+ */
 export interface IProductVariant extends Document {
       product_id: mongoose.Types.ObjectId;
       sku: string;
@@ -15,6 +19,10 @@ export interface IProductVariant extends Document {
       deleted_at?: Date;
 }
 
+
+/**
+ * @deprecated
+ */
 const ProductVariantSchema = new Schema<IProductVariant>({
       product_id: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
       sku: { type: String, required: true },

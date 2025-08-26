@@ -6,7 +6,7 @@ import { OrderStatus } from '../types/order.types.js';
 /**
  * ایجاد سفارش جدید
  */
-export const createOrder = async (req: Request, res: Response): Promise<void> => {
+export const createOrder = async (req: Request, res: Response): Promise<void | any> => {
       try {
             const orderData = {
                   ...req.body,
