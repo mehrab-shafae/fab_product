@@ -498,36 +498,37 @@ components:
       type: object
       required:
         - items
-        - totalPrice
+        - shippingAddress
       properties:
         items:
           type: array
           items:
             type: object
             required:
-              - product
+              - sku
               - quantity
-              - price
             properties:
-              product:
+              sku:
                 type: string
+                description: شناسه یکتا SKU برای وریانت محصول
               quantity:
                 type: integer
-              price:
-                type: number
         status:
           type: string
           enum: [pending, paid, canceled, shipped, delivered, refunded]
           default: pending
         totalPrice:
           type: number
+          description: توسط سرور محاسبه می‌شود
         discountCode:
           type: string
         discountAmount:
           type: number
         payablePrice:
           type: number
+          description: توسط سرور محاسبه می‌شود
         paymentMethod:
           type: string
         shippingAddress:
-          type: string 
+          type: string
+          description: آدرس تحویل (اجباری)
