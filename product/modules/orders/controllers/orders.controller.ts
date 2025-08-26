@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { orderService } from '../services/orders.service.js';
+import { discountsService } from '../discounts/services/discounts.service.js';
 import { OrderStatus } from '../types/order.types.js';
 
 /**
@@ -9,9 +10,27 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       try {
             const orderData = {
                   ...req.body,
-            };
+            } as any;
 
             orderData.user = req.headers['user-id'] || 'ali';
+
+            // اگر کد تخفیف وجود دارد، ابتدا آن را اعمال کن و مبلغ تخفیف را محاسبه کن
+            if (orderData.discountCode) {
+                  try {
+                        const productIds = Array.isArray(orderData.items) ? orderData.items.map((it: any) => String(it.product)) : [];
+                        const applied = await discountsService.apply(orderData.discountCode, String(orderData.user), productIds);
+
+                        const totalEligibleAmount = (orderData.items || [])
+                              .filter((it: any) => !applied.appliedProducts || applied.appliedProducts.includes(String(it.product)))
+                              .reduce((sum: number, it: any) => sum + it.price * it.quantity, 0);
+
+                        const discountAmount = applied.type === 'percentage' ? (totalEligibleAmount * applied.value) / 100 : Math.min(applied.value, totalEligibleAmount);
+
+                        orderData.discountAmount = Math.max(0, Math.round(discountAmount));
+                  } catch (e) {
+                        return res.status(400).json({ status: 'error', message: (e as Error).message });
+                  }
+            }
 
             const order = await orderService.createOrder(orderData);
 

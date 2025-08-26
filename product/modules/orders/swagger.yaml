@@ -7,6 +7,8 @@ info:
 tags:
   - name: Orders
     description: عملیات مربوط به سفارش محصول
+  - name: Discounts
+    description: مدیریت کدهای تخفیف سفارش
 
 servers:
   - url: http://localhost:7033/api
@@ -284,6 +286,139 @@ paths:
                       canceled:
                         type: integer
 
+  /orders/discounts:
+    post:
+      tags:
+        - Discounts
+      summary: ایجاد کد تخفیف جدید
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Discount'
+      responses:
+        '201':
+          description: تخفیف ایجاد شد
+    get:
+      tags:
+        - Discounts
+      summary: لیست کدهای تخفیف
+      responses:
+        '200':
+          description: لیست تخفیف‌ها
+
+  /orders/discounts/bulk:
+    post:
+      tags:
+        - Discounts
+      summary: ایجاد دسته‌ای کد تخفیف
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/Discount'
+      responses:
+        '201':
+          description: تخفیف‌ها ایجاد شدند
+
+  /orders/discounts/status/{code}:
+    get:
+      tags:
+        - Discounts
+      summary: وضعیت کد تخفیف با کد
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: وضعیت کد تخفیف
+        '404':
+          description: کد تخفیف پیدا نشد
+
+  /orders/discounts/{id}:
+    get:
+      tags:
+        - Discounts
+      summary: دریافت تخفیف با شناسه
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: تخفیف یافت شد
+        '404':
+          description: یافت نشد
+    patch:
+      tags:
+        - Discounts
+      summary: ویرایش تخفیف
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Discount'
+      responses:
+        '200':
+          description: تخفیف به‌روزرسانی شد
+        '404':
+          description: یافت نشد
+    delete:
+      tags:
+        - Discounts
+      summary: حذف تخفیف
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: حذف شد
+        '404':
+          description: یافت نشد
+
+  /orders/discounts/apply:
+    post:
+      tags:
+        - Discounts
+      summary: اعمال کد تخفیف
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code:
+                  type: string
+                userId:
+                  type: string
+                productIds:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: تخفیف اعمال شد
+
 components:
   securitySchemes:
     bearerAuth:
@@ -332,6 +467,33 @@ components:
         updated_at:
           type: string
           format: date-time
+    Discount:
+      type: object
+      properties:
+        code:
+          type: string
+        type:
+          type: string
+          enum: [percentage, fixed]
+        value:
+          type: number
+        expiry:
+          type: string
+          format: date-time
+        maxUsage:
+          type: integer
+        usedCount:
+          type: integer
+        active:
+          type: boolean
+        productIds:
+          type: array
+          items:
+            type: string
+        userIds:
+          type: array
+          items:
+            type: string
     CreateOrderInput:
       type: object
       required:

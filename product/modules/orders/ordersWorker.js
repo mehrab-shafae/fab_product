@@ -4,7 +4,7 @@ import '../../../asyncHandler.js';
 
 import express from 'express';
 import { headMiddleware } from '../../headMidd.js';
-import { orderRouter } from './index.js';
+import { orderRouter, discountRouter } from './index.js';
 import mongoose from 'mongoose';
 import { load } from 'cheerio';
 import axios from 'axios';
@@ -103,6 +103,7 @@ app.get('/api/orders/swagger-public', async (req, res) => {
 headMiddleware(app, express);
 
 app.use('/api/orders', orderRouter);
+app.use('/api/orders/discounts', discountRouter);
 
 app.listen(PORT, () => {
       console.log(`Orders worker running on port ${PORT}`);
