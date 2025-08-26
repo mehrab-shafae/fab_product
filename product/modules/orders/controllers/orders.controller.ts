@@ -6,236 +6,236 @@ import { OrderStatus } from '../types/order.types.js';
  * ایجاد سفارش جدید
  */
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const orderData = {
-      ...req.body,
-    };
+      try {
+            const orderData = {
+                  ...req.body,
+            };
 
-    orderData.user = req.headers['user-id'] || "ali";
+            orderData.user = req.headers['user-id'] || 'ali';
 
-    const order = await orderService.createOrder(orderData);
-    
-    res.status(201).json({
-      status: 'success',
-      message: 'سفارش با موفقیت ایجاد شد',
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+            const order = await orderService.createOrder(orderData);
+
+            res.status(201).json({
+                  status: 'success',
+                  message: 'سفارش با موفقیت ایجاد شد',
+                  data: order,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };
 
 /**
  * دریافت تمام سفارشات
  */
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const status = req.query.status as OrderStatus;
+      try {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
+            const status = req.query.status as OrderStatus;
 
-    const result = await orderService.getAllOrders(page, limit, status);
-    
-    res.status(200).json({
-      status: 'success',
-      data: result.orders,
-      pagination: {
-        page,
-        limit,
-        total: result.total,
-        pages: Math.ceil(result.total / limit)
+            const result = await orderService.getAllOrders(page, limit, status);
+
+            res.status(200).json({
+                  status: 'success',
+                  data: result.orders,
+                  pagination: {
+                        page,
+                        limit,
+                        total: result.total,
+                        pages: Math.ceil(result.total / limit),
+                  },
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
       }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
 };
 
 /**
  * دریافت سفارش بر اساس شناسه
  */
 export const getOrderById = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const order = await orderService.getOrderById(id);
-    
-    if (!order) {
-      res.status(404).json({
-        status: 'error',
-        message: 'سفارش مورد نظر یافت نشد'
-      });
-      return;
-    }
-    
-    res.status(200).json({
-      status: 'success',
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+      try {
+            const { id } = req.params;
+            const order = await orderService.getOrderById(id);
+
+            if (!order) {
+                  res.status(404).json({
+                        status: 'error',
+                        message: 'سفارش مورد نظر یافت نشد',
+                  });
+                  return;
+            }
+
+            res.status(200).json({
+                  status: 'success',
+                  data: order,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };
 
 /**
  * دریافت سفارشات کاربر
  */
 export const getOrdersByUser = async (req: Request, res: Response): Promise<void> => {
-  try {
-    //const userId = req.params.userId || req.user?.id;
-    const userId = req.params.userId;
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
+      try {
+            //const userId = req.params.userId || req.user?.id;
+            const userId = req.params.userId;
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
 
-    if (!userId) {
-      res.status(400).json({
-        status: 'error',
-        message: 'شناسه کاربر الزامی است'
-      });
-      return;
-    }
+            if (!userId) {
+                  res.status(400).json({
+                        status: 'error',
+                        message: 'شناسه کاربر الزامی است',
+                  });
+                  return;
+            }
 
-    const result = await orderService.getOrdersByUser(userId, page, limit);
-    
-    res.status(200).json({
-      status: 'success',
-      data: result.orders,
-      pagination: {
-        page,
-        limit,
-        total: result.total,
-        pages: Math.ceil(result.total / limit)
+            const result = await orderService.getOrdersByUser(userId, page, limit);
+
+            res.status(200).json({
+                  status: 'success',
+                  data: result.orders,
+                  pagination: {
+                        page,
+                        limit,
+                        total: result.total,
+                        pages: Math.ceil(result.total / limit),
+                  },
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
       }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
 };
 
 /**
  * به‌روزرسانی وضعیت سفارش
  */
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
+      try {
+            const { id } = req.params;
+            const { status } = req.body;
 
-    if (!Object.values(OrderStatus).includes(status)) {
-      res.status(400).json({
-        status: 'error',
-        message: 'وضعیت سفارش معتبر نیست'
-      });
-      return;
-    }
+            if (!Object.values(OrderStatus).includes(status)) {
+                  res.status(400).json({
+                        status: 'error',
+                        message: 'وضعیت سفارش معتبر نیست',
+                  });
+                  return;
+            }
 
-    const order = await orderService.updateOrderStatus(id, status);
-    
-    if (!order) {
-      res.status(404).json({
-        status: 'error',
-        message: 'سفارش مورد نظر یافت نشد'
-      });
-      return;
-    }
-    
-    res.status(200).json({
-      status: 'success',
-      message: 'وضعیت سفارش با موفقیت به‌روزرسانی شد',
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+            const order = await orderService.updateOrderStatus(id, status);
+
+            if (!order) {
+                  res.status(404).json({
+                        status: 'error',
+                        message: 'سفارش مورد نظر یافت نشد',
+                  });
+                  return;
+            }
+
+            res.status(200).json({
+                  status: 'success',
+                  message: 'وضعیت سفارش با موفقیت به‌روزرسانی شد',
+                  data: order,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };
 
 /**
  * به‌روزرسانی سفارش
  */
 export const updateOrder = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const updateData = req.body;
+      try {
+            const { id } = req.params;
+            const updateData = req.body;
 
-    const order = await orderService.updateOrder(id, updateData);
-    
-    if (!order) {
-      res.status(404).json({
-        status: 'error',
-        message: 'سفارش مورد نظر یافت نشد'
-      });
-      return;
-    }
-    
-    res.status(200).json({
-      status: 'success',
-      message: 'سفارش با موفقیت به‌روزرسانی شد',
-      data: order
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+            const order = await orderService.updateOrder(id, updateData);
+
+            if (!order) {
+                  res.status(404).json({
+                        status: 'error',
+                        message: 'سفارش مورد نظر یافت نشد',
+                  });
+                  return;
+            }
+
+            res.status(200).json({
+                  status: 'success',
+                  message: 'سفارش با موفقیت به‌روزرسانی شد',
+                  data: order,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };
 
 /**
  * حذف سفارش
  */
 export const deleteOrder = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const deleted = await orderService.deleteOrder(id);
-    
-    if (!deleted) {
-      res.status(404).json({
-        status: 'error',
-        message: 'سفارش مورد نظر یافت نشد'
-      });
-      return;
-    }
-    
-    res.status(200).json({
-      status: 'success',
-      message: 'سفارش با موفقیت حذف شد'
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+      try {
+            const { id } = req.params;
+            const deleted = await orderService.deleteOrder(id);
+
+            if (!deleted) {
+                  res.status(404).json({
+                        status: 'error',
+                        message: 'سفارش مورد نظر یافت نشد',
+                  });
+                  return;
+            }
+
+            res.status(200).json({
+                  status: 'success',
+                  message: 'سفارش با موفقیت حذف شد',
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };
 
 /**
  * دریافت آمار سفارشات
  */
 export const getOrderStats = async (_: Request, res: Response): Promise<void> => {
-  try {
-    const stats = await orderService.getOrderStats();
-    
-    res.status(200).json({
-      status: 'success',
-      data: stats
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: (error as Error).message
-    });
-  }
+      try {
+            const stats = await orderService.getOrderStats();
+
+            res.status(200).json({
+                  status: 'success',
+                  data: stats,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
 };

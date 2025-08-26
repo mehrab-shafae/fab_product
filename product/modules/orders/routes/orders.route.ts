@@ -19,5 +19,4 @@ router.put('/:id', validateUpdateOrder, checkOrderExists, ordersController.updat
 router.delete('/:id', checkOrderExists, ordersController.deleteOrder);
 router.get('/stats', ordersController.getOrderStats);
 
-
 export default router;

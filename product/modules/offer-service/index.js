@@ -12,24 +12,22 @@ app.use(bodyParser.json());
 
 // MongoDB connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/discount-service_db', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
 });
 
 // Swagger setup
 const swaggerOptions = {
-  swaggerDefinition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'Discount Service API',
-      version: '1.0.0',
-      description: 'API documentation for Discount Management Service',
-    },
-    servers: [
-      { url: 'http://localhost:3000' },
-    ],
-  },
-  apis: ['./routes/*.js', './index.js'],
+      swaggerDefinition: {
+            openapi: '3.0.0',
+            info: {
+                  title: 'Discount Service API',
+                  version: '1.0.0',
+                  description: 'API documentation for Discount Management Service',
+            },
+            servers: [{ url: 'http://localhost:3000' }],
+      },
+      apis: ['./routes/*.js', './index.js'],
 };
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -38,10 +36,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/discounts', require('./routes/discounts'));
 
 app.get('/', (req, res) => {
-  res.send('Discount Service is running');
+      res.send('Discount Service is running');
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
 });

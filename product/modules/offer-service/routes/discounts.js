@@ -56,13 +56,13 @@ const { makeResponse } = require('../response');
  *         description: Bad request
  */
 router.post('/', async (req, res) => {
-  try {
-    const discount = new Discount(req.body);
-    await discount.save();
-    res.status(201).json(makeResponse('success', { discount }));
-  } catch (err) {
-    res.status(400).json({ status: 'error', data: { message: err.message } });
-  }
+      try {
+            const discount = new Discount(req.body);
+            await discount.save();
+            res.status(201).json(makeResponse('success', { discount }));
+      } catch (err) {
+            res.status(400).json({ status: 'error', data: { message: err.message } });
+      }
 });
 
 // افزودن دسته‌ای کد تخفیف
@@ -87,12 +87,12 @@ router.post('/', async (req, res) => {
  *         description: Bad request
  */
 router.post('/bulk', async (req, res) => {
-  try {
-    const discounts = await Discount.insertMany(req.body);
-    res.status(201).json(makeResponse('success', { discounts }));
-  } catch (err) {
-    res.status(400).json({ status: 'error', data: { message: err.message } });
-  }
+      try {
+            const discounts = await Discount.insertMany(req.body);
+            res.status(201).json(makeResponse('success', { discounts }));
+      } catch (err) {
+            res.status(400).json({ status: 'error', data: { message: err.message } });
+      }
 });
 
 // لیست همه تخفیف‌ها
@@ -107,8 +107,8 @@ router.post('/bulk', async (req, res) => {
  *         description: List of discounts
  */
 router.get('/', async (req, res) => {
-  const discounts = await Discount.find();
-  res.json(makeResponse('success', { discounts }));
+      const discounts = await Discount.find();
+      res.json(makeResponse('success', { discounts }));
 });
 
 // دریافت جزئیات یک کد تخفیف خاص
@@ -132,24 +132,24 @@ router.get('/', async (req, res) => {
  *         description: Not found
  */
 router.get('/status/:code', async (req, res) => {
-  const discount = await Discount.findOne({ code: req.params.code });
-  if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
-  let statusMsg = 'کد معتبر است';
-  if (!discount.active) statusMsg = 'کد غیرفعال است';
-  else if (discount.expiry < new Date()) statusMsg = 'کد تخفیف منقضی شده است';
-  else if (discount.usedCount >= discount.maxUsage) statusMsg = 'تعداد استفاده تمام شده است';
-  res.json(makeResponse('success', { discount, status: statusMsg }));
+      const discount = await Discount.findOne({ code: req.params.code });
+      if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
+      let statusMsg = 'کد معتبر است';
+      if (!discount.active) statusMsg = 'کد غیرفعال است';
+      else if (discount.expiry < new Date()) statusMsg = 'کد تخفیف منقضی شده است';
+      else if (discount.usedCount >= discount.maxUsage) statusMsg = 'تعداد استفاده تمام شده است';
+      res.json(makeResponse('success', { discount, status: statusMsg }));
 });
 
 // دریافت جزئیات با آیدی (برای نمایش جزئیات در لیست)
 router.get('/:id', async (req, res) => {
-  try {
-    const discount = await Discount.findById(req.params.id);
-    if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
-    res.json(makeResponse('success', { discount }));
-  } catch (err) {
-    res.status(400).json({ status: 'error', data: { message: err.message } });
-  }
+      try {
+            const discount = await Discount.findById(req.params.id);
+            if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
+            res.json(makeResponse('success', { discount }));
+      } catch (err) {
+            res.status(400).json({ status: 'error', data: { message: err.message } });
+      }
 });
 
 // ویرایش کد تخفیف
@@ -179,13 +179,13 @@ router.get('/:id', async (req, res) => {
  *         description: Not found
  */
 router.patch('/:id', async (req, res) => {
-  try {
-    const discount = await Discount.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
-    res.json(makeResponse('success', { discount }));
-  } catch (err) {
-    res.status(400).json({ status: 'error', data: { message: err.message } });
-  }
+      try {
+            const discount = await Discount.findByIdAndUpdate(req.params.id, req.body, { new: true });
+            if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
+            res.json(makeResponse('success', { discount }));
+      } catch (err) {
+            res.status(400).json({ status: 'error', data: { message: err.message } });
+      }
 });
 
 // حذف کد تخفیف
@@ -209,13 +209,13 @@ router.patch('/:id', async (req, res) => {
  *         description: Not found
  */
 router.delete('/:id', async (req, res) => {
-  try {
-    const discount = await Discount.findByIdAndDelete(req.params.id);
-    if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
-    res.json(makeResponse('success', { message: 'کد تخفیف حذف شد' }));
-  } catch (err) {
-    res.status(400).json({ status: 'error', data: { message: err.message } });
-  }
+      try {
+            const discount = await Discount.findByIdAndDelete(req.params.id);
+            if (!discount) return res.status(404).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
+            res.json(makeResponse('success', { message: 'کد تخفیف حذف شد' }));
+      } catch (err) {
+            res.status(400).json({ status: 'error', data: { message: err.message } });
+      }
 });
 
 // اعمال کد تخفیف
@@ -247,33 +247,31 @@ router.delete('/:id', async (req, res) => {
  *         description: Invalid discount
  */
 router.post('/apply', async (req, res) => {
-  const { code, userId, productIds } = req.body;
-  const discount = await Discount.findOne({ code });
-  if (!discount) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
-  if (!discount.active) return res.status(400).json({ status: 'error', data: { message: 'کد غیرفعال است' } });
-  if (discount.expiry < new Date()) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف منقضی شده است' } });
-  if (discount.usedCount >= discount.maxUsage) return res.status(400).json({ status: 'error', data: { message: 'تعداد استفاده تمام شده است' } });
-  if (discount.userIds.length && (!userId || !discount.userIds.includes(userId)))
-    return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف برای این کاربر مجاز نیست' } });
-  if (discount.productIds.length && (!productIds || !productIds.some(pid => discount.productIds.includes(pid))))
-    return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف برای این محصولات مجاز نیست' } });
-  // اعمال تخفیف روی محصولات واجد شرایط
-  let appliedProducts = productIds && discount.productIds.length
-    ? productIds.filter(pid => discount.productIds.includes(pid))
-    : productIds;
-  // کم کردن یک عدد از maxUsage
-  discount.usedCount += 1;
-  await discount.save();
-  res.json(makeResponse('success', {
-    message: 'کد تخفیف با موفقیت اعمال شد',
-    discount: {
-      code: discount.code,
-      type: discount.type,
-      value: discount.value,
-      appliedProducts,
-      userId,
-    },
-  }));
+      const { code, userId, productIds } = req.body;
+      const discount = await Discount.findOne({ code });
+      if (!discount) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف پیدا نشد' } });
+      if (!discount.active) return res.status(400).json({ status: 'error', data: { message: 'کد غیرفعال است' } });
+      if (discount.expiry < new Date()) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف منقضی شده است' } });
+      if (discount.usedCount >= discount.maxUsage) return res.status(400).json({ status: 'error', data: { message: 'تعداد استفاده تمام شده است' } });
+      if (discount.userIds.length && (!userId || !discount.userIds.includes(userId))) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف برای این کاربر مجاز نیست' } });
+      if (discount.productIds.length && (!productIds || !productIds.some(pid => discount.productIds.includes(pid)))) return res.status(400).json({ status: 'error', data: { message: 'کد تخفیف برای این محصولات مجاز نیست' } });
+      // اعمال تخفیف روی محصولات واجد شرایط
+      let appliedProducts = productIds && discount.productIds.length ? productIds.filter(pid => discount.productIds.includes(pid)) : productIds;
+      // کم کردن یک عدد از maxUsage
+      discount.usedCount += 1;
+      await discount.save();
+      res.json(
+            makeResponse('success', {
+                  message: 'کد تخفیف با موفقیت اعمال شد',
+                  discount: {
+                        code: discount.code,
+                        type: discount.type,
+                        value: discount.value,
+                        appliedProducts,
+                        userId,
+                  },
+            })
+      );
 });
 
 module.exports = router;

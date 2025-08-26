@@ -182,7 +182,7 @@ export const createProduct = async (req: Request, res: Response) => {
                   // رفتار قبلی: محصول ساده بدون variants
                   // --- SKU LOGIC ---
                   // productData.sku = nextSku;
-                  throw new Error("variants not an array");
+                  throw new Error('variants not an array');
             }
 
             // console.log('productData:', productData)
