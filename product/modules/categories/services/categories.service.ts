@@ -164,7 +164,7 @@ export class CategoriesService {
             }
 
             // دریافت parent slugs تا حداکثر ۱۰ سطح
-            const parentSlugs: string[] = [];
+            const parentSlugs: Array<{ slug: string; name: string }> = [];
             let currentCategory = category;
             let parentCount = 0;
             const maxParents = 10;
@@ -172,7 +172,7 @@ export class CategoriesService {
             while (currentCategory && currentCategory.parentId && parentCount < maxParents) {
                   const parent = await Category.findById(currentCategory.parentId).lean();
                   if (parent) {
-                        parentSlugs.unshift(parent.slug);
+                        parentSlugs.unshift({ slug: parent.slug, name: parent.name });
                         currentCategory = parent;
                         parentCount++;
                   } else {
