@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController, getProductBySlug, getProductsByIds } from '../controllers/product.controller.js';
-import { validateProductId, validateProductSchema, validateRequiredAttributesOnCreateProduct, validateRequiredAttributesOnUpdateProduct, validateBulkProductIds } from '../middlewares/product.middleware.js';
+import { createProduct, getProductById, updateProduct, deleteProduct, searchProductsController, getProductBySlug, getProductsByIds, getProductsBySkus } from '../controllers/product.controller.js';
+import { validateProductId, validateProductSchema, validateRequiredAttributesOnCreateProduct, validateRequiredAttributesOnUpdateProduct, validateBulkProductIds, validateBulkSkus } from '../middlewares/product.middleware.js';
 // import { productCommentRouter } from '../comments/index.js';
 import { productTagRouter } from '../tags/index.js';
 import { productChatRouter, chatMessageRouter } from '../chats/index.js';
@@ -25,6 +25,7 @@ router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 router.post('/', asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnCreateProduct), asyncHandler(createProduct));
 router.post('/bulk', asyncHandler(validateBulkProductIds), asyncHandler(getProductsByIds));
+router.post('/bulk-sku', asyncHandler(validateBulkSkus), asyncHandler(getProductsBySkus));
 router.get('/slug/:slug', asyncHandler(getProductBySlug));
 router.get('/:id', asyncHandler(validateProductId), asyncHandler(getProductById));
 router.put('/:id', asyncHandler(validateProductId), asyncHandler(validateProductSchema), asyncHandler(validateRequiredAttributesOnUpdateProduct), asyncHandler(updateProduct));

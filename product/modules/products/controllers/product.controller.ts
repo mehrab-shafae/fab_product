@@ -413,3 +413,92 @@ export const getProductsByIds = async (req: Request, res: Response) => {
             res.status(400).json({ status: 'error', error: error.message });
       }
 };
+
+export const getProductsBySkus = async (req: Request, res: Response) => {
+      try {
+            const { skus } = req.body;
+
+            if (!Array.isArray(skus)) {
+                  return res.status(400).json({ status: 'error', error: 'skus must be an array' });
+            }
+
+            if (skus.length === 0) {
+                  return res.status(400).json({ status: 'error', error: 'skus array cannot be empty' });
+            }
+
+            // Find products that have variants with the specified SKUs
+            const products = await Product.find({
+                  'variants.sku': { $in: skus },
+                  deleted_at: null
+            });
+
+            if (products.length === 0) {
+                  return res.status(404).json({ status: 'error', error: 'No products found with the specified SKUs' });
+            }
+
+            // Create a map of SKU to product for easy lookup
+            const skuToProductMap = new Map();
+            products.forEach(product => {
+                  product.variants?.forEach(variant => {
+                        if (variant.sku && skus.includes(variant.sku)) {
+                              skuToProductMap.set(variant.sku, product);
+                        }
+                  });
+            });
+
+            // Get products in the order of requested SKUs
+            const orderedProducts = skus.map(sku => {
+                  const product = skuToProductMap.get(sku);
+                  if (!product) return null;
+                  
+                  // Find the specific variant with this SKU
+                  const variant = product.variants?.find((v: any) => v.sku === sku);
+                  if (!variant) return null;
+                  
+                  return {
+                        sku,
+                        product: product.toObject(),
+                        variant
+                  };
+            }).filter(Boolean);
+
+            // Get attributes for all products
+            const productsWithAttributes = await Promise.all(
+                  orderedProducts.map(async (item: any) => {
+                        const attributes = await getProductAttributesWithDetails(item.product._id as mongoose.Types.ObjectId);
+                        const productObj = item.product;
+                        
+                        let category = null;
+                        let parentSlugs = [];
+                        if (productObj.category_id) {
+                              // ابتدا دسته‌بندی را با id واکشی کن تا slug را بگیریم
+                              const categoryDoc = await Category.findById(productObj.category_id);
+                              if (categoryDoc) {
+                                    // حالا با slug دسته‌بندی، اطلاعات کامل و parentSlugs را بگیر
+                                    category = await categoriesService.getBySlug(categoryDoc.slug);
+                                    parentSlugs = (category as any)?.parentSlugs || [];
+                              }
+                        }
+                        
+                        // حذف category_id و جایگزینی با category و parentSlugs
+                        const { category_id, ...rest } = productObj;
+                        return {
+                              sku: item.sku,
+                              data: { 
+                                    ...rest, 
+                                    category, 
+                                    parentSlugs, 
+                                    attributes, 
+                                    image_ids: productObj.image_ids, 
+                                    img: productObj.img,
+                                    variant: item.variant
+                              }
+                        };
+                  })
+            );
+
+            res.json({ status: 'success', data: productsWithAttributes });
+      } catch (error: any) {
+            res.status(400).json({ status: 'error', error: error.message });
+      }
+};
