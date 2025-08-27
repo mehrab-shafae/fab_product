@@ -11,7 +11,7 @@ const { combine, timestamp, printf, colorize } = format;
 
 let categoriesWorkerProcess = null;
 let productsWorkerProcess = null;
-let sliderWorkerProcess = null;
+let ordersWorkerProcess = null;
 
 // =====================[ Logger Enhancement ]=====================
 const logger = createLogger({
@@ -108,7 +108,9 @@ function free() {
 // ======================================================================
 async function main() {
       startCategoriesWorker();
+      console.log('hi')
       startProductsWorker();
+      startOrdersWorker();
 }
 main();
 
@@ -170,5 +172,27 @@ function startProductsWorker() {
       productsWorkerProcess.on('close', code => {
             logger.info(`${grayBg}[ProductsWorker] Products worker exited with code ${code}${reset}`);
             productsWorkerProcess = null;
+      });
+}
+
+function startOrdersWorker() {
+      if (ordersWorkerProcess) return;
+      const grayBg = '\x1b[100m';
+      const reset = '\x1b[0m';
+      logger.info(`[OrdersWorker] Starting Products worker...`);
+      ordersWorkerProcess = spawn('node', ['build/product/modules/orders/ordersWorker.js'], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            env: process.env,
+            cwd: process.cwd(),
+      });
+      ordersWorkerProcess.stdout.on('data', data => {
+            logger.info(`[OrdersWorker] ${data.toString().trim()}`);
+      });
+      ordersWorkerProcess.stderr.on('data', data => {
+            logger.error(`[OrdersWorker] ${data.toString().trim()}`);
+      });
+      ordersWorkerProcess.on('close', code => {
+            logger.info(`[OrdersWorker] Orders worker exited with code ${code}`);
+            ordersWorkerProcess = null;
       });
 }

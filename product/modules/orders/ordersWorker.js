@@ -12,7 +12,7 @@ import axios from 'axios';
 const PORT = 7033;
 
 const app = express();
-const swaggerEndPoint = '/api/product/v2/api-docs';
+const swaggerEndPoint = '/api/orders/api-docs';
 
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/product_db';
 
