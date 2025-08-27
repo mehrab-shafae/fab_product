@@ -308,16 +308,29 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
       const hasAttributeFilters = !!(filters && Array.isArray(filters) && filters.length > 0);
       const hasPriceFilter = typeof minPrice === 'number' || typeof maxPrice === 'number';
 
-      let normalizedFilters: Array<{ attrId: string; valuesLower: string[] }> = [];
+      // Support multiple CategoryAttribute IDs for the same attribute name across categories
+      let normalizedFilters: Array<{ attrIds: string[]; valuesLower: string[] }> = [];
       if (hasAttributeFilters) {
             const attributeDocs = await CategoryAttribute.find({
                   $or: filters!.map(f => ({ name: { $regex: `^${f.attribute}$`, $options: 'i' } })),
             });
-            const nameToId: Record<string, string> = Object.fromEntries(attributeDocs.map((a: any) => [String(a.name).toLowerCase(), a._id.toString()]));
+            // Build a map from attribute name to all matching IDs (there can be many across categories)
+            const nameToIds: Record<string, string[]> = {};
+            for (const a of attributeDocs) {
+                  const key = String((a as any).name).toLowerCase();
+                  const idStr = (a as any)._id.toString?.() ?? String((a as any)._id);
+                  if (!nameToIds[key]) nameToIds[key] = [];
+                  nameToIds[key].push(idStr);
+            }
             normalizedFilters = filters!.map(f => {
-                  const attrId = nameToId[f.attribute.toLowerCase()] || f.attribute; // support direct id
+                  const key = String(f.attribute).toLowerCase();
+                  const candidateIds = nameToIds[key] || [];
+                  // Also support direct id provided as attribute
+                  if (Types.ObjectId.isValid(f.attribute)) {
+                        candidateIds.push(new Types.ObjectId(f.attribute).toString());
+                  }
                   const valuesLower = (f.values || []).map(v => String(v).toLowerCase());
-                  return { attrId, valuesLower };
+                  return { attrIds: Array.from(new Set(candidateIds)), valuesLower };
             });
       }
 
@@ -351,7 +364,10 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
                                     input: { $ifNull: ['$$v.attributes', []] },
                                     as: 'a',
                                     in: {
-                                          $and: [{ $eq: [{ $toString: '$$a.attribute_id' }, nf.attrId] }, { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] }],
+                                          $and: [
+                                                { $in: [{ $toString: '$$a.attribute_id' }, nf.attrIds] },
+                                                { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] },
+                                          ],
                                     },
                               },
                         },
