@@ -423,7 +423,7 @@ export const getProductsBySkus = async (req: Request, res: Response) => {
             }
 
             if (skus.length === 0) {
-                  return res.status(400).json({ status: 'error', error: 'skus array cannot be empty' });
+                  return res.json({ status: 'success', data: [] });
             }
 
             // Find products that have variants with the specified SKUs
@@ -431,10 +431,6 @@ export const getProductsBySkus = async (req: Request, res: Response) => {
                   'variants.sku': { $in: skus },
                   deleted_at: null
             });
-
-            if (products.length === 0) {
-                  return res.status(404).json({ status: 'error', error: 'No products found with the specified SKUs' });
-            }
 
             // Create a map of SKU to product for easy lookup
             const skuToProductMap = new Map();

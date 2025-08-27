@@ -478,24 +478,12 @@ export const validateBulkSkus = (req: Request, res: Response, next: NextFunction
             return res.status(400).json({ error: 'skus must be an array' });
       }
 
-      if (skus.length === 0) {
-            return res.status(400).json({ error: 'skus array cannot be empty' });
-      }
-
-      // Validate that all SKUs are strings and not empty
-      const validSkus = skus.filter(sku => typeof sku === 'string' && sku.trim().length > 0);
-      if (validSkus.length === 0) {
-            return res.status(400).json({ error: 'No valid SKUs provided' });
-      }
-
-      // Check for duplicate SKUs
-      const uniqueSkus = new Set(validSkus);
-      if (uniqueSkus.size !== validSkus.length) {
-            return res.status(400).json({ error: 'Duplicate SKUs are not allowed' });
-      }
-
-      // Update req.body with validated SKUs
-      req.body.skus = validSkus;
+      // Filter to strings, trim empties, and deduplicate; ignore invalid/duplicate entries
+      const filtered = skus
+            .filter((sku: any) => typeof sku === 'string')
+            .map((sku: string) => sku.trim())
+            .filter((sku: string) => sku.length > 0);
+      req.body.skus = Array.from(new Set(filtered));
 
       next();
 };
