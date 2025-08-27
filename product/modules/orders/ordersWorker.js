@@ -107,7 +107,7 @@ app.use('/api/orders/discounts', discountRouter);
 
 app.listen(PORT, () => {
       console.log(`Orders worker running on port ${PORT}`);
-      console.log(`Swagger documentation available at http://localhost:${PORT}/api/product/v2/api-docs`);
+      console.log(`Swagger documentation available at http://localhost:${PORT}/api/orders/api-docs`);
 
       setTimeout(async () => {
             await generateSwaggerPublicHtml();

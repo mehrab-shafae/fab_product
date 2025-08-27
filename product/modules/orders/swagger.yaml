@@ -13,7 +13,7 @@ tags:
 servers:
   - url: http://localhost:7033/api
     description: Local server
-  - url: http://87.248.138.74:8080/api/v1/orders
+  - url: http://87.248.138.74:8080/api/v1
     description: Test server
 
 security:
