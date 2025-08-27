@@ -4,6 +4,7 @@ import { CategoryAttribute } from '../../../categories/models/categoryAttribute.
 import { Product } from '../../models/product.model.js';
 import { Category } from '../../../categories/models/category.model.js';
 import { Types } from 'mongoose';
+import { categoriesService } from '../../../categories/services/categories.service.js';
 
 export const addProductAttributeValue = async (data: Partial<IProductAttributeValue>) => {
       // اعتبارسنجی attribute_id
@@ -426,8 +427,35 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
       // execute aggregation
       const aggResult = await Product.aggregate(pipeline);
       const first = aggResult[0] || { data: [], count: [] };
-      const data = first.data || [];
+      const rawData = first.data || [];
       const total = first.count && first.count[0] && first.count[0].total ? first.count[0].total : 0;
+
+      // Enrich each product: replace category_id with full category (with attributes and options)
+      const categoryIds = Array.from(
+            new Set(
+                  rawData
+                        .map((p: any) => (p && p.category_id ? p.category_id.toString?.() ?? String(p.category_id) : null))
+                        .filter(Boolean)
+            )
+      );
+      const categoryDocs = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }).lean() : [];
+      const catIdToSlug: Record<string, string> = Object.fromEntries(
+            categoryDocs.map((c: any) => [c._id.toString?.() ?? String(c._id), c.slug])
+      );
+
+      const data = await Promise.all(
+            rawData.map(async (p: any) => {
+                  const pidCategoryId = p && p.category_id ? p.category_id.toString?.() ?? String(p.category_id) : null;
+                  let category: any = null;
+                  if (pidCategoryId && catIdToSlug[pidCategoryId]) {
+                        try {
+                              category = await categoriesService.getBySlug(catIdToSlug[pidCategoryId], { includeAttributes: true });
+                        } catch {}
+                  }
+                  const { category_id, ...rest } = p || {};
+                  return { ...rest, category };
+            })
+      );
 
       return {
             data,
