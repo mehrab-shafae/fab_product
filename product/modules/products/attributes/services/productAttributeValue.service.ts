@@ -3,6 +3,7 @@ import { CategoryAttribute } from '../../../categories/models/categoryAttribute.
 // import { ICategoryAttribute } from '../../../categories/models/categoryAttribute.model.js';
 import { Product } from '../../models/product.model.js';
 import { Category } from '../../../categories/models/category.model.js';
+import { Types } from 'mongoose';
 
 export const addProductAttributeValue = async (data: Partial<IProductAttributeValue>) => {
       // اعتبارسنجی attribute_id
@@ -276,7 +277,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
       let allCategoryIds: Set<string> | undefined = undefined;
       let categories: any[] = [];
       if (categorySlugs && Array.isArray(categorySlugs) && categorySlugs.length > 0) {
-            categories = await Category.find({ slug: { $in: categorySlugs }, deleted_at: null });
+            categories = await Category.find({ slug: { $in: categorySlugs } });
             if (categories.length === 0) {
                   return {
                         data: [],
@@ -292,7 +293,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
             const categoryIds = categories.map(c => c._id);
             allCategoryIds = new Set<string>(categoryIds.map(id => id?.toString?.() ?? String(id)));
             const getAllDescendants = async (parentIds: string[]) => {
-                  const children = await Category.find({ parent_id: { $in: parentIds }, deleted_at: null });
+                  const children = await Category.find({ parentId: { $in: parentIds } });
                   if (!children || children.length === 0) return;
                   const childIds = children.map((c: any) => (typeof c._id === 'object' && typeof c._id.toString === 'function' ? c._id.toString() : String(c._id))).filter(Boolean);
                   childIds.forEach(id => allCategoryIds!.add(id));
@@ -325,7 +326,8 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
       // base match
       const baseMatch: any = { deleted_at: null };
       if (allCategoryIds) {
-            baseMatch.category_id = { $in: Array.from(allCategoryIds) };
+            const categoryObjectIds = Array.from(allCategoryIds).map(id => new Types.ObjectId(id));
+            baseMatch.category_id = { $in: categoryObjectIds };
       }
       pipeline.push({ $match: baseMatch });
 
