@@ -84,13 +84,22 @@ export class CategoriesService {
             // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را بساز
             if (data.attribute_metadata && Array.isArray(data.attribute_metadata)) {
                   for (const attr of data.attribute_metadata) {
-                        const attribute = await CategoryAttribute.create({
+                        // ابتدا بررسی کن که آیا attribute با همین نام وجود دارد یا نه
+                        let attribute = await CategoryAttribute.findOne({
                               categoryId: category._id,
-                              name: attr.name,
-                              type: attr.type,
-                              required: attr.required || false,
-                              order: attr.order || 0,
+                              name: attr.name
                         });
+                        
+                        if (!attribute) {
+                              // فقط اگر attribute با همین نام وجود نداشت، ایجاد کن
+                              attribute = await CategoryAttribute.create({
+                                    categoryId: category._id,
+                                    name: attr.name,
+                                    type: attr.type,
+                                    required: attr.required || false,
+                                    order: attr.order || 0,
+                              });
+                        }
                         // اگر options داشت، آن‌ها را هم بساز
                         if (attr.options && Array.isArray(attr.options)) {
                               for (const opt of attr.options) {
@@ -347,13 +356,28 @@ export class CategoriesService {
                                     }
                               }
                         } else {
-                              attribute = await CategoryAttribute.create({
+                              // ابتدا بررسی کن که آیا attribute با همین نام وجود دارد یا نه
+                              attribute = await CategoryAttribute.findOne({
                                     categoryId: category._id,
-                                    name: attr.name,
-                                    type: attr.type,
-                                    required: attr.required || false,
-                                    order: attr.order || 0,
+                                    name: attr.name
                               });
+                              
+                              if (!attribute) {
+                                    // فقط اگر attribute با همین نام وجود نداشت، ایجاد کن
+                                    attribute = await CategoryAttribute.create({
+                                          categoryId: category._id,
+                                          name: attr.name,
+                                          type: attr.type,
+                                          required: attr.required || false,
+                                          order: attr.order || 0,
+                                    });
+                              } else {
+                                    // اگر وجود داشت، فقط فیلدهای غیر بحرانی را آپدیت کن
+                                    attribute.type = attr.type;
+                                    attribute.required = attr.required || false;
+                                    attribute.order = attr.order || 0;
+                                    await attribute.save();
+                              }
                               if (attr.options && Array.isArray(attr.options)) {
                                     for (const opt of attr.options) {
                                           await CategoryAttributeOption.create({

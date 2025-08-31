@@ -239,10 +239,12 @@ export const updateProduct = async (req: Request, res: Response) => {
             if (typeof image_ids === 'string') {
                   image_ids = [image_ids];
             }
+            
             // --- SLUG LOGIC ---
             const productId = req.params.id;
             const currentProduct = await Product.findById(productId);
             if (!currentProduct) return res.status(404).json({ status: 'error', error: 'Product not found' });
+            
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
@@ -251,6 +253,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             } else {
                   slug = currentProduct.slug;
             }
+            
             // Check uniqueness only if slug changed
             if (slug !== currentProduct.slug) {
                   const exists = await Product.findOne({ slug });
@@ -259,64 +262,46 @@ export const updateProduct = async (req: Request, res: Response) => {
                   }
             }
             // --- END SLUG LOGIC ---
-            const updateData: any = {
+            
+            let updateData: any = {
                   ...req.body,
                   slug, // always use processed slug
                   image_ids,
                   img: req.body.img,
             };
-            // If variants exist, process them for new structure
+
+            // اگر variants وجود داشت، پردازش کن (مثل createProduct)
             if (Array.isArray(req.body.variants) && req.body.variants.length > 0) {
                   updateData.variants = [];
                   for (const [_i, variant] of req.body.variants.entries()) {
                         let variantObj: any = { ...variant };
-                        // attributes: array of { attribute_id, value }
+                        
+                        // attributes: array of { attribute_id, value } (مثل createProduct)
                         if (Array.isArray(variant.attributes)) {
                               variantObj.attributes = [];
                               for (const attr of variant.attributes) {
-                                    // تبدیل CategoryAttribute به ProductAttribute
-                                    /*const result = await getOrCreateProductAttribute(attr.attribute_id);
-                                    if (result.status !== 'success') {
-                                          return res.status(400).json({ status: 'error', error: result.error });
-                                    }*/
                                     variantObj.attributes.push({
                                           attribute_id: attr.attribute_id,
                                           value: attr.value,
                                     });
                               }
                         }
-                        // Remove img and color_palette from variant if present
-                        // delete variantObj.img;
-                        // delete variantObj.color_palette;
+                        
+                        // inventory: مقداردهی پیش‌فرض (مثل createProduct)
+                        if (!variant.inventory) {
+                              variantObj.inventory = { stock: 1, price: 0 };
+                        } else {
+                              if (typeof variant.inventory.stock !== 'number') variantObj.inventory.stock = 1;
+                              if (typeof variant.inventory.price !== 'number') variantObj.inventory.price = 0;
+                        }
+                        
                         updateData.variants.push(variantObj);
                   }
             }
+
+            // آپدیت محصول (فقط فیلدهای ارسال شده)
             const product = await Product.findByIdAndUpdate(productId, updateData, { new: true });
             if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
-
-            // --- منطق جایگزینی کامل attributeها (replace) ---
-            if (req.body.attributes && Array.isArray(req.body.attributes)) {
-                  // 1. همه attributeهای قبلی را soft-delete کن
-                  await ProductAttributeValue.updateMany({ product_id: product._id, deleted_at: null }, { deleted_at: new Date() });
-                  // 2. فقط attributeهای جدید را اضافه یا آپدیت کن (deleted_at: null)
-                  for (const attr of req.body.attributes) {
-                        // تبدیل CategoryAttribute به ProductAttribute
-                        /*const result = await getOrCreateProductAttribute(attr.attribute_id);
-                        if (result.status !== 'success') {
-                              return res.status(400).json({ status: 'error', error: result.error });
-                        }*/
-
-                        // حالا ProductAttributeValue را با ProductAttribute._id ذخیره کن
-                        if (Array.isArray(attr.value)) {
-                              for (const v of attr.value) {
-                                    await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id, value: v }, { value: v, deleted_at: null }, { upsert: true, new: true });
-                              }
-                        } else {
-                              await ProductAttributeValue.findOneAndUpdate({ product_id: product._id, attribute_id: attr.attribute_id }, { value: attr.value, deleted_at: null }, { upsert: true, new: true });
-                        }
-                  }
-            }
-            // --- پایان منطق جایگزینی کامل attributeها ---
 
             res.json({ status: 'success', data: product, message: 'Product updated successfully' });
       } catch (error: any) {
