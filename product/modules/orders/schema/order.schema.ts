@@ -13,7 +13,7 @@ export const createOrderSchema = yup.object({
             )
             .min(1, 'حداقل یک محصول باید در سفارش باشد')
             .required('محصولات الزامی هستند'),
-      status: yup.string().oneOf(Object.values(OrderStatus)).default(OrderStatus.PENDING),
+      status: yup.string().oneOf(Object.values(OrderStatus)).default(OrderStatus.RESERVING),
       totalPrice: yup.number().positive('مجموع قیمت باید مثبت باشد').optional(),
       discountCode: yup.string().optional(),
       discountAmount: yup.number().min(0, 'مبلغ تخفیف نمی‌تواند منفی باشد').default(0).optional(),
