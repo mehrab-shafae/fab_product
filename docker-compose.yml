@@ -9,6 +9,7 @@ services:
     volumes:
       # - .:/app:cached
       - /app/node_modules
+      - /var/log/app:/app/logs
     networks:
       - krakend-private
 
