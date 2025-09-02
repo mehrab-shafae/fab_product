@@ -360,6 +360,8 @@ paths:
                                       type: number
                                     price:
                                       type: number
+                                    old_price:
+                                      type: number
                                 image_ids:
                                   type: array
                                   items:
@@ -1868,6 +1870,9 @@ components:
                   price:
                     type: number
                     default: 0
+                  old_price:
+                    type: number
+                    default: 0
               image_ids:
                 type: array
                 items:
@@ -1931,6 +1936,9 @@ components:
                   price:
                     type: number
                     default: 0
+                  old_price:
+                    type: number
+                    default: 0
               image_ids:
                 type: array
                 items:
@@ -1957,6 +1965,7 @@ components:
             inventory:
               stock: 10
               price: 299000
+              old_price: 0
             image_ids: ["variantRedXLImage1", "variantRedXLImage2"]
             sku: "1001"
           - attributes:
@@ -1967,6 +1976,7 @@ components:
             inventory:
               stock: 5
               price: 289000
+              old_price: 0
             image_ids: ["variantBlueLImage1"]
             sku: "1002"
     ProductAttribute:

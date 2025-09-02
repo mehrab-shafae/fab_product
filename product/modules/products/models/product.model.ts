@@ -8,6 +8,7 @@ export interface IProductVariant {
       inventory?: {
             stock?: number; // default: 1
             price?: number; // default: 0
+            old_price?: number; // default: 0
       };
       image_ids?: string[];
       sku?: string;
@@ -41,6 +42,7 @@ const ProductVariantSchema = new Schema<IProductVariant>(
             inventory: {
                   stock: { type: Number, default: 1 },
                   price: { type: Number, default: 0 },
+                  old_price: { type: Number, default: 0 },
             },
             image_ids: [{ type: String }],
             sku: { type: String }, // unique: true, required: true (TODO())

@@ -25,6 +25,7 @@ export const productSchema = Joi.object({
                         inventory: Joi.object({
                               stock: Joi.number().min(0).default(1),
                               price: Joi.number().min(0).default(0),
+                              old_price: Joi.number().min(0).default(0),
                         }).optional(),
                         image_ids: Joi.array().items(Joi.string()).max(100).optional(),
                         sku: Joi.string().optional(),
