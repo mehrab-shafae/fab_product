@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import '../log.js';
+
 import '../cwd.js';
 import '../asyncHandler.js';
 // ======================================================================
