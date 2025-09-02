@@ -253,6 +253,144 @@ paths:
                   data:
                     $ref: '#/components/schemas/Order'
 
+  /orders/{id}/finalize-payment:
+    post:
+      tags:
+        - Orders
+      summary: نهایی کردن پرداخت سفارش
+      description: این endpoint برای نهایی کردن پرداخت سفارش و کاهش موجودی محصولات استفاده می‌شود
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: شناسه سفارش
+      responses:
+        '200':
+          description: پرداخت سفارش با موفقیت نهایی شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: پرداخت سفارش با موفقیت نهایی شد
+        '400':
+          description: سفارش در وضعیت رزرو نیست یا موجودی کافی نیست
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: سفارش در وضعیت رزرو نیست
+        '404':
+          description: سفارش یافت نشد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: سفارش یافت نشد
+        '500':
+          description: خطای داخلی سرور
+
+  /orders/{id}/cancel:
+    post:
+      tags:
+        - Orders
+      summary: لغو سفارش
+      description: لغو سفارش رزرو شده و آزاد کردن موجودی رزرو شده
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: شناسه سفارش
+      responses:
+        '200':
+          description: سفارش با موفقیت لغو شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: سفارش با موفقیت لغو شد
+                  data:
+                    $ref: '#/components/schemas/Order'
+        '400':
+          description: سفارش قابل لغو نیست
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: فقط سفارش‌های رزرو شده قابل لغو هستند
+        '404':
+          description: سفارش یافت نشد
+        '500':
+          description: خطای داخلی سرور
+
+  /orders/inventory/stats:
+    get:
+      tags:
+        - Orders
+      summary: دریافت آمار موجودی
+      description: دریافت آمار کلی موجودی محصولات
+      responses:
+        '200':
+          description: آمار موجودی
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      totalProducts:
+                        type: integer
+                        description: تعداد کل محصولات فعال
+                      lowStockProducts:
+                        type: integer
+                        description: تعداد محصولات با موجودی کم (کمتر از 5)
+                      outOfStockProducts:
+                        type: integer
+                        description: تعداد محصولات بدون موجودی
+                      reservedStock:
+                        type: integer
+                        description: تعداد کل موجودی رزرو شده
+        '500':
+          description: خطای داخلی سرور
+
   /orders/stats:
     get:
       tags:

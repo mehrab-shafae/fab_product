@@ -18,5 +18,8 @@ router.patch('/:id/status', validateUpdateOrderStatus, checkOrderExists, ordersC
 router.put('/:id', validateUpdateOrder, checkOrderExists, ordersController.updateOrder);
 router.delete('/:id', checkOrderExists, ordersController.deleteOrder);
 router.get('/stats', ordersController.getOrderStats);
+router.post('/:id/finalize-payment', checkOrderExists, ordersController.finalizeOrderPayment);
+router.post('/:id/cancel', checkOrderExists, ordersController.cancelOrder);
+router.get('/inventory/stats', ordersController.getInventoryStats);
 
 export default router;

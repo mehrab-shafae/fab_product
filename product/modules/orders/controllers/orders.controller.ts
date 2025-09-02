@@ -8,6 +8,7 @@ import { OrderStatus } from '../types/order.types.js';
  */
 export const createOrder = async (req: Request, res: Response): Promise<void | any> => {
       try {
+            await orderService.expireReservationJob();
             const orderData = {
                   ...req.body,
             } as any;
@@ -55,6 +56,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void | a
  */
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
             const status = req.query.status as OrderStatus;
@@ -84,6 +86,7 @@ export const getAllOrders = async (req: Request, res: Response): Promise<void> =
  */
 export const getOrderById = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             const { id } = req.params;
             const order = await orderService.getOrderById(id);
 
@@ -112,6 +115,7 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
  */
 export const getOrdersByUser = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             //const userId = req.params.userId || req.user?.id;
             const userId = req.params.userId;
             const page = parseInt(req.query.page as string) || 1;
@@ -150,6 +154,7 @@ export const getOrdersByUser = async (req: Request, res: Response): Promise<void
  */
 export const updateOrderStatus = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             const { id } = req.params;
             const { status } = req.body;
 
@@ -189,6 +194,7 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
  */
 export const updateOrder = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             const { id } = req.params;
             const updateData = req.body;
 
@@ -220,6 +226,7 @@ export const updateOrder = async (req: Request, res: Response): Promise<void> =>
  */
 export const deleteOrder = async (req: Request, res: Response): Promise<void> => {
       try {
+            await orderService.expireReservationJob();
             const { id } = req.params;
             const deleted = await orderService.deleteOrder(id);
 
@@ -249,6 +256,78 @@ export const deleteOrder = async (req: Request, res: Response): Promise<void> =>
 export const getOrderStats = async (_: Request, res: Response): Promise<void> => {
       try {
             const stats = await orderService.getOrderStats();
+
+            res.status(200).json({
+                  status: 'success',
+                  data: stats,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
+};
+
+/**
+ * نهایی کردن پرداخت سفارش
+ */
+export const finalizeOrderPayment = async (req: Request, res: Response): Promise<void> => {
+      try {
+            await orderService.expireReservationJob();
+            const { id } = req.params;
+
+            await orderService.finalizeOrderPayment(id);
+
+            res.status(200).json({
+                  status: 'success',
+                  message: 'پرداخت سفارش با موفقیت نهایی شد',
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
+};
+
+/**
+ * لغو سفارش
+ */
+export const cancelOrder = async (req: Request, res: Response): Promise<void> => {
+      try {
+            await orderService.expireReservationJob();
+            const { id } = req.params;
+
+            const order = await orderService.cancelOrder(id);
+
+            if (!order) {
+                  res.status(404).json({
+                        status: 'error',
+                        message: 'سفارش مورد نظر یافت نشد',
+                  });
+                  return;
+            }
+
+            res.status(200).json({
+                  status: 'success',
+                  message: 'سفارش با موفقیت لغو شد',
+                  data: order,
+            });
+      } catch (error) {
+            res.status(500).json({
+                  status: 'error',
+                  message: (error as Error).message,
+            });
+      }
+};
+
+/**
+ * دریافت آمار موجودی
+ */
+export const getInventoryStats = async (_: Request, res: Response): Promise<void> => {
+      try {
+            const stats = await orderService.getInventoryStats();
 
             res.status(200).json({
                   status: 'success',
