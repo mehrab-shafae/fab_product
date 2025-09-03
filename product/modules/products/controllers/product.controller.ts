@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import axios from 'axios';
 import { Product } from '../models/product.model.js';
 import { searchProducts } from '../services/product.service.js';
 import { ProductAttributeValue } from '../attributes/models/productAttributeValue.model.js';
@@ -357,6 +358,8 @@ export const deleteProduct = async (req: Request, res: Response) => {
       try {
             const product = await Product.findByIdAndUpdate(req.params.id, { deleted_at: new Date() }, { new: true });
             if (!product) return res.status(404).json({ status: 'error', error: 'Product not found' });
+            // Fire-and-forget parallel DELETE request to home-page service (timeout: 5s)
+            axios.delete(`http://fab_home-page:7101/${encodeURIComponent(String(req.params.id))}`, { timeout: 5000 }).catch(() => {});
             res.json({ status: 'success', data: product, message: 'Product deleted successfully' });
       } catch (error: any) {
             res.status(400).json({ status: 'error', error: error.message });
