@@ -14,6 +14,7 @@ export const createCategorySchema = yup.object({
       meta_keywords: yup.array().of(yup.string()).optional(),
       meta_title: yup.string().optional(),
       meta_description: yup.string().optional(),
+      meta_helper: yup.array().of(yup.string()).optional(),
       attribute_metadata: yup
             .array()
             .of(
@@ -52,6 +53,7 @@ export const updateCategorySchema = yup.object({
       meta_keywords: yup.array().of(yup.string()).optional(),
       meta_title: yup.string().optional(),
       meta_description: yup.string().optional(),
+      meta_helper: yup.array().of(yup.string()).optional(),
       attribute_metadata: yup
             .array()
             .of(

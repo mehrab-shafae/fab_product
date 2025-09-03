@@ -23,6 +23,7 @@ export interface ICategory extends Document {
       meta_keywords: string[];
       meta_title: string;
       meta_description: string;
+      meta_helper?: string[]; // لیست کلیدهای مجاز برای metaHelper محصولات
       createdAt: Date;
       updatedAt: Date;
       baseSku?: number; // مقدار اولیه کدگذاری محصولات این دسته
@@ -52,6 +53,7 @@ const CategorySchema = new Schema<ICategory>(
             meta_keywords: [{ type: String }],
             meta_title: { type: String },
             meta_description: { type: String },
+            meta_helper: [{ type: String }],
             baseSku: { type: Number }, // مقدار اولیه کدگذاری محصولات این دسته
             categorySku: { type: Number, required: true, unique: true }, // کد یکتای هر دسته‌بندی
       },

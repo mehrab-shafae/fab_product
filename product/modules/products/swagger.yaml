@@ -1827,6 +1827,13 @@ components:
           type: string
         metadata:
           type: object
+        meta_helper:
+          type: array
+          description: آرایه‌ای از آبجکت‌های تک‌کلیدی مطابق با meta_helper دسته‌بندی
+          items:
+            type: object
+            additionalProperties:
+              type: object
         status:
           type: string
           enum: [active, inactive, draft, archived]
@@ -1904,6 +1911,13 @@ components:
           type: string
         metadata:
           type: object
+        meta_helper:
+          type: array
+          description: آرایه‌ای اختیاری از آبجکت‌های تک‌کلیدی. هر کلید باید در meta_helper دسته مجاز باشد و مقدار باید object باشد.
+          items:
+            type: object
+            additionalProperties:
+              type: object
         status:
           type: string
           enum: [active, inactive, draft, archived]
@@ -1956,6 +1970,9 @@ components:
         category_id: "65f1c2a3b4c5d6e7f8a9b0c1"
         img: "mainImageId"
         image_ids: ["mainImageId", "galleryImageId1", "galleryImageId2"]
+        meta_helper:
+          - key1: { any: "value" }
+          - key2: { nested: { foo: "bar" } }
         variants:
           - attributes:
               - attribute_id: "65f1c2a3b4c5d6e7f8a9b0d1" # رنگ

@@ -35,6 +35,7 @@ paths:
               meta_keywords: ["keyword1", "keyword2"]
               meta_title: "Meta Title"
               meta_description: "Meta description here."
+              meta_helper: ["key1", "key2"]
               attribute_metadata:
                 - name: "Color"
                   type: "enum"
@@ -310,6 +311,7 @@ paths:
               meta_keywords: ["keyword1", "keyword2"]
               meta_title: "Meta Title"
               meta_description: "Meta description here."
+              meta_helper: ["key1", "key2"]
               attribute_metadata:
                 - name: "Color"
                   type: "enum"
@@ -1320,6 +1322,12 @@ components:
         meta_description:
           type: string
           example: "Meta description here."
+        meta_helper:
+          type: array
+          description: لیست کلیدهای مجاز برای metaHelper محصولات این دسته
+          items:
+            type: string
+          example: ["key1", "key2"]
         attribute_metadata:
           type: array
           items:
@@ -1391,6 +1399,12 @@ components:
         meta_description:
           type: string
           example: "Meta description here."
+        meta_helper:
+          type: array
+          description: لیست کلیدهای مجاز برای metaHelper محصولات این دسته
+          items:
+            type: string
+          example: ["key1", "key2"]
         attribute_metadata:
           type: array
           items:
@@ -1454,6 +1468,11 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/CategoryAttribute'
+        meta_helper:
+          type: array
+          description: کلیدهای مجاز metaHelper برای محصولات زیر این دسته
+          items:
+            type: string
         slug_redirects:
           type: array
           items:

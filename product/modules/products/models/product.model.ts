@@ -22,6 +22,7 @@ export interface IProduct extends Document {
       brand_model?: string;
       category_id?: mongoose.Types.ObjectId;
       metadata?: Record<string, any>;
+      meta_helper?: Array<Record<string, any>>;
       status?: 'active' | 'inactive' | 'draft' | 'archived';
       created_at?: Date;
       updated_at?: Date;
@@ -58,6 +59,7 @@ const ProductSchema = new Schema<IProduct>({
       brand_model: { type: String },
       category_id: { type: Schema.Types.ObjectId, ref: 'Category' },
       metadata: { type: Schema.Types.Mixed },
+      meta_helper: [{ type: Schema.Types.Mixed }],
       status: { type: String, enum: ['active', 'inactive', 'draft', 'archived'], default: 'active' },
       created_at: { type: Date, default: Date.now },
       updated_at: { type: Date, default: Date.now },
