@@ -12,7 +12,8 @@ import { dirname } from 'node:path';
   const __dirname = dirname(__filename);
 
   // --- read package name if available
-  let name = 'app';
+  let num0 = Math.floor(Math.random()*999)+1;
+  let name = 'core' + num0;
   try {
     const packageJson = await fs.readFile(path.join(__dirname, 'package.json'), 'utf-8');
     const pkg = JSON.parse(packageJson);
