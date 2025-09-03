@@ -31,6 +31,17 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/CreateOrderInput'
+            examples:
+              sample:
+                summary: نمونه ایجاد سفارش با SKU
+                value:
+                  items:
+                    - sku: "SKU-ABC-001"
+                      quantity: 2
+                    - sku: "SKU-XYZ-002"
+                      quantity: 1
+                  discountCode: "OFF10"
+                  shippingAddress: "تهران، خیابان مثال ۱۲۳"
       responses:
         '201':
           description: سفارش با موفقیت ایجاد شد
@@ -68,7 +79,7 @@ paths:
           name: status
           schema:
             type: string
-            enum: [pending, paid, canceled, shipped, delivered, refunded]
+            enum: [reserving, reserved, paying, paid, canceled, expired, shipped, delivered, refunded]
       responses:
         '200':
           description: لیست سفارشات
@@ -94,6 +105,28 @@ paths:
                         type: integer
                       pages:
                         type: integer
+              examples:
+                sample:
+                  value:
+                    status: success
+                    data:
+                      - _id: "650000000000000000000001"
+                        user: "u123"
+                        status: reserved
+                        totalPrice: 300000
+                        payablePrice: 270000
+                        discountCode: "OFF10"
+                        discountAmount: 30000
+                        items:
+                          - product: "64f000000000000000000001"
+                            variantId: "64f0000000000000000000a1"
+                            quantity: 2
+                            price: 100000
+                    pagination:
+                      page: 1
+                      limit: 10
+                      total: 1
+                      pages: 1
 
   /orders/users/{userId}:
     get:
@@ -141,6 +174,16 @@ paths:
                         type: integer
                       pages:
                         type: integer
+              examples:
+                sample:
+                  value:
+                    status: success
+                    data: []
+                    pagination:
+                      page: 1
+                      limit: 10
+                      total: 0
+                      pages: 0
 
   /orders/{id}:
     get:
@@ -165,6 +208,21 @@ paths:
                     type: string
                   data:
                     $ref: '#/components/schemas/Order'
+              examples:
+                sample:
+                  value:
+                    status: success
+                    data:
+                      _id: "650000000000000000000001"
+                      user: "u123"
+                      status: reserved
+                      totalPrice: 300000
+                      payablePrice: 270000
+                      items:
+                        - product: "64f000000000000000000001"
+                          variantId: "64f0000000000000000000a1"
+                          quantity: 2
+                          price: 100000
         '404':
           description: سفارش یافت نشد
     put:
@@ -182,7 +240,16 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateOrderInput'
+              $ref: '#/components/schemas/UpdateOrderInput'
+            examples:
+              sample:
+                value:
+                  items:
+                    - product: "64f000000000000000000001"
+                      variantId: "64f0000000000000000000a1"
+                      quantity: 3
+                      price: 95000
+                  shippingAddress: "تهران، خیابان نو"
       responses:
         '200':
           description: سفارش به‌روزرسانی شد
@@ -237,7 +304,11 @@ paths:
               properties:
                 status:
                   type: string
-                  enum: [pending, paid, canceled, shipped, delivered, refunded]
+                  enum: [reserving, reserved, paying, paid, canceled, expired, shipped, delivered, refunded]
+            examples:
+              sample:
+                value:
+                  status: reserved
       responses:
         '200':
           description: وضعیت سفارش به‌روزرسانی شد
@@ -388,6 +459,15 @@ paths:
                       reservedStock:
                         type: integer
                         description: تعداد کل موجودی رزرو شده
+              examples:
+                sample:
+                  value:
+                    status: success
+                    data:
+                      totalProducts: 120
+                      lowStockProducts: 7
+                      outOfStockProducts: 3
+                      reservedStock: 42
         '500':
           description: خطای داخلی سرور
 
@@ -413,9 +493,15 @@ paths:
                         type: integer
                       totalRevenue:
                         type: number
-                      pending:
+                      reserving:
+                        type: integer
+                      reserved:
+                        type: integer
+                      paying:
                         type: integer
                       paid:
+                        type: integer
+                      expired:
                         type: integer
                       shipped:
                         type: integer
@@ -423,6 +509,21 @@ paths:
                         type: integer
                       canceled:
                         type: integer
+              examples:
+                sample:
+                  value:
+                    status: success
+                    data:
+                      total: 10
+                      totalRevenue: 1500000
+                      reserving: 1
+                      reserved: 2
+                      paying: 0
+                      paid: 5
+                      expired: 1
+                      shipped: 1
+                      delivered: 0
+                      canceled: 0
 
   /orders/discounts:
     post:
@@ -435,6 +536,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/Discount'
+            examples:
+              sample:
+                value:
+                  code: "OFF10"
+                  type: "percentage"
+                  value: 10
+                  expiry: "2025-12-31T23:59:59.000Z"
+                  maxUsage: 1000
+                  active: true
       responses:
         '201':
           description: تخفیف ایجاد شد
@@ -459,6 +569,18 @@ paths:
               type: array
               items:
                 $ref: '#/components/schemas/Discount'
+            examples:
+              sample:
+                value:
+                  - code: "OFF10"
+                    type: "percentage"
+                    value: 10
+                    maxUsage: 100
+                    active: true
+                  - code: "FIX50K"
+                    type: "fixed"
+                    value: 50000
+                    active: true
       responses:
         '201':
           description: تخفیف‌ها ایجاد شدند
@@ -553,6 +675,12 @@ paths:
                   type: array
                   items:
                     type: string
+            examples:
+              sample:
+                value:
+                  code: "OFF10"
+                  userId: "u123"
+                  productIds: ["64f000000000000000000001", "64f000000000000000000002"]
       responses:
         '200':
           description: تخفیف اعمال شد
@@ -573,6 +701,8 @@ components:
           type: integer
         price:
           type: number
+        variantId:
+          type: string
     Order:
       type: object
       properties:
@@ -586,7 +716,7 @@ components:
             $ref: '#/components/schemas/OrderItem'
         status:
           type: string
-          enum: [pending, paid, canceled, shipped, delivered, refunded]
+          enum: [reserving, reserved, paying, paid, canceled, expired, shipped, delivered, refunded]
         totalPrice:
           type: number
         discountCode:
@@ -599,10 +729,10 @@ components:
           type: string
         shippingAddress:
           type: string
-        created_at:
+        createdAt:
           type: string
           format: date-time
-        updated_at:
+        updatedAt:
           type: string
           format: date-time
     Discount:
@@ -651,10 +781,7 @@ components:
                 description: شناسه یکتا SKU برای وریانت محصول
               quantity:
                 type: integer
-        status:
-          type: string
-          enum: [pending, paid, canceled, shipped, delivered, refunded]
-          default: pending
+        # status تعیین شده توسط سرور است
         totalPrice:
           type: number
           description: توسط سرور محاسبه می‌شود
@@ -670,3 +797,34 @@ components:
         shippingAddress:
           type: string
           description: آدرس تحویل (اجباری)
+    UpdateOrderInput:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product:
+                type: string
+              variantId:
+                type: string
+              quantity:
+                type: integer
+              price:
+                type: number
+        status:
+          type: string
+          enum: [reserving, reserved, paying, paid, canceled, expired, shipped, delivered, refunded]
+        totalPrice:
+          type: number
+        discountCode:
+          type: string
+        discountAmount:
+          type: number
+        payablePrice:
+          type: number
+        paymentMethod:
+          type: string
+        shippingAddress:
+          type: string
