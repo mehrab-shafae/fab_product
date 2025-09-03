@@ -135,30 +135,24 @@ export const createProduct = async (req: Request, res: Response) => {
                   img: req.body.img,
             };
 
-            // --- meta_helper VALIDATION ---
+            // --- meta_helper VALIDATION (product-only structure) ---
             if (req.body.meta_helper !== undefined) {
                   if (!Array.isArray(req.body.meta_helper)) {
                         return res.status(400).json({ status: 'error', error: 'meta_helper must be an array' });
                   }
-                  const allowedKeys: Set<string> = new Set((category as any).meta_helper || []);
-                  const normalized: Array<Record<string, any>> = [];
+                  const normalized: Array<{ size: string; value: any[] }> = [];
                   for (const entry of req.body.meta_helper) {
                         if (entry == null || typeof entry !== 'object' || Array.isArray(entry)) {
-                              return res.status(400).json({ status: 'error', error: 'Each meta_helper item must be an object' });
+                              return res.status(400).json({ status: 'error', error: 'Each meta_helper item must be an object with size and value' });
                         }
-                        const keys = Object.keys(entry);
-                        if (keys.length !== 1) {
-                              return res.status(400).json({ status: 'error', error: 'Each meta_helper object must contain exactly one key' });
+                        const { size, value } = entry;
+                        if (typeof size !== 'string' || size.trim() === '') {
+                              return res.status(400).json({ status: 'error', error: "meta_helper.size must be a non-empty string" });
                         }
-                        const key = keys[0];
-                        if (allowedKeys.size > 0 && !allowedKeys.has(key)) {
-                              return res.status(400).json({ status: 'error', error: `meta_helper key '${key}' is not allowed for this category` });
+                        if (!Array.isArray(value)) {
+                              return res.status(400).json({ status: 'error', error: "meta_helper.value must be an array" });
                         }
-                        const value = entry[key];
-                        if (value == null || typeof value !== 'object' || Array.isArray(value)) {
-                              return res.status(400).json({ status: 'error', error: `Value for meta_helper key '${key}' must be an object` });
-                        }
-                        normalized.push({ [key]: value });
+                        normalized.push({ size: size.trim(), value });
                   }
                   productData.meta_helper = normalized;
             }
@@ -298,36 +292,24 @@ export const updateProduct = async (req: Request, res: Response) => {
                   img: req.body.img,
             };
 
-            // --- meta_helper VALIDATION (optional) ---
+            // --- meta_helper VALIDATION (product-only structure, optional) ---
             if (req.body.meta_helper !== undefined) {
                   if (!Array.isArray(req.body.meta_helper)) {
                         return res.status(400).json({ status: 'error', error: 'meta_helper must be an array' });
                   }
-                  let categoryForValidation = currentProduct.category_id ? await Category.findById(currentProduct.category_id) : null;
-                  if (req.body.category_id) {
-                        const newCat = await Category.findById(req.body.category_id);
-                        if (!newCat) return res.status(400).json({ status: 'error', error: 'Category not found' });
-                        categoryForValidation = newCat;
-                  }
-                  const allowedKeys: Set<string> = new Set(((categoryForValidation as any)?.meta_helper) || []);
-                  const normalized: Array<Record<string, any>> = [];
+                  const normalized: Array<{ size: string; value: any[] }> = [];
                   for (const entry of req.body.meta_helper) {
                         if (entry == null || typeof entry !== 'object' || Array.isArray(entry)) {
-                              return res.status(400).json({ status: 'error', error: 'Each meta_helper item must be an object' });
+                              return res.status(400).json({ status: 'error', error: 'Each meta_helper item must be an object with size and value' });
                         }
-                        const keys = Object.keys(entry);
-                        if (keys.length !== 1) {
-                              return res.status(400).json({ status: 'error', error: 'Each meta_helper object must contain exactly one key' });
+                        const { size, value } = entry;
+                        if (typeof size !== 'string' || size.trim() === '') {
+                              return res.status(400).json({ status: 'error', error: "meta_helper.size must be a non-empty string" });
                         }
-                        const key = keys[0];
-                        if (allowedKeys.size > 0 && !allowedKeys.has(key)) {
-                              return res.status(400).json({ status: 'error', error: `meta_helper key '${key}' is not allowed for this category` });
+                        if (!Array.isArray(value)) {
+                              return res.status(400).json({ status: 'error', error: "meta_helper.value must be an array" });
                         }
-                        const value = entry[key];
-                        if (value == null || typeof value !== 'object' || Array.isArray(value)) {
-                              return res.status(400).json({ status: 'error', error: `Value for meta_helper key '${key}' must be an object` });
-                        }
-                        normalized.push({ [key]: value });
+                        normalized.push({ size: size.trim(), value });
                   }
                   updateData.meta_helper = normalized;
             }
