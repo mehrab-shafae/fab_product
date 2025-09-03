@@ -13,5 +13,3 @@ router.delete('/:id', controller.remove);
 router.post('/apply', controller.apply);
 
 export default router;
-
-

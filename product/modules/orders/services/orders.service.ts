@@ -8,7 +8,11 @@ export class OrderService {
       /**
        * بررسی موجودی و قیمت محصول
        */
-      private async validateProductAndVariant(productId: string, variantId: string, quantity: number): Promise<{
+      private async validateProductAndVariant(
+            productId: string,
+            variantId: string,
+            quantity: number
+      ): Promise<{
             product: any;
             variant: any;
             availableStock: number;
@@ -43,11 +47,11 @@ export class OrderService {
        */
       private async reserveInventory(productId: string, variantId: string, quantity: number, orderId: string): Promise<void> {
             let invRes: any = await InventoryReservation.findOne({ productId, variantId });
-            
+
             if (!invRes) {
                   const product: any = await Product.findById(productId);
                   const variant = (product.variants || []).find((v: any) => v._id?.toString() === variantId);
-                  
+
                   invRes = new InventoryReservation({
                         productId,
                         variantId,
@@ -65,7 +69,7 @@ export class OrderService {
 
             // افزایش موجودی رزرو شده
             invRes.reservedStock += quantity;
-            
+
             // اضافه کردن به تاریخچه رزرو
             invRes.reservationHistory.push({
                   orderId,
@@ -100,11 +104,7 @@ export class OrderService {
                               throw new Error('شناسه ویراینت برای تمام آیتم‌ها الزامی است');
                         }
 
-                        const validation = await this.validateProductAndVariant(
-                              item.product.toString(),
-                              item.variantId.toString(),
-                              item.quantity
-                        );
+                        const validation = await this.validateProductAndVariant(item.product.toString(), item.variantId.toString(), item.quantity);
 
                         const itemPrice = validation.price * item.quantity;
                         totalPrice += itemPrice;
@@ -136,21 +136,14 @@ export class OrderService {
 
                   // رزرو موجودی برای تمام آیتم‌ها
                   for (const item of validatedItems) {
-                        await this.reserveInventory(
-                              item.product.toString(),
-                              item.variantId.toString(),
-                              item.quantity,
-                              savedOrder._id.toString()
-                        );
+                        await this.reserveInventory(item.product.toString(), item.variantId.toString(), item.quantity, savedOrder._id.toString());
                   }
 
                   // تغییر وضعیت به رزرو شده
                   savedOrder.status = OrderStatus.RESERVED;
                   await savedOrder.save();
 
-                  return savedOrder.populate([
-                        { path: 'items.product', select: 'name img' },
-                  ]);
+                  return savedOrder.populate([{ path: 'items.product', select: 'name img' }]);
             } catch (error) {
                   throw new Error(`خطا در ایجاد سفارش: ${(error as Error).message}`);
             }
@@ -357,77 +350,77 @@ export class OrderService {
             }
       }
 
-    /**
-     * نهایی کردن پرداخت سفارش
-     */
-    async finalizeOrderPayment(orderId: string): Promise<void> {
-        const order: any = await OrderModel.findById(orderId);
-        if (!order) throw new Error('سفارش یافت نشد');
-        
-        if (order.status !== OrderStatus.RESERVED) {
-            throw new Error('سفارش در وضعیت رزرو نیست. وضعیت فعلی: ' + order.status);
-        }
+      /**
+       * نهایی کردن پرداخت سفارش
+       */
+      async finalizeOrderPayment(orderId: string): Promise<void> {
+            const order: any = await OrderModel.findById(orderId);
+            if (!order) throw new Error('سفارش یافت نشد');
 
-        // بررسی مجدد موجودی قبل از نهایی کردن
-      //   for (const item of order.items) {
-      //       const validation = await this.validateProductAndVariant(
-      //           item.product.toString(),
-      //           item.variantId.toString(),
-      //           item.quantity
-      //       );
-      //   }
-
-        // نهایی کردن پرداخت و کاهش موجودی
-        for (const item of order.items) {
-            const product: any = await Product.findById(item.product);
-            if (!product) throw new Error('محصول یافت نشد');
-            
-            const variant = (product.variants || []).find((v: any) => v._id?.toString() === (item.variantId?.toString() || ''));
-            if (!variant) throw new Error('ویراینت محصول یافت نشد');
-            
-            // کاهش موجودی اصلی محصول
-            if (!variant.inventory) {
-                variant.inventory = { stock: 0, price: 0 };
+            if (order.status !== OrderStatus.RESERVED) {
+                  throw new Error('سفارش در وضعیت رزرو نیست. وضعیت فعلی: ' + order.status);
             }
-            
-            if ((variant.inventory.stock || 0) < item.quantity) {
-                throw new Error(`موجودی کافی نیست. موجودی: ${variant.inventory.stock}, درخواستی: ${item.quantity}`);
-            }
-            
-            variant.inventory.stock = (variant.inventory.stock || 0) - item.quantity;
-            await product.save();
 
-            // نهایی کردن رزرو
-            const invRes = await InventoryReservation.findOne({ 
-                productId: product._id, 
-                variantId: variant._id 
-            });
-            
-            if (invRes) {
-                // به‌روزرسانی وضعیت رزرو
-                await InventoryReservation.updateOne(
-                    { 
-                        productId: product._id, 
-                        variantId: variant._id, 
-                        'reservationHistory.orderId': order._id, 
-                        'reservationHistory.status': 'active' 
-                    },
-                    {
-                        $set: {
-                            'reservationHistory.$.status': 'finalized',
-                        },
-                        $inc: {
-                            reservedStock: -item.quantity,
-                        },
-                    }
-                );
-            }
-        }
+            // بررسی مجدد موجودی قبل از نهایی کردن
+            //   for (const item of order.items) {
+            //       const validation = await this.validateProductAndVariant(
+            //           item.product.toString(),
+            //           item.variantId.toString(),
+            //           item.quantity
+            //       );
+            //   }
 
-        // تغییر وضعیت سفارش
-        order.status = OrderStatus.PAID;
-        await order.save();
-    }
+            // نهایی کردن پرداخت و کاهش موجودی
+            for (const item of order.items) {
+                  const product: any = await Product.findById(item.product);
+                  if (!product) throw new Error('محصول یافت نشد');
+
+                  const variant = (product.variants || []).find((v: any) => v._id?.toString() === (item.variantId?.toString() || ''));
+                  if (!variant) throw new Error('ویراینت محصول یافت نشد');
+
+                  // کاهش موجودی اصلی محصول
+                  if (!variant.inventory) {
+                        variant.inventory = { stock: 0, price: 0 };
+                  }
+
+                  if ((variant.inventory.stock || 0) < item.quantity) {
+                        throw new Error(`موجودی کافی نیست. موجودی: ${variant.inventory.stock}, درخواستی: ${item.quantity}`);
+                  }
+
+                  variant.inventory.stock = (variant.inventory.stock || 0) - item.quantity;
+                  await product.save();
+
+                  // نهایی کردن رزرو
+                  const invRes = await InventoryReservation.findOne({
+                        productId: product._id,
+                        variantId: variant._id,
+                  });
+
+                  if (invRes) {
+                        // به‌روزرسانی وضعیت رزرو
+                        await InventoryReservation.updateOne(
+                              {
+                                    productId: product._id,
+                                    variantId: variant._id,
+                                    'reservationHistory.orderId': order._id,
+                                    'reservationHistory.status': 'active',
+                              },
+                              {
+                                    $set: {
+                                          'reservationHistory.$.status': 'finalized',
+                                    },
+                                    $inc: {
+                                          reservedStock: -item.quantity,
+                                    },
+                              }
+                        );
+                  }
+            }
+
+            // تغییر وضعیت سفارش
+            order.status = OrderStatus.PAID;
+            await order.save();
+      }
 
       /**
        * لغو سفارش و آزاد کردن موجودی رزرو شده
@@ -491,7 +484,7 @@ export class OrderService {
                   for (const product of products) {
                         for (const variant of product.variants || []) {
                               const currentStock = variant.inventory?.stock || 0;
-                              
+
                               if (currentStock === 0) {
                                     outOfStockProducts++;
                               } else if (currentStock <= 5) {
@@ -503,7 +496,7 @@ export class OrderService {
                                     productId: product._id,
                                     variantId: variant._id,
                               });
-                              
+
                               if (invRes) {
                                     totalReservedStock += invRes.reservedStock;
                               }

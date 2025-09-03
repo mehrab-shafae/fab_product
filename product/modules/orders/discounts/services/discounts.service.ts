@@ -40,7 +40,11 @@ export class DiscountsService {
             return { discount, status: statusMsg };
       }
 
-      async apply(code: string, userId?: string, productIds?: string[]): Promise<{
+      async apply(
+            code: string,
+            userId?: string,
+            productIds?: string[]
+      ): Promise<{
             code: string;
             type: IDiscount['type'];
             value: number;
@@ -64,5 +68,3 @@ export class DiscountsService {
 }
 
 export const discountsService = new DiscountsService();
-
-

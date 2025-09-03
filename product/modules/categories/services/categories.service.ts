@@ -87,9 +87,9 @@ export class CategoriesService {
                         // ابتدا بررسی کن که آیا attribute با همین نام وجود دارد یا نه
                         let attribute = await CategoryAttribute.findOne({
                               categoryId: category._id,
-                              name: attr.name
+                              name: attr.name,
                         });
-                        
+
                         if (!attribute) {
                               // فقط اگر attribute با همین نام وجود نداشت، ایجاد کن
                               attribute = await CategoryAttribute.create({
@@ -359,9 +359,9 @@ export class CategoriesService {
                               // ابتدا بررسی کن که آیا attribute با همین نام وجود دارد یا نه
                               attribute = await CategoryAttribute.findOne({
                                     categoryId: category._id,
-                                    name: attr.name
+                                    name: attr.name,
                               });
-                              
+
                               if (!attribute) {
                                     // فقط اگر attribute با همین نام وجود نداشت، ایجاد کن
                                     attribute = await CategoryAttribute.create({

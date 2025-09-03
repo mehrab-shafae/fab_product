@@ -364,10 +364,7 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
                                     input: { $ifNull: ['$$v.attributes', []] },
                                     as: 'a',
                                     in: {
-                                          $and: [
-                                                { $in: [{ $toString: '$$a.attribute_id' }, nf.attrIds] },
-                                                { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] },
-                                          ],
+                                          $and: [{ $in: [{ $toString: '$$a.attribute_id' }, nf.attrIds] }, { $in: [{ $toLower: { $ifNull: ['$$a.value', ''] } }, nf.valuesLower] }],
                                     },
                               },
                         },
@@ -447,21 +444,13 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
       const total = first.count && first.count[0] && first.count[0].total ? first.count[0].total : 0;
 
       // Enrich each product: replace category_id with full category (with attributes and options)
-      const categoryIds = Array.from(
-            new Set(
-                  rawData
-                        .map((p: any) => (p && p.category_id ? p.category_id.toString?.() ?? String(p.category_id) : null))
-                        .filter(Boolean)
-            )
-      );
+      const categoryIds = Array.from(new Set(rawData.map((p: any) => (p && p.category_id ? (p.category_id.toString?.() ?? String(p.category_id)) : null)).filter(Boolean)));
       const categoryDocs = categoryIds.length > 0 ? await Category.find({ _id: { $in: categoryIds } }).lean() : [];
-      const catIdToSlug: Record<string, string> = Object.fromEntries(
-            categoryDocs.map((c: any) => [c._id.toString?.() ?? String(c._id), c.slug])
-      );
+      const catIdToSlug: Record<string, string> = Object.fromEntries(categoryDocs.map((c: any) => [c._id.toString?.() ?? String(c._id), c.slug]));
 
       const data = await Promise.all(
             rawData.map(async (p: any) => {
-                  const pidCategoryId = p && p.category_id ? p.category_id.toString?.() ?? String(p.category_id) : null;
+                  const pidCategoryId = p && p.category_id ? (p.category_id.toString?.() ?? String(p.category_id)) : null;
                   let category: any = null;
                   if (pidCategoryId && catIdToSlug[pidCategoryId]) {
                         try {

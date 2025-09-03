@@ -148,10 +148,10 @@ export const createProduct = async (req: Request, res: Response) => {
                         }
                         const { size, value } = entry;
                         if (typeof size !== 'string' || size.trim() === '') {
-                              return res.status(400).json({ status: 'error', error: "meta_helper.size must be a non-empty string" });
+                              return res.status(400).json({ status: 'error', error: 'meta_helper.size must be a non-empty string' });
                         }
                         if (!Array.isArray(value)) {
-                              return res.status(400).json({ status: 'error', error: "meta_helper.value must be an array" });
+                              return res.status(400).json({ status: 'error', error: 'meta_helper.value must be an array' });
                         }
                         normalized.push({ size: size.trim(), value });
                   }
@@ -262,12 +262,12 @@ export const updateProduct = async (req: Request, res: Response) => {
             if (typeof image_ids === 'string') {
                   image_ids = [image_ids];
             }
-            
+
             // --- SLUG LOGIC ---
             const productId = req.params.id;
             const currentProduct = await Product.findById(productId);
             if (!currentProduct) return res.status(404).json({ status: 'error', error: 'Product not found' });
-            
+
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
@@ -276,7 +276,7 @@ export const updateProduct = async (req: Request, res: Response) => {
             } else {
                   slug = currentProduct.slug;
             }
-            
+
             // Check uniqueness only if slug changed
             if (slug !== currentProduct.slug) {
                   const exists = await Product.findOne({ slug });
@@ -285,7 +285,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                   }
             }
             // --- END SLUG LOGIC ---
-            
+
             let updateData: any = {
                   ...req.body,
                   slug, // always use processed slug
@@ -305,10 +305,10 @@ export const updateProduct = async (req: Request, res: Response) => {
                         }
                         const { size, value } = entry;
                         if (typeof size !== 'string' || size.trim() === '') {
-                              return res.status(400).json({ status: 'error', error: "meta_helper.size must be a non-empty string" });
+                              return res.status(400).json({ status: 'error', error: 'meta_helper.size must be a non-empty string' });
                         }
                         if (!Array.isArray(value)) {
-                              return res.status(400).json({ status: 'error', error: "meta_helper.value must be an array" });
+                              return res.status(400).json({ status: 'error', error: 'meta_helper.value must be an array' });
                         }
                         normalized.push({ size: size.trim(), value });
                   }
@@ -320,7 +320,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                   updateData.variants = [];
                   for (const [_i, variant] of req.body.variants.entries()) {
                         let variantObj: any = { ...variant };
-                        
+
                         // attributes: array of { attribute_id, value } (مثل createProduct)
                         if (Array.isArray(variant.attributes)) {
                               variantObj.attributes = [];
@@ -331,7 +331,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                                     });
                               }
                         }
-                        
+
                         // inventory: مقداردهی پیش‌فرض (مثل createProduct)
                         if (!variant.inventory) {
                               variantObj.inventory = { stock: 1, price: 0 };
@@ -339,7 +339,7 @@ export const updateProduct = async (req: Request, res: Response) => {
                               if (typeof variant.inventory.stock !== 'number') variantObj.inventory.stock = 1;
                               if (typeof variant.inventory.price !== 'number') variantObj.inventory.price = 0;
                         }
-                        
+
                         updateData.variants.push(variantObj);
                   }
             }
@@ -461,7 +461,7 @@ export const getProductsBySkus = async (req: Request, res: Response) => {
             // Find products that have variants with the specified SKUs
             const products = await Product.find({
                   'variants.sku': { $in: skus },
-                  deleted_at: null
+                  deleted_at: null,
             });
 
             // Create a map of SKU to product for easy lookup
@@ -475,27 +475,29 @@ export const getProductsBySkus = async (req: Request, res: Response) => {
             });
 
             // Get products in the order of requested SKUs
-            const orderedProducts = skus.map(sku => {
-                  const product = skuToProductMap.get(sku);
-                  if (!product) return null;
-                  
-                  // Find the specific variant with this SKU
-                  const variant = product.variants?.find((v: any) => v.sku === sku);
-                  if (!variant) return null;
-                  
-                  return {
-                        sku,
-                        product: product.toObject(),
-                        variant
-                  };
-            }).filter(Boolean);
+            const orderedProducts = skus
+                  .map(sku => {
+                        const product = skuToProductMap.get(sku);
+                        if (!product) return null;
+
+                        // Find the specific variant with this SKU
+                        const variant = product.variants?.find((v: any) => v.sku === sku);
+                        if (!variant) return null;
+
+                        return {
+                              sku,
+                              product: product.toObject(),
+                              variant,
+                        };
+                  })
+                  .filter(Boolean);
 
             // Get attributes for all products
             const productsWithAttributes = await Promise.all(
                   orderedProducts.map(async (item: any) => {
                         const attributes = await getProductAttributesWithDetails(item.product._id as mongoose.Types.ObjectId);
                         const productObj = item.product;
-                        
+
                         let category = null;
                         let parentSlugs = [];
                         if (productObj.category_id) {
@@ -507,20 +509,20 @@ export const getProductsBySkus = async (req: Request, res: Response) => {
                                     parentSlugs = (category as any)?.parentSlugs || [];
                               }
                         }
-                        
+
                         // حذف category_id و جایگزینی با category و parentSlugs
                         const { category_id, ...rest } = productObj;
                         return {
                               sku: item.sku,
-                              data: { 
-                                    ...rest, 
-                                    category, 
-                                    parentSlugs, 
-                                    attributes, 
-                                    image_ids: productObj.image_ids, 
+                              data: {
+                                    ...rest,
+                                    category,
+                                    parentSlugs,
+                                    attributes,
+                                    image_ids: productObj.image_ids,
                                     img: productObj.img,
-                                    variant: item.variant
-                              }
+                                    variant: item.variant,
+                              },
                         };
                   })
             );

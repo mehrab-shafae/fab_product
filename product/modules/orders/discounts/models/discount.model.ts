@@ -32,5 +32,3 @@ const DiscountSchema = new Schema<IDiscount>(
 );
 
 export const DiscountModel = model<IDiscount>('OrderDiscount', DiscountSchema);
-
-

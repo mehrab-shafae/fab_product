@@ -66,25 +66,19 @@ export const checkProductsExist = async (req: Request, res: Response, next: Next
 
             // Resolve SKUs to product + variant; compute price and totals server-side
             const skus = items.map((it: any) => String(it.sku));
-            const products = await Product.find(
-                  { 'variants.sku': { $in: skus } },
-                  { name: 1, img: 1, variants: 1, status: 1 }
-            ).lean();
+            const products = await Product.find({ 'variants.sku': { $in: skus } }, { name: 1, img: 1, variants: 1, status: 1 }).lean();
 
             const skuToVariantInfo = new Map<string, { productId: string; price: number; stock: number; name: string }>();
             for (const p of products as any[]) {
                   if (!p || p.status !== 'active' || !Array.isArray(p.variants)) continue;
                   for (const v of p.variants) {
                         if (v && typeof v.sku === 'string' && v.sku) {
-                              skuToVariantInfo.set(
-                                    v.sku,
-                                    {
-                                          productId: String(p._id),
-                                          price: Number(v?.inventory?.price || 0),
-                                          stock: Number(v?.inventory?.stock ?? 0),
-                                          name: p.name,
-                                    }
-                              );
+                              skuToVariantInfo.set(v.sku, {
+                                    productId: String(p._id),
+                                    price: Number(v?.inventory?.price || 0),
+                                    stock: Number(v?.inventory?.stock ?? 0),
+                                    name: p.name,
+                              });
                         }
                   }
             }

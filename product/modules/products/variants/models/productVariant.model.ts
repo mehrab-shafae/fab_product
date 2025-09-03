@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-
 /**
  * @deprecated
  */
@@ -18,7 +17,6 @@ export interface IProductVariant extends Document {
       updated_at?: Date;
       deleted_at?: Date;
 }
-
 
 /**
  * @deprecated

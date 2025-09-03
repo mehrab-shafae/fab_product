@@ -69,5 +69,3 @@ export const apply = async (req: Request, res: Response) => {
             res.status(400).json({ status: 'error', message: (err as Error).message });
       }
 };
-
-
