@@ -8,6 +8,14 @@ export const productSchema = Joi.object({
       brand_model: Joi.string().optional(),
       category_id: Joi.string().optional(),
       metadata: Joi.object().optional(),
+      meta_helper: Joi.array()
+            .items(
+                  Joi.object({
+                        size: Joi.string().trim().required(),
+                        value: Joi.array().required(),
+                  })
+            )
+            .optional(),
       status: Joi.string().valid('active', 'inactive', 'draft', 'archived').optional(),
       image_ids: Joi.array().items(Joi.string()).optional(),
       img: Joi.string().optional(),
