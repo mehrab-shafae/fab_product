@@ -59,11 +59,58 @@ export function handleDatabaseError(error: any): { statusCode: number; errorBody
       const key = error.code && MONGO_ERROR_CONFIG[error.code] ? error.code : error.name && MONGO_ERROR_CONFIG[error.name] ? error.name : 'default';
       const config = MONGO_ERROR_CONFIG[key];
 
-      // Determine base message
+      // Craft human-friendly message per error type
       let message = config.defaultMessage;
+      let details: Record<string, any> | undefined;
 
-      // Override generic message if detail or constraint provided
-      if (GENERIC_MESSAGES.includes(message) && (error.detail || error.constraint)) {
+      // Handle duplicate key (E11000)
+      if (error.code === 11000) {
+            // Prefer mongoose's parsed keyValue if available
+            const keyValue = error.keyValue || {};
+            const keys = Object.keys(keyValue);
+            if (keys.length > 0) {
+                  const field = keys[0];
+                  const value = keyValue[field];
+                  message = `Duplicate value for field '${field}': '${value}'`;
+                  details = { field, value };
+            } else if (typeof error.message === 'string') {
+                  // Fallback regex parse from raw message
+                  // Example: E11000 duplicate key error collection: product_db.products index: variants.sku_1 dup key: { variants.sku: "XYZ" }
+                  const fieldMatch = error.message.match(/dup key:\s*\{\s*([^:]+):/);
+                  const valueMatch = error.message.match(/:\s*\{[^}]*:\s*"?([^"}]+)"?\s*\}/);
+                  const indexMatch = error.message.match(/index:\s*([^\s]+)\s/);
+                  const field = fieldMatch ? fieldMatch[1].trim() : indexMatch ? indexMatch[1].replace(/_1$/, '') : undefined;
+                  const value = valueMatch ? valueMatch[1] : undefined;
+                  if (field && value) {
+                        message = `Duplicate value for field '${field}': '${value}'`;
+                        details = { field, value };
+                  } else {
+                        message = 'Duplicate key error. Resource already exists.';
+                  }
+            }
+      }
+
+      // Handle Mongoose ValidationError: aggregate field messages
+      else if (error.name === 'ValidationError' && error.errors) {
+            const fieldErrors = Object.values(error.errors as any).map((e: any) => e.message).filter(Boolean);
+            if (fieldErrors.length > 0) {
+                  message = fieldErrors[0];
+                  details = { errors: fieldErrors };
+            } else {
+                  message = 'Validation failed for one or more fields.';
+            }
+      }
+
+      // Handle Mongoose CastError
+      else if (error.name === 'CastError') {
+            const field = error.path;
+            const value = error.value;
+            message = `Invalid value '${value}' for field '${field}'.`;
+            details = { field, value, kind: error.kind };
+      }
+
+      // Fallback: use provided detail/constraint if generic
+      else if (GENERIC_MESSAGES.includes(message) && (error.detail || error.constraint)) {
             if (error.detail) {
                   message = error.detail;
             } else if (error.constraint) {
@@ -77,17 +124,22 @@ export function handleDatabaseError(error: any): { statusCode: number; errorBody
             data: null,
       };
 
-      // Add details in development
-      if (process.env.NODE_ENV === 'development') {
+      // Include details if available or when in development
+      if (details || process.env.NODE_ENV === 'development') {
             errorBody.details = {
-                  name: error.name,
-                  code: error.code,
-                  keyValue: error.keyValue,
-                  errors: error.errors,
-                  path: error.path,
-                  kind: error.kind,
-                  detail: error.detail,
-                  constraint: error.constraint,
+                  ...(details || {}),
+                  ...(process.env.NODE_ENV === 'development'
+                        ? {
+                                name: error.name,
+                                code: error.code,
+                                keyValue: error.keyValue,
+                                errors: error.errors,
+                                path: error.path,
+                                kind: error.kind,
+                                detail: error.detail,
+                                constraint: error.constraint,
+                          }
+                        : {}),
             };
       }
 

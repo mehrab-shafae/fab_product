@@ -110,6 +110,40 @@ const responseHandler = (_req: Request, res: Response & { success?: (data: any, 
             });
       };
 
+      // Globally wrap res.json to normalize error messages coming from modules
+      const originalJson = res.json.bind(res);
+      res.json = function (body: any) {
+            try {
+                  if (body && typeof body === 'object' && body.status === 'error') {
+                        // Normalize legacy shape: { status: 'error', error: '...' } -> message
+                        if (typeof (body as any).error === 'string' && !(body as any).message) {
+                              (body as any).message = (body as any).error;
+                              delete (body as any).error;
+                        }
+
+                        const message = (body as any).message;
+                        if (typeof message === 'string') {
+                              // Detect Mongo duplicate key raw message and normalize
+                              if (/E11000 duplicate key/i.test(message)) {
+                                    const { errorBody } = handleDatabaseError({ code: 11000, message });
+                                    (body as any).message = errorBody.message;
+                                    if (process.env.NODE_ENV === 'development' && errorBody.details) {
+                                          (body as any).details = { ...((body as any).details || {}), ...errorBody.details };
+                                    }
+                              }
+                              // Detect common Mongoose cast errors
+                              else if (/Cast to .* failed for value/i.test(message)) {
+                                    const { errorBody } = handleDatabaseError({ name: 'CastError', message, path: undefined, value: undefined, kind: undefined });
+                                    (body as any).message = errorBody.message;
+                              }
+                        }
+                  }
+            } catch (_e) {
+                  // Fail open: if normalization fails, return original body
+            }
+            return originalJson(body);
+      } as any;
+
       next();
 };
 
