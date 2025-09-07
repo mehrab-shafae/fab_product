@@ -313,23 +313,30 @@ paths:
               meta_description: "Meta description here."
               meta_helper: ["key1", "key2"]
               attribute_metadata:
+                # مثال 1: attribute موجود با _id (فقط order تغییر کرده)
                 - _id: "507f1f77bcf86cd799439011"
                   name: "Color"
                   type: "enum"
                   required: false
-                  order: 0
+                  order: 1  # فقط این فیلد به‌روزرسانی می‌شود
                   options:
                     - _id: "507f1f77bcf86cd799439012"
                       value: "Red"
                       order: 1
                       description: "Shade of the color"
-                    - _id: "507f1f77bcf86cd799439013"
-                      value: "Blue"
+                    - value: "Blue"  # بدون _id - سیستم خودکار تشخیص می‌دهد
                       order: 2
                       description: "Shade of the color"
-                    - value: "Green"
-                      order: 3
-                      description: "New option without _id"
+                # مثال 2: attribute جدید بدون _id
+                - name: "Size"
+                  type: "enum"
+                  required: true
+                  order: 2
+                  options:
+                    - value: "Small"
+                      order: 1
+                    - value: "Large"
+                      order: 2
       responses:
         '200':
           description: Category updated
@@ -1419,46 +1426,54 @@ components:
             properties:
               _id:
                 type: string
-                description: "شناسه یکتای attribute (اختیاری - برای به‌روزرسانی attribute موجود)"
+                description: "شناسه یکتای attribute (اختیاری - سیستم خودکار تشخیص می‌دهد)"
                 example: "507f1f77bcf86cd799439011"
               id:
                 type: string
-                description: "شناسه یکتای attribute (اختیاری - برای به‌روزرسانی attribute موجود)"
+                description: "شناسه یکتای attribute (اختیاری - سیستم خودکار تشخیص می‌دهد)"
                 example: "507f1f77bcf86cd799439011"
               name:
                 type: string
+                description: "نام attribute - برای تشخیص attribute موجود استفاده می‌شود"
                 example: "Color"
               type:
                 type: string
                 enum: [string, number, enum]
+                description: "نوع attribute - فقط در صورت تغییر به‌روزرسانی می‌شود"
                 example: "enum"
               required:
                 type: boolean
+                description: "آیا attribute اجباری است - فقط در صورت تغییر به‌روزرسانی می‌شود"
                 example: false
               order:
                 type: integer
+                description: "ترتیب نمایش - فقط در صورت تغییر به‌روزرسانی می‌شود"
                 example: 0
               options:
                 type: array
+                description: "گزینه‌های attribute با قابلیت به‌روزرسانی جزئی"
                 items:
                   type: object
                   properties:
                     _id:
                       type: string
-                      description: "شناسه یکتای option (اختیاری - برای به‌روزرسانی option موجود)"
+                      description: "شناسه یکتای option (اختیاری - سیستم خودکار تشخیص می‌دهد)"
                       example: "507f1f77bcf86cd799439012"
                     id:
                       type: string
-                      description: "شناسه یکتای option (اختیاری - برای به‌روزرسانی option موجود)"
+                      description: "شناسه یکتای option (اختیاری - سیستم خودکار تشخیص می‌دهد)"
                       example: "507f1f77bcf86cd799439012"
                     value:
                       type: string
+                      description: "مقدار option - برای تشخیص option موجود استفاده می‌شود"
                       example: "Red"
                     order:
                       type: integer
+                      description: "ترتیب نمایش - فقط در صورت تغییر به‌روزرسانی می‌شود"
                       example: 1
                     description:
                       type: string
+                      description: "توضیحات - فقط در صورت تغییر به‌روزرسانی می‌شود"
                       example: "Shade of the color"
     Category:
       type: object

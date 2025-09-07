@@ -335,18 +335,12 @@ export class CategoriesService {
             for (const newAttr of newAttributes) {
                   let attribute: ICategoryAttribute | null = null;
                   let shouldUpdateAttribute = false;
+                  let updateFields: any = {};
 
-                  // بررسی وجود attribute بر اساس _id یا id
+                  // بررسی وجود attribute بر اساس _id یا id (اختیاری)
                   if ((newAttr as any)._id || (newAttr as any).id) {
                         const attrId = (newAttr as any)._id || (newAttr as any).id;
                         attribute = await CategoryAttribute.findById(attrId);
-
-                        if (attribute) {
-                              // مقایسه فیلدها برای تشخیص تغییر
-                              if (attribute.name !== newAttr.name || attribute.type !== newAttr.type || attribute.required !== (newAttr.required || false) || attribute.order !== (newAttr.order || 0)) {
-                                    shouldUpdateAttribute = true;
-                              }
-                        }
                   }
 
                   // اگر attribute وجود نداشت، بر اساس نام جستجو کن
@@ -355,13 +349,6 @@ export class CategoriesService {
                               categoryId,
                               name: newAttr.name,
                         });
-
-                        if (attribute) {
-                              // مقایسه فیلدها
-                              if (attribute.type !== newAttr.type || attribute.required !== (newAttr.required || false) || attribute.order !== (newAttr.order || 0)) {
-                                    shouldUpdateAttribute = true;
-                              }
-                        }
                   }
 
                   // اگر attribute وجود نداشت، ایجاد کن
@@ -374,14 +361,29 @@ export class CategoriesService {
                               order: newAttr.order || 0,
                         });
                         shouldUpdateAttribute = true; // برای ایجاد options جدید
-                  } else if (shouldUpdateAttribute) {
-                        // به‌روزرسانی attribute موجود
-                        await CategoryAttribute.findByIdAndUpdate(attribute._id, {
-                              name: newAttr.name,
-                              type: newAttr.type,
-                              required: newAttr.required || false,
-                              order: newAttr.order || 0,
-                        });
+                  } else {
+                        // مقایسه فیلدها برای تشخیص تغییرات جزئی
+                        if (attribute.name !== newAttr.name) {
+                              updateFields.name = newAttr.name;
+                              shouldUpdateAttribute = true;
+                        }
+                        if (attribute.type !== newAttr.type) {
+                              updateFields.type = newAttr.type;
+                              shouldUpdateAttribute = true;
+                        }
+                        if (attribute.required !== (newAttr.required || false)) {
+                              updateFields.required = newAttr.required || false;
+                              shouldUpdateAttribute = true;
+                        }
+                        if (attribute.order !== (newAttr.order || 0)) {
+                              updateFields.order = newAttr.order || 0;
+                              shouldUpdateAttribute = true;
+                        }
+
+                        // فقط فیلدهای تغییر کرده را به‌روزرسانی کن
+                        if (shouldUpdateAttribute && Object.keys(updateFields).length > 0) {
+                              await CategoryAttribute.findByIdAndUpdate(attribute._id, updateFields);
+                        }
                   }
 
                   processedAttributeIds.add((attribute._id as Types.ObjectId).toString());
@@ -410,18 +412,12 @@ export class CategoriesService {
             for (const newOpt of newOptions) {
                   let option: ICategoryAttributeOption | null = null;
                   let shouldUpdateOption = false;
+                  let updateFields: any = {};
 
-                  // بررسی وجود option بر اساس _id یا id
+                  // بررسی وجود option بر اساس _id یا id (اختیاری)
                   if ((newOpt as any)._id || (newOpt as any).id) {
                         const optId = (newOpt as any)._id || (newOpt as any).id;
                         option = await CategoryAttributeOption.findById(optId);
-
-                        if (option) {
-                              // مقایسه فیلدها
-                              if (option.value !== newOpt.value || option.order !== (newOpt.order || 0) || option.description !== (newOpt.description || undefined)) {
-                                    shouldUpdateOption = true;
-                              }
-                        }
                   }
 
                   // اگر option وجود نداشت، بر اساس value جستجو کن
@@ -430,13 +426,6 @@ export class CategoriesService {
                               attributeId,
                               value: newOpt.value,
                         });
-
-                        if (option) {
-                              // مقایسه فیلدها
-                              if (option.order !== (newOpt.order || 0) || option.description !== (newOpt.description || undefined)) {
-                                    shouldUpdateOption = true;
-                              }
-                        }
                   }
 
                   // اگر option وجود نداشت، ایجاد کن
@@ -447,13 +436,25 @@ export class CategoriesService {
                               order: newOpt.order || 0,
                               description: newOpt.description,
                         });
-                  } else if (shouldUpdateOption) {
-                        // به‌روزرسانی option موجود
-                        await CategoryAttributeOption.findByIdAndUpdate(option._id, {
-                              value: newOpt.value,
-                              order: newOpt.order || 0,
-                              description: newOpt.description,
-                        });
+                  } else {
+                        // مقایسه فیلدها برای تشخیص تغییرات جزئی
+                        if (option.value !== newOpt.value) {
+                              updateFields.value = newOpt.value;
+                              shouldUpdateOption = true;
+                        }
+                        if (option.order !== (newOpt.order || 0)) {
+                              updateFields.order = newOpt.order || 0;
+                              shouldUpdateOption = true;
+                        }
+                        if (option.description !== (newOpt.description || undefined)) {
+                              updateFields.description = newOpt.description;
+                              shouldUpdateOption = true;
+                        }
+
+                        // فقط فیلدهای تغییر کرده را به‌روزرسانی کن
+                        if (shouldUpdateOption && Object.keys(updateFields).length > 0) {
+                              await CategoryAttributeOption.findByIdAndUpdate(option._id, updateFields);
+                        }
                   }
 
                   processedOptionIds.add((option._id as Types.ObjectId).toString());
