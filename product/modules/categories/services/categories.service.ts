@@ -293,103 +293,7 @@ export class CategoriesService {
             await category.save();
             // اگر attribute_metadata ارسال شد، ویژگی‌ها و گزینه‌های آن را مدیریت کن
             if (data.attribute_metadata && Array.isArray(data.attribute_metadata)) {
-                  // 1. لیست attributeهای فعلی این دسته را بگیر
-                  const currentAttributes = await CategoryAttribute.find({ categoryId: category._id });
-                  // 2. لیست idهای attributeهای جدید را از ورودی استخراج کن
-                  // توجه: فیلد id ممکن است وجود نداشته باشد، پس از _id استفاده می‌کنیم
-                  const newAttrIds = data.attribute_metadata.filter(a => (a as any)._id).map(a => String((a as any)._id));
-                  // 3. attributeهایی که در دیتابیس هستند اما در ورودی نیستند را حذف کن
-                  for (const attr of currentAttributes) {
-                        const attrId = typeof attr._id === 'object' && attr._id !== null && typeof attr._id.toString === 'function' ? attr._id.toString() : String(attr._id);
-                        if (!newAttrIds.includes(attrId)) {
-                              // حذف attribute و optionهایش
-                              await CategoryAttributeOption.deleteMany({ attributeId: attr._id });
-                              await CategoryAttribute.findByIdAndDelete(attr._id);
-                        }
-                  }
-                  // 4. حالا attributeهای جدید را ویرایش/ایجاد کن
-                  for (const attr of data.attribute_metadata) {
-                        let attribute;
-                        if ((attr as any).id) {
-                              attribute = await CategoryAttribute.findById((attr as any).id);
-                              if (attribute) {
-                                    attribute.name = attr.name;
-                                    attribute.type = attr.type;
-                                    attribute.required = attr.required || false;
-                                    attribute.order = attr.order || 0;
-                                    await attribute.save();
-                                    // مدیریت options
-                                    // لیست optionهای فعلی این attribute
-                                    const currentOptions = await CategoryAttributeOption.find({ attributeId: attribute._id });
-                                    // توجه: فیلد id ممکن است وجود نداشته باشد، پس از _id استفاده می‌کنیم
-                                    const newOptIds = (attr.options || []).filter(o => (o as any)._id).map(o => String((o as any)._id));
-                                    // حذف optionهایی که دیگر در ورودی نیستند
-                                    for (const opt of currentOptions) {
-                                          const optId = typeof opt._id === 'object' && opt._id !== null && typeof opt._id.toString === 'function' ? opt._id.toString() : String(opt._id);
-                                          if (!newOptIds.includes(optId)) {
-                                                await CategoryAttributeOption.findByIdAndDelete(opt._id);
-                                          }
-                                    }
-                                    // ویرایش/ایجاد optionها
-                                    if (attr.options && Array.isArray(attr.options)) {
-                                          for (const opt of attr.options) {
-                                                let option;
-                                                if ((opt as any).id) {
-                                                      option = await CategoryAttributeOption.findById((opt as any).id);
-                                                      if (option) {
-                                                            option.value = opt.value;
-                                                            option.order = opt.order || 0;
-                                                            if (Object.prototype.hasOwnProperty.call(opt as any, 'description')) {
-                                                                  (option as any).description = (opt as any).description as any;
-                                                            }
-                                                            await option.save();
-                                                      }
-                                                } else {
-                                                      await CategoryAttributeOption.create({
-                                                            attributeId: attribute._id,
-                                                            value: opt.value,
-                                                            order: opt.order || 0,
-                                                            description: (opt as any).description,
-                                                      });
-                                                }
-                                          }
-                                    }
-                              }
-                        } else {
-                              // ابتدا بررسی کن که آیا attribute با همین نام وجود دارد یا نه
-                              attribute = await CategoryAttribute.findOne({
-                                    categoryId: category._id,
-                                    name: attr.name,
-                              });
-
-                              if (!attribute) {
-                                    // فقط اگر attribute با همین نام وجود نداشت، ایجاد کن
-                                    attribute = await CategoryAttribute.create({
-                                          categoryId: category._id,
-                                          name: attr.name,
-                                          type: attr.type,
-                                          required: attr.required || false,
-                                          order: attr.order || 0,
-                                    });
-                              } else {
-                                    // اگر وجود داشت، فقط فیلدهای غیر بحرانی را آپدیت کن
-                                    attribute.type = attr.type;
-                                    attribute.required = attr.required || false;
-                                    attribute.order = attr.order || 0;
-                                    await attribute.save();
-                              }
-                              if (attr.options && Array.isArray(attr.options)) {
-                                    for (const opt of attr.options) {
-                                          await CategoryAttributeOption.create({
-                                                attributeId: attribute._id,
-                                                value: opt.value,
-                                                order: opt.order || 0,
-                                                description: (opt as any).description,
-                                          });
-                                    }
-                              }
-                        }
-                  }
+                  await this._updateCategoryAttributes(category._id as Types.ObjectId, data.attribute_metadata);
             }
             return category;
       }
@@ -411,6 +315,156 @@ export class CategoriesService {
                   await this._deleteRecursive(new Types.ObjectId(childIdStr));
             }
             await Category.deleteOne({ _id: categoryId });
+      }
+
+      // متد جدید برای به‌روزرسانی هوشمند attributes و options
+      private async _updateCategoryAttributes(categoryId: Types.ObjectId, newAttributes: any[]): Promise<void> {
+            // 1. دریافت attributes فعلی
+            const currentAttributes = await CategoryAttribute.find({ categoryId }).lean();
+            const currentAttributesMap = new Map(currentAttributes.map(attr => [attr._id.toString(), attr]));
+
+            // 2. دریافت options فعلی
+            const currentOptions = await CategoryAttributeOption.find({
+                  attributeId: { $in: currentAttributes.map(attr => attr._id) },
+            }).lean();
+            const currentOptionsMap = new Map(currentOptions.map(opt => [opt._id.toString(), opt]));
+
+            // 3. پردازش attributes جدید
+            const processedAttributeIds = new Set<string>();
+
+            for (const newAttr of newAttributes) {
+                  let attribute: ICategoryAttribute | null = null;
+                  let shouldUpdateAttribute = false;
+
+                  // بررسی وجود attribute بر اساس _id یا id
+                  if ((newAttr as any)._id || (newAttr as any).id) {
+                        const attrId = (newAttr as any)._id || (newAttr as any).id;
+                        attribute = await CategoryAttribute.findById(attrId);
+
+                        if (attribute) {
+                              // مقایسه فیلدها برای تشخیص تغییر
+                              if (attribute.name !== newAttr.name || attribute.type !== newAttr.type || attribute.required !== (newAttr.required || false) || attribute.order !== (newAttr.order || 0)) {
+                                    shouldUpdateAttribute = true;
+                              }
+                        }
+                  }
+
+                  // اگر attribute وجود نداشت، بر اساس نام جستجو کن
+                  if (!attribute) {
+                        attribute = await CategoryAttribute.findOne({
+                              categoryId,
+                              name: newAttr.name,
+                        });
+
+                        if (attribute) {
+                              // مقایسه فیلدها
+                              if (attribute.type !== newAttr.type || attribute.required !== (newAttr.required || false) || attribute.order !== (newAttr.order || 0)) {
+                                    shouldUpdateAttribute = true;
+                              }
+                        }
+                  }
+
+                  // اگر attribute وجود نداشت، ایجاد کن
+                  if (!attribute) {
+                        attribute = await CategoryAttribute.create({
+                              categoryId,
+                              name: newAttr.name,
+                              type: newAttr.type,
+                              required: newAttr.required || false,
+                              order: newAttr.order || 0,
+                        });
+                        shouldUpdateAttribute = true; // برای ایجاد options جدید
+                  } else if (shouldUpdateAttribute) {
+                        // به‌روزرسانی attribute موجود
+                        await CategoryAttribute.findByIdAndUpdate(attribute._id, {
+                              name: newAttr.name,
+                              type: newAttr.type,
+                              required: newAttr.required || false,
+                              order: newAttr.order || 0,
+                        });
+                  }
+
+                  processedAttributeIds.add((attribute._id as Types.ObjectId).toString());
+
+                  // مدیریت options
+                  if (newAttr.options && Array.isArray(newAttr.options)) {
+                        await this._updateAttributeOptions(attribute._id as Types.ObjectId, newAttr.options, currentOptionsMap);
+                  }
+            }
+
+            // 4. حذف attributes و options که دیگر استفاده نمی‌شوند
+            for (const [attrId, currentAttr] of currentAttributesMap) {
+                  if (!processedAttributeIds.has(attrId)) {
+                        // حذف options مربوط به این attribute
+                        await CategoryAttributeOption.deleteMany({ attributeId: currentAttr._id });
+                        // حذف attribute
+                        await CategoryAttribute.findByIdAndDelete(currentAttr._id);
+                  }
+            }
+      }
+
+      // متد کمکی برای به‌روزرسانی options
+      private async _updateAttributeOptions(attributeId: Types.ObjectId, newOptions: any[], currentOptionsMap: Map<string, any>): Promise<void> {
+            const processedOptionIds = new Set<string>();
+
+            for (const newOpt of newOptions) {
+                  let option: ICategoryAttributeOption | null = null;
+                  let shouldUpdateOption = false;
+
+                  // بررسی وجود option بر اساس _id یا id
+                  if ((newOpt as any)._id || (newOpt as any).id) {
+                        const optId = (newOpt as any)._id || (newOpt as any).id;
+                        option = await CategoryAttributeOption.findById(optId);
+
+                        if (option) {
+                              // مقایسه فیلدها
+                              if (option.value !== newOpt.value || option.order !== (newOpt.order || 0) || option.description !== (newOpt.description || undefined)) {
+                                    shouldUpdateOption = true;
+                              }
+                        }
+                  }
+
+                  // اگر option وجود نداشت، بر اساس value جستجو کن
+                  if (!option) {
+                        option = await CategoryAttributeOption.findOne({
+                              attributeId,
+                              value: newOpt.value,
+                        });
+
+                        if (option) {
+                              // مقایسه فیلدها
+                              if (option.order !== (newOpt.order || 0) || option.description !== (newOpt.description || undefined)) {
+                                    shouldUpdateOption = true;
+                              }
+                        }
+                  }
+
+                  // اگر option وجود نداشت، ایجاد کن
+                  if (!option) {
+                        option = await CategoryAttributeOption.create({
+                              attributeId,
+                              value: newOpt.value,
+                              order: newOpt.order || 0,
+                              description: newOpt.description,
+                        });
+                  } else if (shouldUpdateOption) {
+                        // به‌روزرسانی option موجود
+                        await CategoryAttributeOption.findByIdAndUpdate(option._id, {
+                              value: newOpt.value,
+                              order: newOpt.order || 0,
+                              description: newOpt.description,
+                        });
+                  }
+
+                  processedOptionIds.add((option._id as Types.ObjectId).toString());
+            }
+
+            // حذف options که دیگر استفاده نمی‌شوند
+            for (const [optId, currentOpt] of currentOptionsMap) {
+                  if (currentOpt.attributeId.toString() === attributeId.toString() && !processedOptionIds.has(optId)) {
+                        await CategoryAttributeOption.findByIdAndDelete(currentOpt._id);
+                  }
+            }
       }
 
       // جستجوی پیشرفته با صفحه‌بندی و فیلتر و مرتب‌سازی

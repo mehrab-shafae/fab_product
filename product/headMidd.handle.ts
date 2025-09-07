@@ -92,7 +92,9 @@ export function handleDatabaseError(error: any): { statusCode: number; errorBody
 
       // Handle Mongoose ValidationError: aggregate field messages
       else if (error.name === 'ValidationError' && error.errors) {
-            const fieldErrors = Object.values(error.errors as any).map((e: any) => e.message).filter(Boolean);
+            const fieldErrors = Object.values(error.errors as any)
+                  .map((e: any) => e.message)
+                  .filter(Boolean);
             if (fieldErrors.length > 0) {
                   message = fieldErrors[0];
                   details = { errors: fieldErrors };

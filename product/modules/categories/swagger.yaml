@@ -313,17 +313,23 @@ paths:
               meta_description: "Meta description here."
               meta_helper: ["key1", "key2"]
               attribute_metadata:
-                - name: "Color"
+                - _id: "507f1f77bcf86cd799439011"
+                  name: "Color"
                   type: "enum"
                   required: false
                   order: 0
                   options:
-                    - value: "Red"
+                    - _id: "507f1f77bcf86cd799439012"
+                      value: "Red"
                       order: 1
                       description: "Shade of the color"
-                    - value: "Blue"
+                    - _id: "507f1f77bcf86cd799439013"
+                      value: "Blue"
                       order: 2
                       description: "Shade of the color"
+                    - value: "Green"
+                      order: 3
+                      description: "New option without _id"
       responses:
         '200':
           description: Category updated
@@ -1407,9 +1413,18 @@ components:
           example: ["key1", "key2"]
         attribute_metadata:
           type: array
+          description: "لیست attributes دسته‌بندی. برای حفظ _id های موجود، فیلد _id یا id را در هر attribute و option ارسال کنید."
           items:
             type: object
             properties:
+              _id:
+                type: string
+                description: "شناسه یکتای attribute (اختیاری - برای به‌روزرسانی attribute موجود)"
+                example: "507f1f77bcf86cd799439011"
+              id:
+                type: string
+                description: "شناسه یکتای attribute (اختیاری - برای به‌روزرسانی attribute موجود)"
+                example: "507f1f77bcf86cd799439011"
               name:
                 type: string
                 example: "Color"
@@ -1428,6 +1443,14 @@ components:
                 items:
                   type: object
                   properties:
+                    _id:
+                      type: string
+                      description: "شناسه یکتای option (اختیاری - برای به‌روزرسانی option موجود)"
+                      example: "507f1f77bcf86cd799439012"
+                    id:
+                      type: string
+                      description: "شناسه یکتای option (اختیاری - برای به‌روزرسانی option موجود)"
+                      example: "507f1f77bcf86cd799439012"
                     value:
                       type: string
                       example: "Red"
