@@ -4,13 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import pino from 'pino';
 import util from 'node:util';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
 
 (async () => {
-      const __filename = fileURLToPath(import.meta.url);
-      const __dirname = path.dirname(__filename);
-
       // --- find package.json (max 2 levels up)
       let name = null;
       let packageJsonPath = null;
