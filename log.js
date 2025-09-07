@@ -9,16 +9,37 @@ import { dirname } from 'node:path';
 
 (async () => {
       const __filename = fileURLToPath(import.meta.url);
-      const __dirname = dirname(__filename);
+      const __dirname = path.dirname(__filename);
 
-      // --- read package name if available
-      let num0 = Math.floor(Math.random() * 999) + 1;
-      let name = 'core' + num0;
+      // --- find package.json (max 2 levels up)
+      let name = null;
+      let packageJsonPath = null;
+
+      const searchPaths = [path.join(process.cwd(), 'package.json'), path.join(process.cwd(), '..', 'package.json'), path.join(process.cwd(), '..', '..', 'package.json')];
+
+      for (const searchPath of searchPaths) {
+            try {
+                  await fs.access(searchPath);
+                  packageJsonPath = searchPath;
+                  break;
+            } catch (_) {
+                  // ادامه جستجو
+            }
+      }
+
+      if (!packageJsonPath) {
+            console.error('FATAL: Cannot find package.json in current directory or two parent directories');
+            process.exit(1);
+      }
+
       try {
-            const packageJson = await fs.readFile(path.join(__dirname, 'package.json'), 'utf-8');
+            const packageJson = await fs.readFile(packageJsonPath, 'utf-8');
             const pkg = JSON.parse(packageJson);
-            name = pkg.name || name;
-      } catch (_) {}
+            name = pkg.name;
+      } catch (error) {
+            console.error('FATAL: Error reading package.json:', error.message);
+            process.exit(1);
+      }
 
       // --- logs dir & files
       const logDir = path.resolve('./logs');
