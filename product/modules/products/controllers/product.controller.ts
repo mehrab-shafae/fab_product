@@ -92,7 +92,8 @@ export const createProduct = async (req: Request, res: Response) => {
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
             } else {
-                  slug = generateSlug(req.body.name || '');
+                  let num0 = Math.floor(Math.random() * 9999999) + 1;
+                  slug = generateSlug(req.body.name + num0);
             }
             // Check uniqueness
             const exists = await Product.findOne({ slug });
@@ -271,8 +272,8 @@ export const updateProduct = async (req: Request, res: Response) => {
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
-            } else if (req.body.name) {
-                  slug = generateSlug(req.body.name);
+            // } else if (req.body.name) {
+            //       slug = generateSlug(req.body.name);
             } else {
                   slug = currentProduct.slug;
             }
