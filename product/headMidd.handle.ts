@@ -71,7 +71,7 @@ export function handleDatabaseError(error: any): { statusCode: number; errorBody
             if (keys.length > 0) {
                   const field = keys[0];
                   const value = keyValue[field];
-                  message = `Duplicate value for field '${field}': '${value}'`;
+                  message = `مقدار های تکراری برای فیلد: '${field}': '${value}'`;
                   details = { field, value };
             } else if (typeof error.message === 'string') {
                   // Fallback regex parse from raw message
@@ -82,7 +82,7 @@ export function handleDatabaseError(error: any): { statusCode: number; errorBody
                   const field = fieldMatch ? fieldMatch[1].trim() : indexMatch ? indexMatch[1].replace(/_1$/, '') : undefined;
                   const value = valueMatch ? valueMatch[1] : undefined;
                   if (field && value) {
-                        message = `Duplicate value for field '${field}': '${value}'`;
+                        message = `مقدار های تکراری برای فیلد: '${field}': '${value}'`;
                         details = { field, value };
                   } else {
                         message = 'Duplicate key error. Resource already exists.';
