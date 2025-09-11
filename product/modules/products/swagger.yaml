@@ -755,7 +755,7 @@ paths:
               minPrice: 100000
               maxPrice: 500000
               sortOpt:
-                type: expensive
+                type: expensive|cheap|old|new
       responses:
         '200':
           description: لیست محصولات مطابق با فیلترهای دسته‌بندی و ویژگی‌ها
