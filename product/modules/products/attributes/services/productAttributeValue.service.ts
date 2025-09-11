@@ -273,7 +273,7 @@ export const searchProductsByAttributesOnly = async (filters?: Array<{ attribute
       };
 };
 
-export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?: string[], filters?: Array<{ attribute: string; values: string[] }>, page: number = 1, limit: number = 20, minPrice?: number, maxPrice?: number, sortBy?: 'minPrice' | 'maxPrice', sortOrder?: 'asc' | 'desc') => {
+export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?: string[], filters?: Array<{ attribute: string; values: string[] }>, page: number = 1, limit: number = 20, minPrice?: number, maxPrice?: number, sortBy?: 'minPrice' | 'maxPrice' | 'created_at', sortOrder?: 'asc' | 'desc') => {
       // 1) Build category filter (optional)
       let allCategoryIds: Set<string> | undefined = undefined;
       let categories: any[] = [];
@@ -419,6 +419,8 @@ export const searchProductsByCategorySlugsAndAttributes = async (categorySlugs?:
             sortStage.minMatchingVariantPrice = sortOrder === 'desc' ? -1 : 1;
       } else if (sortBy === 'maxPrice') {
             sortStage.maxMatchingVariantPrice = sortOrder === 'desc' ? -1 : 1;
+      } else if (sortBy === 'created_at') {
+            sortStage.created_at = sortOrder === 'desc' ? -1 : 1;
       }
 
       // facet for pagination and total

@@ -175,13 +175,30 @@ export const searchProductsByCategorySlugsAndAttributesController = async (req: 
             }
 
             // Optional sorting
-            const sortBy = req.body.sortBy as 'minPrice' | 'maxPrice' | undefined;
-            const sortOrder = req.body.sortOrder as 'asc' | 'desc' | undefined;
-            if (sortBy && sortBy !== 'minPrice' && sortBy !== 'maxPrice') {
-                  return res.status(400).json({ status: 'error', error: "sortBy must be one of: 'minPrice', 'maxPrice'" });
-            }
-            if (sortOrder && sortOrder !== 'asc' && sortOrder !== 'desc') {
-                  return res.status(400).json({ status: 'error', error: "sortOrder must be one of: 'asc', 'desc'" });
+            const sortOpt = req.body.sortOpt as { type: 'expensive' | 'cheap' | 'old' | 'new' } | undefined;
+            let sortBy: 'minPrice' | 'maxPrice' | 'created_at' | undefined = undefined;
+            let sortOrder: 'asc' | 'desc' | undefined = undefined;
+            if (sortOpt) {
+                switch (sortOpt.type) {
+                    case 'expensive':
+                        sortBy = 'maxPrice';
+                        sortOrder = 'desc';
+                        break;
+                    case 'cheap':
+                        sortBy = 'minPrice';
+                        sortOrder = 'asc';
+                        break;
+                    case 'old':
+                        sortBy = 'created_at';
+                        sortOrder = 'asc';
+                        break;
+                    case 'new':
+                        sortBy = 'created_at';
+                        sortOrder = 'desc';
+                        break;
+                    default:
+                        return res.status(400).json({ status: 'error', error: "sortOpt.type must be one of: 'expensive', 'cheap', 'old', 'new'" });
+                }
             }
 
             // Check if categorySlugs is provided (optional now; only validate if provided)

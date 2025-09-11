@@ -729,27 +729,33 @@ paths:
                   type: number
                   description: >
                     حداکثر قیمت واریانت (اختیاری). اگر ارسال نشود، جستجو فقط بر اساس attribute یا دسته‌بندی انجام می‌شود.
-                sortBy:
-                  type: string
-                  enum: [minPrice, maxPrice]
-                  description: فیلد مرتب‌سازی بر اساس قیمت واریانت‌های منطبق
-                sortOrder:
-                  type: string
-                  enum: [asc, desc]
-                  description: ترتیب مرتب‌سازی (صعودی/نزولی)
-              example:
-                categorySlugs: ["electronics", "smartphones"]
-                filters:
-                  - attribute: brand
-                    values: ["Apple", "Samsung"]
-                  - attribute: color
-                    values: ["black", "white"]
-                  - attribute: size
-                    values: ["XL"]
-                minPrice: 100000
-                maxPrice: 500000
-                sortBy: minPrice|maxPrice
-                sortOrder: asc|desc
+                sortOpt:
+                  type: object
+                  properties:
+                    type:
+                      type: string
+                      enum: [expensive, cheap, old, new]
+                      description: >
+                        گزینه مرتب‌سازی. یکی از:
+                        - expensive: گران‌ترین (بر اساس بیشترین قیمت واریانت)
+                        - cheap: ارزان‌ترین (بر اساس کمترین قیمت واریانت)
+                        - old: قدیمی‌ترین (بر اساس تاریخ ساخت)
+                        - new: جدیدترین (بر اساس تاریخ ساخت)
+                  description: >
+                    شیء مرتب‌سازی. اگر ارسال نشود، ترتیب پیش‌فرض اعمال می‌شود.
+            example:
+              categorySlugs: ["electronics", "smartphones"]
+              filters:
+                - attribute: brand
+                  values: ["Apple", "Samsung"]
+                - attribute: color
+                  values: ["black", "white"]
+                - attribute: size
+                  values: ["XL"]
+              minPrice: 100000
+              maxPrice: 500000
+              sortOpt:
+                type: expensive
       responses:
         '200':
           description: لیست محصولات مطابق با فیلترهای دسته‌بندی و ویژگی‌ها
