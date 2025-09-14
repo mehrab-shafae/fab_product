@@ -179,26 +179,26 @@ export const searchProductsByCategorySlugsAndAttributesController = async (req: 
             let sortBy: 'minPrice' | 'maxPrice' | 'created_at' | undefined = undefined;
             let sortOrder: 'asc' | 'desc' | undefined = undefined;
             if (sortOpt) {
-                switch (sortOpt.type) {
-                    case 'expensive':
-                        sortBy = 'maxPrice';
-                        sortOrder = 'desc';
-                        break;
-                    case 'cheap':
-                        sortBy = 'minPrice';
-                        sortOrder = 'asc';
-                        break;
-                    case 'old':
-                        sortBy = 'created_at';
-                        sortOrder = 'asc';
-                        break;
-                    case 'new':
-                        sortBy = 'created_at';
-                        sortOrder = 'desc';
-                        break;
-                    default:
-                        return res.status(400).json({ status: 'error', error: "sortOpt.type must be one of: 'expensive', 'cheap', 'old', 'new'" });
-                }
+                  switch (sortOpt.type) {
+                        case 'expensive':
+                              sortBy = 'maxPrice';
+                              sortOrder = 'desc';
+                              break;
+                        case 'cheap':
+                              sortBy = 'minPrice';
+                              sortOrder = 'asc';
+                              break;
+                        case 'old':
+                              sortBy = 'created_at';
+                              sortOrder = 'asc';
+                              break;
+                        case 'new':
+                              sortBy = 'created_at';
+                              sortOrder = 'desc';
+                              break;
+                        default:
+                              return res.status(400).json({ status: 'error', error: "sortOpt.type must be one of: 'expensive', 'cheap', 'old', 'new'" });
+                  }
             }
 
             // Check if categorySlugs is provided (optional now; only validate if provided)

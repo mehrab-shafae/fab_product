@@ -272,8 +272,8 @@ export const updateProduct = async (req: Request, res: Response) => {
             let slug = req.body.slug;
             if (slug && typeof slug === 'string') {
                   slug = generateSlug(slug);
-            // } else if (req.body.name) {
-            //       slug = generateSlug(req.body.name);
+                  // } else if (req.body.name) {
+                  //       slug = generateSlug(req.body.name);
             } else {
                   slug = currentProduct.slug;
             }
