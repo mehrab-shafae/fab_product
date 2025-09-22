@@ -6,8 +6,8 @@ import mongoose from 'mongoose';
 export const connectMongo = async (mongoUri: string) => {
       try {
             await mongoose.connect(mongoUri, {
-                  useNewUrlParser: true,
-                  useUnifiedTopology: true,
+                  // useNewUrlParser: true,
+                  // useUnifiedTopology: true,
                   autoIndex: true,
             } as any);
             console.log('MongoDB connected for Product module');
