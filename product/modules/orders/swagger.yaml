@@ -535,26 +535,109 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Discount'
+              $ref: '#/components/schemas/CreateDiscountInput'
             examples:
               sample:
                 value:
-                  code: "OFF10"
                   type: "percentage"
-                  value: 10
+                  value: 20
                   expiry: "2025-12-31T23:59:59.000Z"
-                  maxUsage: 1000
-                  active: true
+                  maxUsage: 100
+                  productMode: "specific"
+                  productIds: ["507f1f77bcf86cd799439011", "SKU001"]
+                  userMode: "one_per_user"
+              auto_code:
+                value:
+                  type: "fixed"
+                  value: 50000
+                  expiry: "2025-12-31T23:59:59.000Z"
+                  maxUsage: 50
+                  productMode: "all"
+                  userMode: "all"
       responses:
         '201':
-          description: تخفیف ایجاد شد
+          description: کد تخفیف با موفقیت ایجاد شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: کد تخفیف با موفقیت ایجاد شد
+                  data:
+                    $ref: '#/components/schemas/Discount'
+        '400':
+          description: داده‌های ورودی نامعتبر است
     get:
       tags:
         - Discounts
-      summary: لیست کدهای تخفیف
+      summary: دریافت کدهای تخفیف با فیلتر
+      parameters:
+        - in: query
+          name: active
+          schema:
+            type: boolean
+          description: فیلتر بر اساس وضعیت فعال/غیرفعال
+        - in: query
+          name: productMode
+          schema:
+            type: string
+            enum: [specific, all]
+          description: فیلتر بر اساس حالت محصول
+        - in: query
+          name: userMode
+          schema:
+            type: string
+            enum: [specific, all, one_per_user]
+          description: فیلتر بر اساس حالت کاربر
+        - in: query
+          name: type
+          schema:
+            type: string
+            enum: [percentage, fixed]
+          description: فیلتر بر اساس نوع تخفیف
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
       responses:
         '200':
-          description: لیست تخفیف‌ها
+          description: لیست کدهای تخفیف
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discounts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Discount'
+                      pagination:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          pages:
+                            type: integer
 
   /orders/discounts/bulk:
     post:
@@ -568,22 +651,67 @@ paths:
             schema:
               type: array
               items:
-                $ref: '#/components/schemas/Discount'
+                $ref: '#/components/schemas/CreateDiscountInput'
             examples:
               sample:
                 value:
-                  - code: "OFF10"
-                    type: "percentage"
+                  - type: "percentage"
                     value: 10
                     maxUsage: 100
-                    active: true
-                  - code: "FIX50K"
-                    type: "fixed"
+                    productMode: "specific"
+                    productIds: ["507f1f77bcf86cd799439011"]
+                    userMode: "one_per_user"
+                  - type: "fixed"
                     value: 50000
-                    active: true
+                    maxUsage: 50
+                    productMode: "all"
+                    userMode: "all"
       responses:
         '201':
-          description: تخفیف‌ها ایجاد شدند
+          description: کدهای تخفیف با موفقیت ایجاد شدند
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  message:
+                    type: string
+                    example: کدهای تخفیف با موفقیت ایجاد شدند
+                  data:
+                    type: object
+                    properties:
+                      discounts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Discount'
+        '400':
+          description: داده‌های ورودی نامعتبر است
+
+  /orders/discounts/list:
+    get:
+      tags:
+        - Discounts
+      summary: لیست ساده کدهای تخفیف (سازگاری با نسخه قبلی)
+      responses:
+        '200':
+          description: لیست کدهای تخفیف
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discounts:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Discount'
 
   /orders/discounts/status/{code}:
     get:
@@ -599,6 +727,132 @@ paths:
       responses:
         '200':
           description: وضعیت کد تخفیف
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discount:
+                        $ref: '#/components/schemas/Discount'
+                      status:
+                        type: string
+        '404':
+          description: کد تخفیف پیدا نشد
+
+  /orders/discounts/detailed-status/{code}:
+    get:
+      tags:
+        - Discounts
+      summary: وضعیت تفصیلی کد تخفیف با آمار
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: وضعیت تفصیلی کد تخفیف
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discount:
+                        $ref: '#/components/schemas/Discount'
+                      status:
+                        type: string
+                      statistics:
+                        type: object
+                        properties:
+                          totalUsage:
+                            type: integer
+                          remainingUsage:
+                            type: integer
+                          uniqueUsers:
+                            type: integer
+                          uniqueProducts:
+                            type: integer
+                          usageByUser:
+                            type: object
+                            additionalProperties:
+                              type: integer
+                          usageByProduct:
+                            type: object
+                            additionalProperties:
+                              type: integer
+        '404':
+          description: کد تخفیف پیدا نشد
+
+  /orders/discounts/usage-history/{code}:
+    get:
+      tags:
+        - Discounts
+      summary: تاریخچه استفاده از کد تخفیف
+      parameters:
+        - in: path
+          name: code
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: تاریخچه استفاده
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      usageRecords:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            userId:
+                              type: string
+                            productId:
+                              type: string
+                            usedAt:
+                              type: string
+                              format: date-time
+                            orderId:
+                              type: string
+                      pagination:
+                        type: object
+                        properties:
+                          total:
+                            type: integer
+                          page:
+                            type: integer
+                          limit:
+                            type: integer
+                          pages:
+                            type: integer
         '404':
           description: کد تخفیف پیدا نشد
 
@@ -606,7 +860,7 @@ paths:
     get:
       tags:
         - Discounts
-      summary: دریافت تخفیف با شناسه
+      summary: دریافت کد تخفیف با شناسه
       parameters:
         - in: path
           name: id
@@ -615,13 +869,25 @@ paths:
             type: string
       responses:
         '200':
-          description: تخفیف یافت شد
+          description: کد تخفیف یافت شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discount:
+                        $ref: '#/components/schemas/Discount'
         '404':
-          description: یافت نشد
+          description: کد تخفیف یافت نشد
     patch:
       tags:
         - Discounts
-      summary: ویرایش تخفیف
+      summary: ویرایش کد تخفیف
       parameters:
         - in: path
           name: id
@@ -633,16 +899,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Discount'
+              $ref: '#/components/schemas/UpdateDiscountInput'
       responses:
         '200':
-          description: تخفیف به‌روزرسانی شد
+          description: کد تخفیف به‌روزرسانی شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      discount:
+                        $ref: '#/components/schemas/Discount'
         '404':
-          description: یافت نشد
+          description: کد تخفیف یافت نشد
     delete:
       tags:
         - Discounts
-      summary: حذف تخفیف
+      summary: حذف کد تخفیف
       parameters:
         - in: path
           name: id
@@ -651,9 +929,67 @@ paths:
             type: string
       responses:
         '200':
-          description: حذف شد
+          description: کد تخفیف حذف شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                    example: کد تخفیف حذف شد
         '404':
-          description: یافت نشد
+          description: کد تخفیف یافت نشد
+
+  /orders/discounts/{id}/status:
+    patch:
+      tags:
+        - Discounts
+      summary: تغییر وضعیت کد تخفیف (فعال/غیرفعال)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - active
+              properties:
+                active:
+                  type: boolean
+                  description: وضعیت فعال/غیرفعال کد تخفیف
+            examples:
+              sample:
+                value:
+                  active: false
+      responses:
+        '200':
+          description: وضعیت کد تخفیف به‌روزرسانی شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  message:
+                    type: string
+                    example: وضعیت کد تخفیف به‌روزرسانی شد
+                  data:
+                    type: object
+                    properties:
+                      discount:
+                        $ref: '#/components/schemas/Discount'
+        '404':
+          description: کد تخفیف یافت نشد
 
   /orders/discounts/apply:
     post:
@@ -666,24 +1002,102 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+                - code
               properties:
                 code:
                   type: string
+                  description: کد تخفیف
                 userId:
                   type: string
+                  description: شناسه کاربر (اختیاری)
                 productIds:
                   type: array
                   items:
                     type: string
+                  description: لیست شناسه محصولات یا SKU (اختیاری)
+                orderId:
+                  type: string
+                  description: شناسه سفارش (اختیاری)
             examples:
               sample:
                 value:
-                  code: "OFF10"
-                  userId: "u123"
-                  productIds: ["64f000000000000000000001", "64f000000000000000000002"]
+                  code: "ABCD1234"
+                  userId: "user123"
+                  productIds: ["507f1f77bcf86cd799439011", "SKU001"]
+                  orderId: "order456"
       responses:
         '200':
-          description: تخفیف اعمال شد
+          description: کد تخفیف با موفقیت اعمال شد
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: کد تخفیف اعمال شد
+                      discount:
+                        type: object
+                        properties:
+                          code:
+                            type: string
+                          type:
+                            type: string
+                            enum: [percentage, fixed]
+                          value:
+                            type: number
+                          appliedProducts:
+                            type: array
+                            items:
+                              type: string
+                          usageRecord:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                userId:
+                                  type: string
+                                productId:
+                                  type: string
+                                usedAt:
+                                  type: string
+                                  format: date-time
+                                orderId:
+                                  type: string
+        '400':
+          description: خطا در اعمال کد تخفیف
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    examples:
+                      not_found:
+                        value: کد تخفیف پیدا نشد
+                      inactive:
+                        value: کد غیرفعال است
+                      expired:
+                        value: کد تخفیف منقضی شده است
+                      max_usage:
+                        value: تعداد استفاده تمام شده است
+                      user_restricted:
+                        value: کد تخفیف برای این کاربر مجاز نیست
+                      already_used:
+                        value: شما قبلاً از این کد تخفیف استفاده کرده‌اید
+                      product_restricted:
+                        value: کد تخفیف برای این محصولات مجاز نیست
 
 components:
   securitySchemes:
@@ -738,6 +1152,115 @@ components:
     Discount:
       type: object
       properties:
+        _id:
+          type: string
+        code:
+          type: string
+          description: کد تخفیف (اگر ارائه نشود، خودکار تولید می‌شود)
+        type:
+          type: string
+          enum: [percentage, fixed]
+          description: نوع تخفیف (درصدی یا مبلغ ثابت)
+        value:
+          type: number
+          description: مقدار تخفیف (درصد یا مبلغ)
+        expiry:
+          type: string
+          format: date-time
+          description: تاریخ انقضا
+        maxUsage:
+          type: integer
+          description: حداکثر تعداد استفاده
+        usedCount:
+          type: integer
+          description: تعداد استفاده شده
+        active:
+          type: boolean
+          description: وضعیت فعال/غیرفعال
+        productMode:
+          type: string
+          enum: [specific, all]
+          description: حالت محصول (مشخص یا همه)
+        productIds:
+          type: array
+          items:
+            type: string
+          description: لیست شناسه محصولات یا SKU
+        userMode:
+          type: string
+          enum: [specific, all, one_per_user]
+          description: حالت کاربر (مشخص، همه، یا یکبار برای هر کاربر)
+        userIds:
+          type: array
+          items:
+            type: string
+          description: لیست شناسه کاربران مجاز
+        usageRecords:
+          type: array
+          items:
+            type: object
+            properties:
+              userId:
+                type: string
+              productId:
+                type: string
+              usedAt:
+                type: string
+                format: date-time
+              orderId:
+                type: string
+          description: تاریخچه استفاده‌ها
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateDiscountInput:
+      type: object
+      required:
+        - type
+        - value
+        - expiry
+        - maxUsage
+      properties:
+        code:
+          type: string
+          description: کد تخفیف (اختیاری - اگر ارائه نشود، خودکار تولید می‌شود)
+        type:
+          type: string
+          enum: [percentage, fixed]
+        value:
+          type: number
+        expiry:
+          type: string
+          format: date-time
+        maxUsage:
+          type: integer
+        active:
+          type: boolean
+          default: true
+        productMode:
+          type: string
+          enum: [specific, all]
+          default: all
+        productIds:
+          type: array
+          items:
+            type: string
+        userMode:
+          type: string
+          enum: [specific, all, one_per_user]
+          default: all
+        userIds:
+          type: array
+          items:
+            type: string
+
+    UpdateDiscountInput:
+      type: object
+      properties:
         code:
           type: string
         type:
@@ -750,14 +1273,18 @@ components:
           format: date-time
         maxUsage:
           type: integer
-        usedCount:
-          type: integer
         active:
           type: boolean
+        productMode:
+          type: string
+          enum: [specific, all]
         productIds:
           type: array
           items:
             type: string
+        userMode:
+          type: string
+          enum: [specific, all, one_per_user]
         userIds:
           type: array
           items:
