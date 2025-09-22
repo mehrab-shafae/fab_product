@@ -10,6 +10,13 @@ export interface ProductValidationResult {
     errors: string[];
 }
 
+export interface ResolvedVariantItem {
+    productId: string;
+    variantId: string;
+    sku?: string;
+    price: number;
+}
+
 export class ProductValidationService {
     /**
      * Validates product IDs and SKUs for discount creation
@@ -159,6 +166,81 @@ export class ProductValidationService {
 
         // Combine direct product IDs with SKU-derived product IDs
         return [...validation.validProductIds, ...skuProductIds];
+    }
+
+    /**
+     * Resolve a mixed array of Product IDs and SKUs into concrete variant items with prices.
+     * - For SKUs: returns the exact variant on its product.
+     * - For Product IDs: returns all active variants of that product.
+     */
+    async resolveVariantPricing(items: string[]): Promise<{ items: ResolvedVariantItem[]; errors: string[] }> {
+        const errors: string[] = [];
+        const result: ResolvedVariantItem[] = [];
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return { items: [], errors: [] };
+        }
+
+        const { productObjectIds, skus } = this.separateIdsAndSkus(items);
+
+        // Resolve product IDs → all variants
+        if (productObjectIds.length > 0) {
+            try {
+                const products: any[] = await Product.find({
+                    _id: { $in: productObjectIds },
+                    status: 'active',
+                    deleted_at: null
+                }).select('_id variants');
+
+                const foundIds = products.map(p => String((p as any)._id));
+                const notFound = productObjectIds.filter(id => !foundIds.includes(id));
+                for (const nf of notFound) {
+                    errors.push(`محصول با شناسه ${nf} پیدا نشد یا غیرفعال است`);
+                }
+
+                for (const p of products) {
+                    ((p as any).variants || []).forEach((v: any) => {
+                        const price = v?.inventory?.price ?? 0;
+                        if (typeof price === 'number') {
+                            result.push({ productId: String((p as any)._id), variantId: String(v._id || ''), sku: v.sku, price });
+                        }
+                    });
+                }
+            } catch {
+                errors.push('خطا در واکشی محصولات برای محاسبه قیمت');
+            }
+        }
+
+        // Resolve SKUs → specific variant
+        if (skus.length > 0) {
+            try {
+                const products: any[] = await Product.find({
+                    'variants.sku': { $in: skus },
+                    status: 'active',
+                    deleted_at: null
+                }).select('_id variants.sku variants.inventory variants._id');
+
+                const foundSkuSet = new Set<string>();
+                products.forEach((product: any) => {
+                    ((product as any).variants || []).forEach((variant: any) => {
+                        if (variant.sku && skus.includes(variant.sku)) {
+                            foundSkuSet.add(variant.sku);
+                            const price = variant?.inventory?.price ?? 0;
+                            result.push({ productId: String((product as any)._id), variantId: String(variant._id || ''), sku: variant.sku, price });
+                        }
+                    });
+                });
+
+                const notFoundSkus = skus.filter(sku => !foundSkuSet.has(sku));
+                for (const nf of notFoundSkus) {
+                    errors.push(`محصول با کد SKU ${nf} پیدا نشد یا غیرفعال است`);
+                }
+            } catch {
+                errors.push('خطا در واکشی وریانت‌ها برای محاسبه قیمت');
+            }
+        }
+
+        return { items: result, errors };
     }
 }
 

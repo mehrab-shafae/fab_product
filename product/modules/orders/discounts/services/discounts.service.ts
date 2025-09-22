@@ -187,6 +187,7 @@ export class DiscountsService {
             type: IDiscount['type'];
             value: number;
             appliedProducts?: string[];
+            pricing?: Array<{ productId: string; variantId: string; sku?: string; originalPrice: number; discountedPrice: number }>;
       }> {
             const now = new Date();
             const discount = await DiscountModel.findOne({ code });
@@ -194,6 +195,17 @@ export class DiscountsService {
             if (!discount.active) throw new Error('کد غیرفعال است');
             if (discount.expiry <= now) throw new Error('کد تخفیف منقضی شده است');
             if (discount.usedCount >= discount.maxUsage) throw new Error('تعداد استفاده تمام شده است');
+
+            // Validate discount value bounds
+            if (discount.type === 'percentage') {
+                  if (discount.value <= 0 || discount.value > 100) {
+                        throw new Error('مقدار درصد تخفیف باید بین 1 تا 100 باشد');
+                  }
+            } else if (discount.type === 'fixed') {
+                  if (!Number.isFinite(discount.value) || discount.value < 1 || discount.value > 1000000000000) {
+                        throw new Error('مقدار تخفیف ثابت باید بین 1 تا 1000000000000 باشد');
+                  }
+            }
 
             // User restrictions
             if (discount.userMode === 'specific' && (!userId || !discount.userIds.includes(userId))) {
@@ -209,15 +221,12 @@ export class DiscountsService {
                   }
             }
 
-            // Resolve product IDs (IDs or SKUs)
-            let validProductIds: string[] = [];
-            if (Array.isArray(productIdsOrSkus) && productIdsOrSkus.length > 0) {
-                  const validation = await productValidationService.validateProducts(productIdsOrSkus);
-                  if (!validation.isValid) {
-                        throw new Error(`محصولات نامعتبر: ${validation.errors.join(', ')}`);
-                  }
-                  validProductIds = await productValidationService.getValidProductIds(productIdsOrSkus);
+            // Resolve variant pricing for provided items (IDs or SKUs)
+            const { items: resolvedItems, errors } = await productValidationService.resolveVariantPricing(productIdsOrSkus || []);
+            if (errors.length > 0) {
+                  throw new Error(`محصولات نامعتبر: ${errors.join(', ')}`);
             }
+            const validProductIds = Array.from(new Set(resolvedItems.map(i => i.productId)));
 
             // Determine applicable products
             let appliedProducts: string[] = [];
@@ -232,6 +241,26 @@ export class DiscountsService {
             } else {
                   appliedProducts = validProductIds;
             }
+
+            // Compute discounted pricing per variant
+            const pricing = resolvedItems
+                  .filter(it => appliedProducts.includes(it.productId))
+                  .map(it => {
+                        const original = Number(it.price || 0);
+                        let discounted = original;
+                        if (discount.type === 'percentage') {
+                              discounted = Math.max(0, Math.round(original - (original * discount.value) / 100));
+                        } else {
+                              discounted = Math.max(0, Math.round(original - discount.value));
+                        }
+                        return {
+                              productId: it.productId,
+                              variantId: it.variantId,
+                              sku: it.sku,
+                              originalPrice: original,
+                              discountedPrice: discounted,
+                        };
+                  });
 
             // Atomic capacity decrement and usage record (per use = 1)
             const updated = await DiscountModel.findOneAndUpdate(
@@ -261,6 +290,7 @@ export class DiscountsService {
                   type: updated.type,
                   value: updated.value,
                   appliedProducts,
+                  pricing,
             };
       }
 

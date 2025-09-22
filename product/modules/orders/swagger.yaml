@@ -1061,6 +1061,21 @@ paths:
                             type: array
                             items:
                               type: string
+                          pricing:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                productId:
+                                  type: string
+                                variantId:
+                                  type: string
+                                sku:
+                                  type: string
+                                originalPrice:
+                                  type: number
+                                discountedPrice:
+                                  type: number
         '400':
           description: خطا در اعمال کد تخفیف
           content:
