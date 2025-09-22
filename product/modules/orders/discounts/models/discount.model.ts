@@ -11,6 +11,13 @@ export interface IUsageRecord {
       orderId?: string;
 }
 
+export interface IUsageRecordV2 {
+      userId: string;
+      productIds: string[];
+      usedAt: Date;
+      orderId?: string;
+}
+
 export interface IDiscount extends Document {
       code: string;
       type: DiscountType;
@@ -24,6 +31,7 @@ export interface IDiscount extends Document {
       userMode: UserMode;
       userIds: string[];
       usageRecords: IUsageRecord[];
+      usageRecordsV2?: IUsageRecordV2[];
       createdAt: Date;
       updatedAt: Date;
 }
@@ -32,6 +40,16 @@ const UsageRecordSchema = new Schema<IUsageRecord>(
       {
             userId: { type: String, required: true },
             productId: { type: String, required: true },
+            usedAt: { type: Date, default: Date.now },
+            orderId: { type: String }
+      },
+      { _id: false }
+);
+
+const UsageRecordV2Schema = new Schema<IUsageRecordV2>(
+      {
+            userId: { type: String, required: true },
+            productIds: [{ type: String, required: true }],
             usedAt: { type: Date, default: Date.now },
             orderId: { type: String }
       },
@@ -51,7 +69,8 @@ const DiscountSchema = new Schema<IDiscount>(
             productIds: [{ type: String }],
             userMode: { type: String, enum: ['specific', 'all', 'one_per_user'], default: 'all' },
             userIds: [{ type: String }],
-            usageRecords: [UsageRecordSchema]
+            usageRecords: [UsageRecordSchema],
+            usageRecordsV2: [UsageRecordV2Schema]
       },
       { timestamps: true }
 );

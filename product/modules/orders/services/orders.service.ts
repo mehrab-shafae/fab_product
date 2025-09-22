@@ -117,8 +117,10 @@ export class OrderService {
                         });
                   }
 
-                  // محاسبه قیمت قابل پرداخت (بدون تخفیف)
-                  const payablePrice = totalPrice;
+                  // محاسبه قیمت قابل پرداخت (با احتساب تخفیف اگر قبلاً محاسبه شده باشد)
+                  const inputDiscountAmount = Number(orderData.discountAmount || 0);
+                  const safeDiscountAmount = Math.max(0, Math.min(inputDiscountAmount, totalPrice));
+                  const payablePrice = totalPrice - safeDiscountAmount;
 
                   // ایجاد سفارش
                   const order = new OrderModel({
@@ -126,7 +128,8 @@ export class OrderService {
                         items: validatedItems,
                         totalPrice,
                         payablePrice,
-                        discountAmount: 0,
+                        discountAmount: safeDiscountAmount,
+                        discountCode: orderData.discountCode,
                         paymentMethod: orderData.paymentMethod,
                         shippingAddress: orderData.shippingAddress,
                         status: OrderStatus.RESERVING, // ابتدا در حال رزرو
@@ -161,7 +164,7 @@ export class OrderService {
 
                   const skip = (page - 1) * limit;
 
-                  const [orders, total] = await Promise.all([OrderModel.find(filter).populate('user', 'name email').populate('items.product', 'name price images').sort({ createdAt: -1 }).skip(skip).limit(limit), OrderModel.countDocuments(filter)]);
+                  const [orders, total] = await Promise.all([OrderModel.find(filter).populate('items.product', 'name price images').sort({ createdAt: -1 }).skip(skip).limit(limit), OrderModel.countDocuments(filter)]);
 
                   return { orders, total };
             } catch (error) {
@@ -174,7 +177,7 @@ export class OrderService {
        */
       async getOrderById(orderId: string): Promise<IOrder | null> {
             try {
-                  return await OrderModel.findById(orderId).populate('user', 'name email phone').populate('items.product', 'name price images description');
+                  return await OrderModel.findById(orderId).populate('items.product', 'name price images description');
             } catch (error) {
                   throw new Error(`خطا در دریافت سفارش: ${(error as Error).message}`);
             }
@@ -201,7 +204,6 @@ export class OrderService {
       async updateOrderStatus(orderId: string, status: OrderStatus): Promise<IOrder | null> {
             try {
                   return await OrderModel.findByIdAndUpdate(orderId, { status }, { new: true }).populate([
-                        { path: 'user', select: 'name email' },
                         { path: 'items.product', select: 'name price' },
                   ]);
             } catch (error) {
@@ -220,7 +222,6 @@ export class OrderService {
                   }
 
                   return await OrderModel.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true }).populate([
-                        { path: 'user', select: 'name email' },
                         { path: 'items.product', select: 'name price images' },
                   ]);
             } catch (error) {

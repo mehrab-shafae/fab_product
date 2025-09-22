@@ -46,6 +46,12 @@ export class DiscountsService {
        * Validates discount data and sets defaults
        */
       private async validateAndSetDefaults(discountData: any): Promise<any> {
+            // Ensure maxUsage > 0
+            if (discountData.maxUsage !== undefined) {
+                  if (typeof discountData.maxUsage !== 'number' || discountData.maxUsage <= 0) {
+                        throw new Error('حداکثر دفعات استفاده (maxUsage) باید عددی بزرگتر از 0 باشد');
+                  }
+            }
             // Generate code if not provided
             if (!discountData.code) {
                   discountData.code = await this.generateUniqueCode();
@@ -154,68 +160,87 @@ export class DiscountsService {
       async apply(
             code: string,
             userId?: string,
-            productIds?: string[],
+            productIdsOrSkus?: string[],
             orderId?: string
       ): Promise<{
             code: string;
             type: IDiscount['type'];
             value: number;
             appliedProducts?: string[];
-            usageRecord?: any;
       }> {
+            const now = new Date();
             const discount = await DiscountModel.findOne({ code });
             if (!discount) throw new Error('کد تخفیف پیدا نشد');
             if (!discount.active) throw new Error('کد غیرفعال است');
-            if (discount.expiry < new Date()) throw new Error('کد تخفیف منقضی شده است');
+            if (discount.expiry <= now) throw new Error('کد تخفیف منقضی شده است');
             if (discount.usedCount >= discount.maxUsage) throw new Error('تعداد استفاده تمام شده است');
 
-            // Check user restrictions
+            // User restrictions
             if (discount.userMode === 'specific' && (!userId || !discount.userIds.includes(userId))) {
                   throw new Error('کد تخفیف برای این کاربر مجاز نیست');
             }
 
-            // Check if user already used this discount (for one_per_user mode)
-            if (discount.userMode === 'one_per_user' && userId) {
-                  const userUsed = discount.usageRecords.some(record => record.userId === userId);
-                  if (userUsed) {
+            // Enforce one-use-per-user generally
+            if (userId) {
+                  const alreadyUsed = (discount.usageRecordsV2 || []).some(r => r.userId === userId) ||
+                        discount.usageRecords.some(r => r.userId === userId);
+                  if (alreadyUsed) {
                         throw new Error('شما قبلاً از این کد تخفیف استفاده کرده‌اید');
                   }
+            }
+
+            // Resolve product IDs (IDs or SKUs)
+            let validProductIds: string[] = [];
+            if (Array.isArray(productIdsOrSkus) && productIdsOrSkus.length > 0) {
+                  const validation = await productValidationService.validateProducts(productIdsOrSkus);
+                  if (!validation.isValid) {
+                        throw new Error(`محصولات نامعتبر: ${validation.errors.join(', ')}`);
+                  }
+                  validProductIds = await productValidationService.getValidProductIds(productIdsOrSkus);
             }
 
             // Determine applicable products
             let appliedProducts: string[] = [];
             if (discount.productMode === 'specific') {
-                  if (!productIds || productIds.length === 0) {
+                  if (!validProductIds || validProductIds.length === 0) {
                         throw new Error('کد تخفیف فقط برای محصولات مشخص شده قابل استفاده است');
                   }
-                  appliedProducts = productIds.filter(pid => discount.productIds.includes(pid));
+                  appliedProducts = validProductIds.filter(pid => discount.productIds.includes(pid));
                   if (appliedProducts.length === 0) {
                         throw new Error('کد تخفیف برای این محصولات مجاز نیست');
                   }
             } else {
-                  // All products mode
-                  appliedProducts = productIds || [];
+                  appliedProducts = validProductIds;
             }
 
-            // Create usage records for each applied product
-            const newUsageRecords = appliedProducts.map(productId => ({
-                  userId: userId || 'anonymous',
-                  productId,
-                  usedAt: new Date(),
-                  orderId
-            }));
+            // Atomic capacity decrement and usage record (per use = 1)
+            const updated = await DiscountModel.findOneAndUpdate(
+                  {
+                        _id: discount._id,
+                        active: true,
+                        expiry: { $gt: now },
+                        usedCount: { $lt: discount.maxUsage },
+                  },
+                  {
+                        $inc: { usedCount: 1 },
+                        $push: {
+                              usageRecordsV2: {
+                                    userId: userId || 'anonymous',
+                                    productIds: appliedProducts,
+                                    usedAt: now,
+                                    orderId,
+                              },
+                        },
+                  },
+                  { new: true }
+            );
+            if (!updated) throw new Error('تعداد استفاده تمام شده است');
 
-            // Update discount
-            discount.usedCount += appliedProducts.length;
-            discount.usageRecords.push(...newUsageRecords);
-            await discount.save();
-
-            return { 
-                  code: discount.code, 
-                  type: discount.type, 
-                  value: discount.value, 
+            return {
+                  code: updated.code,
+                  type: updated.type,
+                  value: updated.value,
                   appliedProducts,
-                  usageRecord: newUsageRecords
             };
       }
 
@@ -242,14 +267,33 @@ export class DiscountsService {
             else if (discount.expiry < new Date()) statusMsg = 'کد تخفیف منقضی شده است';
             else if (discount.usedCount >= discount.maxUsage) statusMsg = 'تعداد استفاده تمام شده است';
 
-            // Calculate statistics
-            const uniqueUsers = new Set(discount.usageRecords.map(r => r.userId)).size;
-            const uniqueProducts = new Set(discount.usageRecords.map(r => r.productId)).size;
+            // Calculate statistics (prefer V2)
+            const usageV2 = discount.usageRecordsV2 || [];
+            const usageLegacy = discount.usageRecords || [];
+            const usersFromV2 = usageV2.map(r => r.userId);
+            const usersFromLegacy = usageLegacy.map(r => r.userId);
+            const uniqueUsers = new Set([...
+                  usersFromV2,
+                  ...usersFromLegacy,
+            ]).size;
+
+            const productsFromV2 = usageV2.flatMap(r => r.productIds || []);
+            const productsFromLegacy = usageLegacy.map(r => r.productId);
+            const uniqueProducts = new Set([...
+                  productsFromV2,
+                  ...productsFromLegacy,
+            ]).size;
             
             const usageByUser: Record<string, number> = {};
             const usageByProduct: Record<string, number> = {};
             
-            discount.usageRecords.forEach(record => {
+            usageV2.forEach(record => {
+                  usageByUser[record.userId] = (usageByUser[record.userId] || 0) + 1;
+                  for (const pid of (record.productIds || [])) {
+                        usageByProduct[pid] = (usageByProduct[pid] || 0) + 1;
+                  }
+            });
+            usageLegacy.forEach(record => {
                   usageByUser[record.userId] = (usageByUser[record.userId] || 0) + 1;
                   usageByProduct[record.productId] = (usageByProduct[record.productId] || 0) + 1;
             });
@@ -284,17 +328,34 @@ export class DiscountsService {
             if (!discount) throw new Error('کد تخفیف پیدا نشد');
 
             const skip = (page - 1) * limit;
-            const usageRecords = discount.usageRecords
+            const combined = [
+                  ...((discount.usageRecordsV2 || []).map(r => ({
+                        version: 'v2',
+                        userId: r.userId,
+                        productIds: r.productIds,
+                        usedAt: r.usedAt,
+                        orderId: r.orderId,
+                  })) || []),
+                  ...((discount.usageRecords || []).map(r => ({
+                        version: 'v1',
+                        userId: r.userId,
+                        productIds: [r.productId],
+                        usedAt: r.usedAt,
+                        orderId: r.orderId,
+                  })) || []),
+            ];
+
+            const usageRecords = combined
                   .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
                   .slice(skip, skip + limit);
 
             return {
                   usageRecords,
                   pagination: {
-                        total: discount.usageRecords.length,
+                        total: combined.length,
                         page,
                         limit,
-                        pages: Math.ceil(discount.usageRecords.length / limit)
+                        pages: Math.ceil(combined.length / limit)
                   }
             };
       }
