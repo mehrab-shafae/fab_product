@@ -78,7 +78,7 @@ export class ProductValidationService {
                 deleted_at: null
             }).select('_id');
 
-            const foundProductIds = products.map(p => p._id.toString());
+            const foundProductIds = products.map((p: any) => p._id.toString());
             const notFoundProductIds = productIds.filter(id => !foundProductIds.includes(id));
 
             result.validProductIds.push(...foundProductIds);
@@ -146,8 +146,8 @@ export class ProductValidationService {
             }).select('_id variants.sku');
 
             const skuToProductIdMap = new Map<string, string>();
-            products.forEach(product => {
-                product.variants?.forEach(variant => {
+            products.forEach((product: any) => {
+                product.variants?.forEach((variant: any) => {
                     if (variant.sku && validation.validSkus.includes(variant.sku)) {
                         skuToProductIdMap.set(variant.sku, product._id.toString());
                     }
