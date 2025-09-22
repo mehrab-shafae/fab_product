@@ -52,6 +52,16 @@ export class DiscountsService {
                         throw new Error('حداکثر دفعات استفاده (maxUsage) باید عددی بزرگتر از 0 باشد');
                   }
             }
+
+            // Handle expiryDays (float days) → expiry Date
+            if (discountData.expiryDays !== undefined && discountData.expiryDays !== null) {
+                  const days = Number(discountData.expiryDays);
+                  if (Number.isNaN(days) || days <= 0) {
+                        throw new Error('مقدار expiryDays نامعتبر است. باید عددی بزرگتر از 0 باشد');
+                  }
+                  const ms = Math.round(days * 24 * 60 * 60 * 1000);
+                  discountData.expiry = new Date(Date.now() + ms);
+            }
             // Generate code if not provided
             if (!discountData.code) {
                   discountData.code = await this.generateUniqueCode();
@@ -75,7 +85,7 @@ export class DiscountsService {
             return discountData;
       }
 
-      async create(discountData: Omit<IDiscount, '_id' | 'createdAt' | 'updatedAt'>): Promise<IDiscount> {
+      async create(discountData: any): Promise<IDiscount> {
             // Validate and set defaults
             const validatedData = await this.validateAndSetDefaults(discountData);
 
@@ -99,7 +109,7 @@ export class DiscountsService {
             return discount.save();
       }
 
-      async bulkCreate(discounts: Array<Omit<IDiscount, '_id' | 'createdAt' | 'updatedAt'>>): Promise<IDiscount[]> {
+      async bulkCreate(discounts: Array<any>): Promise<IDiscount[]> {
             // Validate and set defaults for all discounts
             const validatedDiscounts = [];
             for (const discountData of discounts) {
@@ -139,7 +149,17 @@ export class DiscountsService {
             return DiscountModel.findOne({ code });
       }
 
-      async update(id: string, update: Partial<IDiscount>): Promise<IDiscount | null> {
+      async update(id: string, update: any): Promise<IDiscount | null> {
+            // Allow updating expiry via expiryDays as well
+            if (update && update.expiryDays !== undefined && update.expiryDays !== null) {
+                  const days = Number(update.expiryDays);
+                  if (Number.isNaN(days) || days <= 0) {
+                        throw new Error('مقدار expiryDays نامعتبر است. باید عددی بزرگتر از 0 باشد');
+                  }
+                  const ms = Math.round(days * 24 * 60 * 60 * 1000);
+                  update.expiry = new Date(Date.now() + ms);
+                  delete update.expiryDays;
+            }
             return DiscountModel.findByIdAndUpdate(id, update, { new: true });
       }
 

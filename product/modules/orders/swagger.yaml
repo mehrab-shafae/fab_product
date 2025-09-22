@@ -541,7 +541,7 @@ paths:
                 value:
                   type: "percentage"
                   value: 20
-                  expiry: "2025-12-31T23:59:59.000Z"
+                  expiryDays: 30
                   maxUsage: 100
                   productMode: "specific"
                   productIds: ["507f1f77bcf86cd799439011", "SKU001"]
@@ -550,7 +550,7 @@ paths:
                 value:
                   type: "fixed"
                   value: 50000
-                  expiry: "2025-12-31T23:59:59.000Z"
+                  expiryDays: 365
                   maxUsage: 50
                   productMode: "all"
                   userMode: "all"
@@ -657,12 +657,14 @@ paths:
                 value:
                   - type: "percentage"
                     value: 10
+                    expiryDays: 7
                     maxUsage: 100
                     productMode: "specific"
                     productIds: ["507f1f77bcf86cd799439011"]
                     userMode: "one_per_user"
                   - type: "fixed"
                     value: 50000
+                    expiryDays: 0.5
                     maxUsage: 50
                     productMode: "all"
                     userMode: "all"
@@ -835,8 +837,10 @@ paths:
                           properties:
                             userId:
                               type: string
-                            productId:
-                              type: string
+                            productIds:
+                              type: array
+                              items:
+                                type: string
                             usedAt:
                               type: string
                               format: date-time
@@ -1057,20 +1061,6 @@ paths:
                             type: array
                             items:
                               type: string
-                          usageRecord:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                userId:
-                                  type: string
-                                productId:
-                                  type: string
-                                usedAt:
-                                  type: string
-                                  format: date-time
-                                orderId:
-                                  type: string
         '400':
           description: خطا در اعمال کد تخفیف
           content:
@@ -1168,6 +1158,9 @@ components:
           type: string
           format: date-time
           description: تاریخ انقضا
+        expiryDays:
+          type: number
+          description: مدت زمان انقضا بر حسب روز (ممکن است اعشاری باشد، مانند 0.5)
         maxUsage:
           type: integer
           description: حداکثر تعداد استفاده
@@ -1222,7 +1215,6 @@ components:
       required:
         - type
         - value
-        - expiry
         - maxUsage
       properties:
         code:
@@ -1236,6 +1228,10 @@ components:
         expiry:
           type: string
           format: date-time
+          description: تاریخ انقضا (در صورت عدم ارائه، از expiryDays استفاده می‌شود)
+        expiryDays:
+          type: number
+          description: مدت زمان انقضا بر حسب روز (مثلاً 0.5 = 12 ساعت)
         maxUsage:
           type: integer
         active:
@@ -1271,6 +1267,9 @@ components:
         expiry:
           type: string
           format: date-time
+        expiryDays:
+          type: number
+          description: مدت زمان انقضا بر حسب روز (مثلاً 0.5 = 12 ساعت)
         maxUsage:
           type: integer
         active:
