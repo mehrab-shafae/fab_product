@@ -12,6 +12,7 @@ router.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // CRUD
 router.post('/', validateCreateCategory, checkParentCategoryExists, preventCircularReference, categoriesController.createCategory);
 router.get('/', categoriesController.getCategories);
+router.get('/parents-with-children-products', categoriesController.getParentCategoriesWithChildrenAndProductCount);
 router.get('/tree', categoriesController.getCategoryTree);
 router.get('/featured', categoriesController.getFeaturedCategories);
 router.get('/search', categoriesController.searchCategories);
@@ -86,6 +87,5 @@ router.post('/comparison', categoriesController.getComparisonReport);
 
 // Legacy tree
 router.get('/legacy-tree', categoriesController.getLegacyTree);
-router.get('/parents-with-children-products', categoriesController.getParentCategoriesWithChildrenAndProductCount);
 
 export default router;
