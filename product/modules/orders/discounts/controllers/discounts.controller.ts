@@ -74,8 +74,9 @@ export const statusByCode = async (req: Request, res: Response) => {
 
 export const apply = async (req: Request, res: Response) => {
       try {
-            const { code, userId, productIds, orderId } = req.body;
-            const applied = await discountsService.apply(code, userId, productIds, orderId);
+            const { code, productIds, orderId } = req.body;
+            const headerUserId = String(req.headers['user-id'] || '');
+            const applied = await discountsService.apply(code, headerUserId, productIds, orderId);
             res.json({ status: 'success', data: { message: 'کد تخفیف اعمال شد', discount: applied } });
       } catch (err) {
             res.status(400).json({ status: 'error', message: (err as Error).message });

@@ -163,6 +163,22 @@ export class DiscountsService {
             return DiscountModel.findByIdAndUpdate(id, update, { new: true });
       }
 
+      /**
+       * Revert a recorded usage by orderId (e.g., when order cancels or expires)
+       * - Decrease usedCount by 1 if a V2 usage with the given orderId exists
+       */
+      async revertUsageByOrder(code: string, orderId: string): Promise<void> {
+            const discount = await DiscountModel.findOne({ code });
+            if (!discount) return;
+
+            const idx = (discount.usageRecordsV2 || []).findIndex(r => String(r.orderId || '') === String(orderId));
+            if (idx >= 0) {
+                  discount.usedCount = Math.max(0, (discount.usedCount || 0) - 1);
+                  (discount.usageRecordsV2 || []).splice(idx, 1);
+                  await discount.save();
+            }
+      }
+
       async remove(id: string): Promise<IDiscount | null> {
             return DiscountModel.findByIdAndDelete(id);
       }

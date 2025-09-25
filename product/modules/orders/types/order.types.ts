@@ -28,7 +28,7 @@ export interface IOrder extends Document {
       discountCode?: string;
       discountAmount?: number;
       paymentMethod?: string;
-      shippingAddress?: string;
+      shippingAddress?: Record<string, any>;
       createdAt: Date;
       updatedAt: Date;
 }

@@ -22,7 +22,7 @@ const OrderSchema = new Schema<IOrder>(
             discountCode: { type: String },
             discountAmount: { type: Number, default: 0 },
             paymentMethod: { type: String },
-            shippingAddress: { type: String },
+      shippingAddress: { type: Schema.Types.Mixed },
       },
       { timestamps: true }
 );

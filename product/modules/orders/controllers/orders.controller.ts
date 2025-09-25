@@ -18,23 +18,38 @@ export const createOrder = async (req: Request, res: Response): Promise<void | a
                   return res.status(400).json({ status: 'error', message: 'آدرس الزامی است' });
             }
 
-            // اگر کد تخفیف وجود دارد، ابتدا آن را اعمال کن و مبلغ تخفیف را محاسبه کن
+            // تخفیف را پس از ایجاد سفارش با orderId اعمال خواهیم کرد تا برگشت‌پذیر باشد
+
+            const order = await orderService.createOrder(orderData);
+
+            // اگر کد تخفیف وجود دارد، اکنون با داشتن orderId، تخفیف را اعمال و ثبت کن
             if (orderData.discountCode) {
                   try {
-                        const productIds = Array.isArray(orderData.items) ? orderData.items.map((it: any) => String(it.product)) : [];
-                        const applied = await discountsService.apply(orderData.discountCode, String(orderData.user), productIds);
+                        const mixedIdsOrSkus = Array.isArray(order.items) ? order.items.map((it: any) => String(it.product)) : [];
+                        const applied = await discountsService.apply(orderData.discountCode, String(order.user), mixedIdsOrSkus, String((order as any)._id));
 
-                        const totalEligibleAmount = (orderData.items || []).filter((it: any) => !applied.appliedProducts || applied.appliedProducts.includes(String(it.product))).reduce((sum: number, it: any) => sum + it.price * it.quantity, 0);
+                        const totalEligibleAmount = (order.items || [])
+                              .filter((it: any) => !applied.appliedProducts || applied.appliedProducts.includes(String(it.product)))
+                              .reduce((sum: number, it: any) => sum + it.price * it.quantity, 0);
 
                         const discountAmount = applied.type === 'percentage' ? (totalEligibleAmount * applied.value) / 100 : Math.min(applied.value, totalEligibleAmount);
 
-                        orderData.discountAmount = Math.max(0, Math.round(discountAmount));
+                        // به‌روزرسانی سفارش با مبلغ تخفیف و قیمت پرداختی
+                        const safeDiscountAmount = Math.max(0, Math.round(discountAmount));
+                        const payablePrice = Math.max(0, (order.totalPrice || 0) - safeDiscountAmount);
+                        const updated = await orderService.updateOrder(String((order as any)._id), { discountAmount: safeDiscountAmount, discountCode: orderData.discountCode, payablePrice });
+                        if (updated) {
+                              return res.status(201).json({
+                                    status: 'success',
+                                    message: 'سفارش با موفقیت ایجاد شد',
+                                    data: updated,
+                              });
+                        }
                   } catch (e) {
+                        // اگر اعمال تخفیف شکست خورد، سفارش قبلی حذف یا دست‌نخورده بماند؟ فعلاً پیام خطا برمی‌گردانیم
                         return res.status(400).json({ status: 'error', message: (e as Error).message });
                   }
             }
-
-            const order = await orderService.createOrder(orderData);
 
             res.status(201).json({
                   status: 'success',

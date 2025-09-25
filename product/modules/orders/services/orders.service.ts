@@ -337,6 +337,14 @@ export class OrderService {
                         for (const orderId of orderIdsToExpire) {
                               const order = await OrderModel.findById(orderId);
                               if (order && order.status === OrderStatus.RESERVED) {
+                                    // Revert discount usage if exists
+                                    try {
+                                          if (order.discountCode) {
+                                                const { discountsService } = await import('../discounts/services/discounts.service.js');
+                                                await discountsService.revertUsageByOrder(order.discountCode, order._id.toString());
+                                          }
+                                    } catch {}
+
                                     order.status = OrderStatus.EXPIRED;
                                     await order.save();
                                     expiredOrders++;
@@ -461,6 +469,14 @@ export class OrderService {
                         );
                   }
             }
+
+            // بازگردانی استفاده از کد تخفیف مرتبط با این سفارش در صورت وجود
+            try {
+                  if (order.discountCode) {
+                        const { discountsService } = await import('../discounts/services/discounts.service.js');
+                        await discountsService.revertUsageByOrder(order.discountCode, order._id.toString());
+                  }
+            } catch {}
 
             // تغییر وضعیت سفارش
             order.status = OrderStatus.CANCELED;

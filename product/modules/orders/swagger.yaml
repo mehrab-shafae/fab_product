@@ -41,7 +41,9 @@ paths:
                     - sku: "SKU-XYZ-002"
                       quantity: 1
                   discountCode: "OFF10"
-                  shippingAddress: "تهران، خیابان مثال ۱۲۳"
+                  shippingAddress:
+                    city: "تهران"
+                    street: "خیابان مثال ۱۲۳"
       responses:
         '201':
           description: سفارش با موفقیت ایجاد شد
@@ -1012,9 +1014,6 @@ paths:
                 code:
                   type: string
                   description: کد تخفیف
-                userId:
-                  type: string
-                  description: شناسه کاربر (اختیاری)
                 productIds:
                   type: array
                   items:
@@ -1147,7 +1146,8 @@ components:
         paymentMethod:
           type: string
         shippingAddress:
-          type: string
+          type: object
+          additionalProperties: true
         createdAt:
           type: string
           format: date-time
@@ -1336,8 +1336,9 @@ components:
         paymentMethod:
           type: string
         shippingAddress:
-          type: string
-          description: آدرس تحویل (اجباری)
+          type: object
+          description: آدرس تحویل به صورت آبجکت (اجباری)
+          additionalProperties: true
     UpdateOrderInput:
       type: object
       properties:
@@ -1368,4 +1369,5 @@ components:
         paymentMethod:
           type: string
         shippingAddress:
-          type: string
+          type: object
+          additionalProperties: true
