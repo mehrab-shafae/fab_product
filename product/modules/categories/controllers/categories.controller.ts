@@ -564,7 +564,7 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
       }
 };
 
-export const getParentCategoriesWithChildrenAndProductCount = async (req: Request, res: Response) => {
+export const getParentCategoriesWithChildrenAndProductCount = async (_req: Request, res: Response) => {
     try {
         const data = await categoriesService.getParentCategoriesWithChildrenAndProductCount();
         res.json({ status: 'success', data });
