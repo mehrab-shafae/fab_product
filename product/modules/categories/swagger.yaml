@@ -1285,6 +1285,52 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CategoryAttribute'
+  /parents-with-children-products:
+    get:
+      tags: [Categories]
+      summary: Get all parent categories with their children and product counts
+      description: >
+        Returns all parent categories (categories with no parent) with their children (child categories) and the number of products in each child category.
+        Each parent includes its name, slug, childrenCount, and an array of its children. Each child includes its name, slug, and productsCount.
+      responses:
+        '200':
+          description: List of parent categories with children and product counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: parent1
+                        slug:
+                          type: string
+                          example: parent1
+                        childrenCount:
+                          type: integer
+                          example: 2
+                        children:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              name:
+                                type: string
+                                example: child1
+                              slug:
+                                type: string
+                                example: child1
+                              productsCount:
+                                type: integer
+                                example: 5
 
 components:
   securitySchemes:

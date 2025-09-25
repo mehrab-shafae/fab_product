@@ -3,6 +3,7 @@ import { ICategory, Category } from '../models/category.model.js';
 import { CategoryInput, CategoryUpdateInput, CategoryApprovalInput } from '../types/category.types.js';
 import { CategoryAttribute, ICategoryAttribute } from '../models/categoryAttribute.model.js';
 import { CategoryAttributeOption, ICategoryAttributeOption } from '../models/categoryAttributeOption.model.js';
+import { countProductsByCategoryId } from '../../products/services/product.service.js';
 
 export class CategoriesService {
       // ایجاد دسته‌بندی جدید
@@ -1307,6 +1308,36 @@ export class CategoriesService {
                   total,
             };
       }
+
+      /**
+       * دریافت دسته‌بندی‌های پدر به همراه children و productsCount هر child
+       */
+      async getParentCategoriesWithChildrenAndProductCount(): Promise<any[]> {
+        // دریافت همه دسته‌بندی‌های پدر
+        const parents = await Category.find({ parentId: null, status: 'active' }).lean();
+        const result = [];
+        for (const parent of parents) {
+            // دریافت childrenهای این پدر
+            const children = await Category.find({ parentId: parent._id, status: 'active' }).lean();
+            const childrenWithCount = [];
+            for (const child of children) {
+                // شمارش محصولات این دسته‌بندی child
+                const productsCount = await countProductsByCategoryId(child._id.toString());
+                childrenWithCount.push({
+                    name: child.name,
+                    slug: child.slug,
+                    productsCount
+                });
+            }
+            result.push({
+                name: parent.name,
+                slug: parent.slug,
+                childrenCount: children.length,
+                children: childrenWithCount
+            });
+        }
+        return result;
+    }
 }
 
 export const categoriesService = new CategoriesService();

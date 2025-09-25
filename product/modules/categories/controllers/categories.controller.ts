@@ -563,3 +563,12 @@ export const searchCategoriesByAttributesController = async (req: Request, res: 
             res.status(400).json({ status: 'error', error: error.message });
       }
 };
+
+export const getParentCategoriesWithChildrenAndProductCount = async (req: Request, res: Response) => {
+    try {
+        const data = await categoriesService.getParentCategoriesWithChildrenAndProductCount();
+        res.json({ status: 'success', data });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: (error as Error).message });
+    }
+};

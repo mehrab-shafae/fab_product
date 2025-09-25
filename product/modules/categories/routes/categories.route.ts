@@ -86,5 +86,6 @@ router.post('/comparison', categoriesController.getComparisonReport);
 
 // Legacy tree
 router.get('/legacy-tree', categoriesController.getLegacyTree);
+router.get('/parents-with-children-products', categoriesController.getParentCategoriesWithChildrenAndProductCount);
 
 export default router;
