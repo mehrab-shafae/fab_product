@@ -84,5 +84,5 @@ export const searchProducts = async (params: any) => {
 };
 
 export const countProductsByCategoryId = async (categoryId: string) => {
-    return await Product.countDocuments({ category_id: categoryId, status: 'active', deleted_at: null });
+      return await Product.countDocuments({ category_id: categoryId, status: 'active', deleted_at: null });
 };

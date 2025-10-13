@@ -41,7 +41,7 @@ const UsageRecordSchema = new Schema<IUsageRecord>(
             userId: { type: String, required: true },
             productId: { type: String, required: true },
             usedAt: { type: Date, default: Date.now },
-            orderId: { type: String }
+            orderId: { type: String },
       },
       { _id: false }
 );
@@ -51,7 +51,7 @@ const UsageRecordV2Schema = new Schema<IUsageRecordV2>(
             userId: { type: String, required: true },
             productIds: [{ type: String, required: true }],
             usedAt: { type: Date, default: Date.now },
-            orderId: { type: String }
+            orderId: { type: String },
       },
       { _id: false }
 );
@@ -70,7 +70,7 @@ const DiscountSchema = new Schema<IDiscount>(
             userMode: { type: String, enum: ['specific', 'all', 'one_per_user'], default: 'all' },
             userIds: [{ type: String }],
             usageRecords: [UsageRecordSchema],
-            usageRecordsV2: [UsageRecordV2Schema]
+            usageRecordsV2: [UsageRecordV2Schema],
       },
       { timestamps: true }
 );

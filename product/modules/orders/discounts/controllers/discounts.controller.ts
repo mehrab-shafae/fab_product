@@ -125,7 +125,7 @@ export const getDiscountsWithFilters = async (req: Request, res: Response) => {
                   userMode: userMode as any,
                   type: type as string,
                   page: Number(page),
-                  limit: Number(limit)
+                  limit: Number(limit),
             };
             const result = await discountsService.getDiscountsWithFilters(filters);
             res.json({ status: 'success', data: result });

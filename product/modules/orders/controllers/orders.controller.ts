@@ -28,9 +28,7 @@ export const createOrder = async (req: Request, res: Response): Promise<void | a
                         const mixedIdsOrSkus = Array.isArray(order.items) ? order.items.map((it: any) => String(it.product)) : [];
                         const applied = await discountsService.apply(orderData.discountCode, String(order.user), mixedIdsOrSkus, String((order as any)._id));
 
-                        const totalEligibleAmount = (order.items || [])
-                              .filter((it: any) => !applied.appliedProducts || applied.appliedProducts.includes(String(it.product)))
-                              .reduce((sum: number, it: any) => sum + it.price * it.quantity, 0);
+                        const totalEligibleAmount = (order.items || []).filter((it: any) => !applied.appliedProducts || applied.appliedProducts.includes(String(it.product))).reduce((sum: number, it: any) => sum + it.price * it.quantity, 0);
 
                         const discountAmount = applied.type === 'percentage' ? (totalEligibleAmount * applied.value) / 100 : Math.min(applied.value, totalEligibleAmount);
 

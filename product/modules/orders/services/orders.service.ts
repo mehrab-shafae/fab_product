@@ -203,9 +203,7 @@ export class OrderService {
        */
       async updateOrderStatus(orderId: string, status: OrderStatus): Promise<IOrder | null> {
             try {
-                  return await OrderModel.findByIdAndUpdate(orderId, { status }, { new: true }).populate([
-                        { path: 'items.product', select: 'name price' },
-                  ]);
+                  return await OrderModel.findByIdAndUpdate(orderId, { status }, { new: true }).populate([{ path: 'items.product', select: 'name price' }]);
             } catch (error) {
                   throw new Error(`خطا در به‌روزرسانی وضعیت سفارش: ${(error as Error).message}`);
             }
@@ -221,9 +219,7 @@ export class OrderService {
                         updateData.totalPrice = updateData.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
                   }
 
-                  return await OrderModel.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true }).populate([
-                        { path: 'items.product', select: 'name price images' },
-                  ]);
+                  return await OrderModel.findByIdAndUpdate(orderId, updateData, { new: true, runValidators: true }).populate([{ path: 'items.product', select: 'name price images' }]);
             } catch (error) {
                   throw new Error(`خطا در به‌روزرسانی سفارش: ${(error as Error).message}`);
             }

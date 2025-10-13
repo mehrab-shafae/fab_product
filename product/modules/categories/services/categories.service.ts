@@ -1313,31 +1313,35 @@ export class CategoriesService {
        * دریافت دسته‌بندی‌های پدر به همراه children و productsCount هر child
        */
       async getParentCategoriesWithChildrenAndProductCount(): Promise<any[]> {
-        // دریافت همه دسته‌بندی‌های پدر
-        const parents = await Category.find({ parentId: null, status: 'active' }).lean();
-        const result = [];
-        for (const parent of parents) {
-            // دریافت childrenهای این پدر
-            const children = await Category.find({ parentId: parent._id, status: 'active' }).lean();
-            const childrenWithCount = [];
-            for (const child of children) {
-                // شمارش محصولات این دسته‌بندی child
-                const productsCount = await countProductsByCategoryId(child._id.toString());
-                childrenWithCount.push({
-                    name: child.name,
-                    slug: child.slug,
-                    productsCount
-                });
+            // دریافت همه دسته‌بندی‌های پدر
+            const parents = await Category.find({ parentId: null, status: 'active' }).lean();
+            const result = [];
+            for (const parent of parents) {
+                  // دریافت childrenهای این پدر
+                  const children = await Category.find({ parentId: parent._id, status: 'active' }).lean();
+                  const childrenWithCount = [];
+                  for (const child of children) {
+                        // شمارش محصولات این دسته‌بندی child
+                        const productsCount = await countProductsByCategoryId(child._id.toString());
+                        childrenWithCount.push({
+                              name: child.name,
+                              slug: child.slug,
+                              img: child.img,
+                              image_ids: child.image_ids,
+                              productsCount,
+                        });
+                  }
+                  result.push({
+                        name: parent.name,
+                        slug: parent.slug,
+                        img: parent.img,
+                        image_ids: parent.image_ids,
+                        childrenCount: children.length,
+                        children: childrenWithCount,
+                  });
             }
-            result.push({
-                name: parent.name,
-                slug: parent.slug,
-                childrenCount: children.length,
-                children: childrenWithCount
-            });
-        }
-        return result;
-    }
+            return result;
+      }
 }
 
 export const categoriesService = new CategoriesService();

@@ -8,7 +8,7 @@ export class DiscountsService {
       private async generateUniqueCode(): Promise<string> {
             let attempts = 0;
             const maxAttempts = 10;
-            
+
             while (attempts < maxAttempts) {
                   const code = this.generateRandomCode();
                   const exists = await DiscountModel.findOne({ code });
@@ -17,7 +17,7 @@ export class DiscountsService {
                   }
                   attempts++;
             }
-            
+
             throw new Error('نمی‌توان کد تخفیف منحصر به فرد تولید کرد');
       }
 
@@ -28,17 +28,17 @@ export class DiscountsService {
             const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
             const numbers = '0123456789';
             let code = '';
-            
+
             // Add 3-4 random letters
             for (let i = 0; i < 4; i++) {
                   code += letters.charAt(Math.floor(Math.random() * letters.length));
             }
-            
+
             // Add 3-4 random numbers
             for (let i = 0; i < 4; i++) {
                   code += numbers.charAt(Math.floor(Math.random() * numbers.length));
             }
-            
+
             return code;
       }
 
@@ -92,7 +92,7 @@ export class DiscountsService {
             // Validate product IDs and SKUs if in specific mode
             if (validatedData.productMode === 'specific' && validatedData.productIds && validatedData.productIds.length > 0) {
                   const validation = await productValidationService.validateProducts(validatedData.productIds);
-                  
+
                   if (!validation.isValid) {
                         throw new Error(`محصولات نامعتبر: ${validation.errors.join(', ')}`);
                   }
@@ -114,11 +114,11 @@ export class DiscountsService {
             const validatedDiscounts = [];
             for (const discountData of discounts) {
                   const validatedData = await this.validateAndSetDefaults(discountData);
-                  
+
                   // Validate product IDs and SKUs if in specific mode
                   if (validatedData.productMode === 'specific' && validatedData.productIds && validatedData.productIds.length > 0) {
                         const validation = await productValidationService.validateProducts(validatedData.productIds);
-                        
+
                         if (!validation.isValid) {
                               throw new Error(`محصولات نامعتبر در تخفیف ${validatedData.code || 'نامشخص'}: ${validation.errors.join(', ')}`);
                         }
@@ -130,7 +130,7 @@ export class DiscountsService {
                         // Clear productIds for all products mode
                         validatedData.productIds = [];
                   }
-                  
+
                   validatedDiscounts.push(validatedData);
             }
 
@@ -230,8 +230,7 @@ export class DiscountsService {
 
             // Enforce one-use-per-user generally
             if (userId) {
-                  const alreadyUsed = (discount.usageRecordsV2 || []).some(r => r.userId === userId) ||
-                        discount.usageRecords.some(r => r.userId === userId);
+                  const alreadyUsed = (discount.usageRecordsV2 || []).some(r => r.userId === userId) || discount.usageRecords.some(r => r.userId === userId);
                   if (alreadyUsed) {
                         throw new Error('شما قبلاً از این کد تخفیف استفاده کرده‌اید');
                   }
@@ -338,24 +337,18 @@ export class DiscountsService {
             const usageLegacy = discount.usageRecords || [];
             const usersFromV2 = usageV2.map(r => r.userId);
             const usersFromLegacy = usageLegacy.map(r => r.userId);
-            const uniqueUsers = new Set([...
-                  usersFromV2,
-                  ...usersFromLegacy,
-            ]).size;
+            const uniqueUsers = new Set([...usersFromV2, ...usersFromLegacy]).size;
 
             const productsFromV2 = usageV2.flatMap(r => r.productIds || []);
             const productsFromLegacy = usageLegacy.map(r => r.productId);
-            const uniqueProducts = new Set([...
-                  productsFromV2,
-                  ...productsFromLegacy,
-            ]).size;
-            
+            const uniqueProducts = new Set([...productsFromV2, ...productsFromLegacy]).size;
+
             const usageByUser: Record<string, number> = {};
             const usageByProduct: Record<string, number> = {};
-            
+
             usageV2.forEach(record => {
                   usageByUser[record.userId] = (usageByUser[record.userId] || 0) + 1;
-                  for (const pid of (record.productIds || [])) {
+                  for (const pid of record.productIds || []) {
                         usageByProduct[pid] = (usageByProduct[pid] || 0) + 1;
                   }
             });
@@ -373,15 +366,19 @@ export class DiscountsService {
                         uniqueUsers,
                         uniqueProducts,
                         usageByUser,
-                        usageByProduct
-                  }
+                        usageByProduct,
+                  },
             };
       }
 
       /**
        * Get usage history for a discount
        */
-      async getUsageHistory(code: string, page: number = 1, limit: number = 10): Promise<{
+      async getUsageHistory(
+            code: string,
+            page: number = 1,
+            limit: number = 10
+      ): Promise<{
             usageRecords: any[];
             pagination: {
                   total: number;
@@ -411,9 +408,7 @@ export class DiscountsService {
                   })) || []),
             ];
 
-            const usageRecords = combined
-                  .sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime())
-                  .slice(skip, skip + limit);
+            const usageRecords = combined.sort((a, b) => new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime()).slice(skip, skip + limit);
 
             return {
                   usageRecords,
@@ -421,8 +416,8 @@ export class DiscountsService {
                         total: combined.length,
                         page,
                         limit,
-                        pages: Math.ceil(combined.length / limit)
-                  }
+                        pages: Math.ceil(combined.length / limit),
+                  },
             };
       }
 
@@ -436,14 +431,16 @@ export class DiscountsService {
       /**
        * Get all discounts with filtering and pagination
        */
-      async getDiscountsWithFilters(filters: {
-            active?: boolean;
-            productMode?: ProductMode;
-            userMode?: UserMode;
-            type?: string;
-            page?: number;
-            limit?: number;
-      } = {}): Promise<{
+      async getDiscountsWithFilters(
+            filters: {
+                  active?: boolean;
+                  productMode?: ProductMode;
+                  userMode?: UserMode;
+                  type?: string;
+                  page?: number;
+                  limit?: number;
+            } = {}
+      ): Promise<{
             discounts: IDiscount[];
             pagination: {
                   total: number;
@@ -461,10 +458,7 @@ export class DiscountsService {
             if (type) query.type = type;
 
             const skip = (page - 1) * limit;
-            const [discounts, total] = await Promise.all([
-                  DiscountModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
-                  DiscountModel.countDocuments(query)
-            ]);
+            const [discounts, total] = await Promise.all([DiscountModel.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit), DiscountModel.countDocuments(query)]);
 
             return {
                   discounts,
@@ -472,8 +466,8 @@ export class DiscountsService {
                         total,
                         page,
                         limit,
-                        pages: Math.ceil(total / limit)
-                  }
+                        pages: Math.ceil(total / limit),
+                  },
             };
       }
 }
