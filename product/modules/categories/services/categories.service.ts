@@ -4,6 +4,7 @@ import { CategoryInput, CategoryUpdateInput, CategoryApprovalInput } from '../ty
 import { CategoryAttribute, ICategoryAttribute } from '../models/categoryAttribute.model.js';
 import { CategoryAttributeOption, ICategoryAttributeOption } from '../models/categoryAttributeOption.model.js';
 import { countProductsByCategoryId } from '../../products/services/product.service.js';
+import { FlattenMaps } from 'mongoose';
 
 export class CategoriesService {
       // ایجاد دسته‌بندی جدید
@@ -118,7 +119,7 @@ export class CategoriesService {
       }
 
       // دریافت دسته با آیدی
-      async getById(id: string, options?: { includeChildren?: boolean; depth?: number; includeAttributes?: boolean }): Promise<ICategory | null> {
+      async getById(id: string, options?: { includeChildren?: boolean; depth?: number; includeAttributes?: boolean }): Promise<FlattenMaps<ICategory> | null> {
             const { includeChildren = true, depth = 2, includeAttributes = true } = options || {};
             const category = await Category.findById(id).lean();
             if (!category) return null;
@@ -133,7 +134,7 @@ export class CategoriesService {
                   const attributes = await this.getAttributes(category._id.toString());
                   (category as any).attributes = attributes;
             }
-            return category as ICategory;
+            return category as FlattenMaps<ICategory>;
       }
 
       private async _getChildrenRecursive(parentId: Types.ObjectId, depth: number): Promise<any[]> {
@@ -148,7 +149,7 @@ export class CategoriesService {
       }
 
       // دریافت دسته با اسلاگ
-      async getBySlug(slug: string, options?: any): Promise<ICategory | null> {
+      async getBySlug(slug: string, options?: any): Promise<FlattenMaps<ICategory> | null> {
             const { includeChildren = true, depth = 2, includeAttributes = true } = options || {};
 
             // ابتدا در slug اصلی جستجو کن
@@ -193,7 +194,7 @@ export class CategoriesService {
             // اضافه کردن parent slugs به خروجی
             (category as any).parentSlugs = parentSlugs;
 
-            return category as ICategory;
+            return category as FlattenMaps<ICategory>;
       }
 
       // دریافت درخت دسته‌بندی
@@ -629,7 +630,7 @@ export class CategoriesService {
       }
 
       // دریافت دسته‌های ویژه
-      async getFeaturedCategories(limit: number = 10): Promise<ICategory[]> {
+      async getFeaturedCategories(limit: number = 10): Promise<FlattenMaps<ICategory>[]> {
             return Category.find({ is_featured: true }).limit(limit).lean();
       }
 
@@ -668,7 +669,7 @@ export class CategoriesService {
       }
 
       // دریافت قالب دسته
-      async getCategoryTemplate(templateId: string): Promise<ICategory | null> {
+      async getCategoryTemplate(templateId: string): Promise<FlattenMaps<ICategory> | null> {
             return Category.findById(templateId).lean();
       }
 
@@ -919,17 +920,17 @@ export class CategoriesService {
             const res = await CategoryAttributeOption.findByIdAndDelete(optionId);
             return !!res;
       }
-      async getAttributeOptions(attributeId: string): Promise<ICategoryAttributeOption[]> {
+      async getAttributeOptions(attributeId: string): Promise<FlattenMaps<ICategoryAttributeOption>[]> {
             return CategoryAttributeOption.find({ attributeId }).sort({ order: 1 }).lean();
       }
 
       // دریافت تمام زیرمجموعه‌های یک دسته (بازگشتی)
-      async getCategoryDescendants(id: string): Promise<ICategory[]> {
+      async getCategoryDescendants(id: string): Promise<FlattenMaps<ICategory>[]> {
             const descendants: ICategory[] = [];
             const findDescendants = async (parentId: string) => {
                   const children = await Category.find({ parentId }).lean();
                   for (const child of children) {
-                        descendants.push(child as ICategory);
+                        descendants.push(child as any);
                         await findDescendants(child._id.toString());
                   }
             };
@@ -943,14 +944,14 @@ export class CategoriesService {
             let current = await Category.findById(id).lean();
             while (current && current.parentId) {
                   const parent = await Category.findById(current.parentId).lean();
-                  if (parent) ancestors.unshift(parent as ICategory);
+                  if (parent) ancestors.unshift(parent as any);
                   current = parent;
             }
             return ancestors;
       }
 
       // دریافت دسته‌های هم‌سطح (siblings)
-      async getCategorySiblings(id: string): Promise<ICategory[]> {
+      async getCategorySiblings(id: string): Promise<FlattenMaps<ICategory>[]> {
             const category = await Category.findById(id).lean();
             if (!category) return [];
             return Category.find({ parentId: category.parentId, _id: { $ne: category._id } }).lean();
