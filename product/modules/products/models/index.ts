@@ -6,10 +6,13 @@ import mongoose from 'mongoose';
 export const connectMongo = async (mongoUri: string) => {
       try {
             await mongoose.connect(mongoUri, {
-                  // useNewUrlParser: true,
-                  // useUnifiedTopology: true,
-                  autoIndex: true,
-            } as any);
+                        authSource: 'admin',
+                        socketTimeoutMS: 60000,
+                        serverSelectionTimeoutMS: 60000,
+                        minPoolSize: 5,
+                        maxPoolSize: 20,
+                        autoIndex: true
+    });
             console.log('MongoDB connected for Product module');
 
             // Ensure indexes are synchronized so schema-level indexes (including partial/unique) are actually created
