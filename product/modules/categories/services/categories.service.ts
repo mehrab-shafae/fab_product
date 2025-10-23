@@ -925,7 +925,7 @@ export class CategoriesService {
       }
 
       // دریافت تمام زیرمجموعه‌های یک دسته (بازگشتی)
-      async getCategoryDescendants(id: string): Promise<FlattenMaps<ICategory>[]> {
+      async getCategoryDescendants(id: string): Promise<FlattenMaps<ICategory>[] | any> {
             const descendants: ICategory[] = [];
             const findDescendants = async (parentId: string) => {
                   const children = await Category.find({ parentId }).lean();
