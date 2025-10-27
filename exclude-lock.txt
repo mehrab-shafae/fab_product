@@ -1,6 +1,0 @@
-node_modules/
-.git/
-yarn.lock
-**/**.log
-.env
-build/

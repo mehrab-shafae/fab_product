@@ -1,4 +1,4 @@
-FROM node:lts-bookworm-slim
+FROM node:lts-alpine
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN npm install \
 
 COPY . .
 
-COPY .env .env
+COPY .env.test .env
 
 RUN tsc
 
