@@ -1,0 +1,16 @@
+FROM node:lts-alpine
+
+WORKDIR /app
+
+COPY package.json ./
+
+RUN npm install \
+    && npm install typescript -g
+
+COPY . .
+
+COPY .env.production .env
+
+RUN tsc
+
+CMD ["npm", "start"]

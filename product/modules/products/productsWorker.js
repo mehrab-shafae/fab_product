@@ -17,7 +17,14 @@ const swaggerEndPoint = '/api/product/v2/api-docs';
 const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongodb:27017/product_db';
 
 async function connectToMongo() {
-      await mongoose.connect(MONGO_URI, { autoIndex: true }).catch(err => {
+      await mongoose.connect(MONGO_URI, {
+                        authSource: 'admin',
+                        socketTimeoutMS: 60000,
+                        serverSelectionTimeoutMS: 60000,
+                        minPoolSize: 5,
+                        maxPoolSize: 20,
+                        autoIndex: true
+    }).catch(err => {
             console.error('MongoDB connection error:', err);
             process.exit(1);
       });
